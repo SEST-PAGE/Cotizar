@@ -1,6 +1,4 @@
-import { getDb, json, cors204 } from '../_lib/helpers.js';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { getDb, signToken, hashPassword, json, cors204 } from '../_lib/helpers.js';
 
 export async function onRequest({ request, env }) {
   if (request.method === 'OPTIONS') return cors204();
@@ -16,13 +14,12 @@ export async function onRequest({ request, env }) {
     const exists = await sql`SELECT id FROM usuarios WHERE email=${emailLow}`;
     if (exists.length) return json({ error: 'El email ya está registrado' }, 400);
 
-    const hash = await bcrypt.hash(password, 12);
+    const hash = await hashPassword(password);
     const result = await sql`INSERT INTO usuarios(nombre,email,password_hash,rol) VALUES(${nombre},${emailLow},${hash},${rol}) RETURNING id,nombre,email,rol`;
     const user = result[0];
-    const token = jwt.sign(
+    const token = await signToken(
       { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol },
-      env.JWT_SECRET || 'secreto-dev',
-      { expiresIn: '8h' }
+      env
     );
     return json({ token, usuario: user }, 201);
   } catch (err) {

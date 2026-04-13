@@ -1,6 +1,4 @@
-import { getDb, json, cors204 } from '../_lib/helpers.js';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { getDb, signToken, verifyPassword, json, cors204 } from '../_lib/helpers.js';
 
 export async function onRequest({ request, env }) {
   if (request.method === 'OPTIONS') return cors204();
@@ -17,13 +15,13 @@ export async function onRequest({ request, env }) {
     if (!users.length) return json({ error: 'Credenciales incorrectas' }, 401);
 
     const user = users[0];
-    if (!await bcrypt.compare(password, user.password_hash)) return json({ error: 'Credenciales incorrectas' }, 401);
+    const valid = await verifyPassword(password, user.password_hash);
+    if (!valid) return json({ error: 'Credenciales incorrectas' }, 401);
 
     const permisos = user.permisos || 'vendedor';
-    const token = jwt.sign(
+    const token = await signToken(
       { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, permisos },
-      env.JWT_SECRET || 'secreto-dev',
-      { expiresIn: '8h' }
+      env
     );
     return json({ token, usuario: { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol, permisos } });
   } catch (err) {
