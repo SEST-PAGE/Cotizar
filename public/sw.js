@@ -1,11 +1,11 @@
 // ============================================================
-// SEST - Service Worker v1.
+// SEST - Service Worker v3.
 // Estrategia: Cache-first para assets estáticos,
 //             Network-first para llamadas API,
 //             Offline fallback para navegación.
 // ============================================================
-const CACHE_NAME = 'sest-v1';
-const CACHE_STATIC = 'sest-static-v1';
+const CACHE_NAME = 'sest-v3';
+const CACHE_STATIC = 'sest-static-v3';
 
 // Assets que se cachean al instalar el SW
 const PRECACHE_URLS = [
