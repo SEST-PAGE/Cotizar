@@ -3,7 +3,7 @@ import { getDb, getUser, json, cors204, parseBody } from '../_lib/helpers.js';
 export async function onRequest({ request, env }) {
   if (request.method === 'OPTIONS') return cors204();
 
-  const user = getUser(request, env);
+  const user = await getUser(request, env);
   if (!user) return json({ error: 'No autorizado' }, 401);
 
   const sql = getDb(env);
@@ -21,13 +21,13 @@ export async function onRequest({ request, env }) {
       if (!nombre) return json({ error: 'El nombre es requerido' }, 400);
       const exists = await sql`SELECT id FROM categorias WHERE nombre=${nombre.trim()}`;
       if (exists.length) return json({ error: 'Ya existe una categoría con ese nombre' }, 400);
-      const r = await sql`INSERT INTO categorias(nombre, descripcion) VALUES(${nombre.trim()}, ${descripcion}) RETURNING *`;
+      const r = await sql`INSERT INTO categorias(nombre,descripcion) VALUES(${nombre.trim()},${descripcion}) RETURNING *`;
       return json(r[0], 201);
     }
 
     return json({ error: 'Método no permitido' }, 405);
   } catch (err) {
-    console.error(err);
+    console.error('[categories]', err);
     return json({ error: err.message }, 500);
   }
 }

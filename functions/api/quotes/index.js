@@ -6468,21 +6468,14 @@ function numCot() {
 }
 async function onRequest({ request, env }) {
   if (request.method === "OPTIONS") return cors204();
-  const user = getUser(request, env);
+  const user = await getUser(request, env);
   if (!user) return json({ error: "No autorizado" }, 401);
   const sql = getDb(env);
-  try {
-    await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_datos BOOLEAN DEFAULT false`;
-  } catch (e) {
-  }
-  try {
-    await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_cotizaciones BOOLEAN DEFAULT false`;
-  } catch (e) {
-  }
-  try {
-    await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_con JSONB DEFAULT '[]'`;
-  } catch (e) {
-  }
+  await Promise.allSettled([
+    sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_datos BOOLEAN DEFAULT false`,
+    sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_cotizaciones BOOLEAN DEFAULT false`,
+    sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_con JSONB DEFAULT '[]'`
+  ]);
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
   const equipo = url.searchParams.get("equipo");
@@ -6497,9 +6490,9 @@ async function onRequest({ request, env }) {
           LEFT JOIN clientes cl ON c.cliente_id=cl.id
           JOIN usuarios u ON c.usuario_id=u.id
           WHERE u.id != ${user.id}
-            AND (u.compartir_cotizaciones=true OR u.compartir_datos=true)
+            AND (COALESCE(u.compartir_cotizaciones,false)=true OR COALESCE(u.compartir_datos,false)=true)
             AND (
-              jsonb_array_length(COALESCE(u.compartir_con,'[]'::jsonb)) = 0
+              jsonb_array_length(COALESCE(u.compartir_con,'[]'::jsonb))=0
               OR u.compartir_con @> ${JSON.stringify([user.id])}::jsonb
             )
           ORDER BY c.creado_en DESC LIMIT 500`;
@@ -6534,9 +6527,9 @@ async function onRequest({ request, env }) {
           LEFT JOIN clientes cl ON c.cliente_id=cl.id
           JOIN usuarios u ON c.usuario_id=u.id
           WHERE c.id=${idInt}
-            AND (u.compartir_cotizaciones=true OR u.compartir_datos=true)
+            AND (COALESCE(u.compartir_cotizaciones,false)=true OR COALESCE(u.compartir_datos,false)=true)
             AND (
-              jsonb_array_length(COALESCE(u.compartir_con,'[]'::jsonb)) = 0
+              jsonb_array_length(COALESCE(u.compartir_con,'[]'::jsonb))=0
               OR u.compartir_con @> ${JSON.stringify([user.id])}::jsonb
             )`;
         if (!shared.length) return json({ error: "No encontrada" }, 404);
@@ -6558,10 +6551,10 @@ async function onRequest({ request, env }) {
     if (request.method === "POST") {
       const { cliente_id, titulo, descripcion = "", items = [], descuento_pct = 0, iva_pct = 15, notas = "", validez_dias = 30 } = await parseBody(request);
       if (!titulo) return json({ error: "El t\xEDtulo es requerido" }, 400);
-      const sub = items.reduce((s, i) => s + i.cantidad * i.precio_unitario * (1 - (i.descuento_pct || 0) / 100), 0);
-      const dv = sub * (descuento_pct / 100);
+      const sub = items.reduce((s, i) => s + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio_unitario) || 0) * (1 - (parseFloat(i.descuento_pct) || 0) / 100), 0);
+      const dv = sub * (parseFloat(descuento_pct) / 100);
       const base = sub - dv;
-      const iv = base * (iva_pct / 100);
+      const iv = base * (parseFloat(iva_pct) / 100);
       const total = base + iv;
       const num = numCot();
       const cliId = cliente_id ? parseInt(cliente_id) : null;
@@ -6570,7 +6563,8 @@ async function onRequest({ request, env }) {
         VALUES(${num},${cliId},${user.id},${titulo},${descripcion},'borrador',${sub},${descuento_pct},${dv},${iva_pct},${iv},${total},${notas},${validez_dias})
         RETURNING *`;
       for (const item of items) {
-        await sql`INSERT INTO cotizacion_items(cotizacion_id,material_id,descripcion,cantidad,unidad,precio_unitario,descuento_pct) VALUES(${cot[0].id},${item.material_id || null},${item.descripcion || ""},${item.cantidad},${item.unidad || "unidad"},${item.precio_unitario},${item.descuento_pct || 0})`;
+        await sql`INSERT INTO cotizacion_items(cotizacion_id,material_id,descripcion,cantidad,unidad,precio_unitario,descuento_pct)
+          VALUES(${cot[0].id},${item.material_id || null},${item.descripcion || ""},${parseFloat(item.cantidad) || 1},${item.unidad || "unidad"},${parseFloat(item.precio_unitario) || 0},${parseFloat(item.descuento_pct) || 0})`;
       }
       return json(cot[0], 201);
     }
@@ -6580,15 +6574,14 @@ async function onRequest({ request, env }) {
       const own = await sql`SELECT id FROM cotizaciones WHERE id=${idInt} AND usuario_id=${user.id}`;
       if (!own.length) {
         const shared = await sql`
-          SELECT c.id FROM cotizaciones c
-          JOIN usuarios u ON c.usuario_id=u.id
+          SELECT c.id FROM cotizaciones c JOIN usuarios u ON c.usuario_id=u.id
           WHERE c.id=${idInt}
-            AND (u.compartir_cotizaciones=true OR u.compartir_datos=true)
+            AND (COALESCE(u.compartir_cotizaciones,false)=true OR COALESCE(u.compartir_datos,false)=true)
             AND (
-              jsonb_array_length(COALESCE(u.compartir_con,'[]'::jsonb)) = 0
+              jsonb_array_length(COALESCE(u.compartir_con,'[]'::jsonb))=0
               OR u.compartir_con @> ${JSON.stringify([user.id])}::jsonb
             )`;
-        if (!shared.length) return json({ error: "No tienes permiso para editar esta cotizaci\xF3n" }, 403);
+        if (!shared.length) return json({ error: "No tienes permiso" }, 403);
       }
       const body = await parseBody(request);
       const { estado, titulo, notas, _fullEdit, items, descuento_pct, iva_pct, validez_dias, descripcion, cliente_id } = body;
@@ -6613,11 +6606,17 @@ async function onRequest({ request, env }) {
           WHERE id=${idInt} RETURNING *`;
         await sql`DELETE FROM cotizacion_items WHERE cotizacion_id=${idInt}`;
         for (const item of items) {
-          await sql`INSERT INTO cotizacion_items(cotizacion_id,material_id,descripcion,cantidad,unidad,precio_unitario,descuento_pct) VALUES(${idInt},${item.material_id || null},${item.descripcion || ""},${parseFloat(item.cantidad) || 1},${item.unidad || "unidad"},${parseFloat(item.precio_unitario) || 0},${parseFloat(item.descuento_pct) || 0})`;
+          await sql`INSERT INTO cotizacion_items(cotizacion_id,material_id,descripcion,cantidad,unidad,precio_unitario,descuento_pct)
+            VALUES(${idInt},${item.material_id || null},${item.descripcion || ""},${parseFloat(item.cantidad) || 1},${item.unidad || "unidad"},${parseFloat(item.precio_unitario) || 0},${parseFloat(item.descuento_pct) || 0})`;
         }
         return json(r2[0]);
       }
-      const r = await sql`UPDATE cotizaciones SET estado=COALESCE(${estado || null},estado),titulo=COALESCE(${titulo || null},titulo),notas=COALESCE(${notas || null},notas),actualizado_en=NOW() WHERE id=${idInt} RETURNING *`;
+      const r = await sql`UPDATE cotizaciones SET
+        estado=COALESCE(${estado || null},estado),
+        titulo=COALESCE(${titulo || null},titulo),
+        notas=COALESCE(${notas || null},notas),
+        actualizado_en=NOW()
+        WHERE id=${idInt} RETURNING *`;
       return json(r[0]);
     }
     if (request.method === "DELETE") {
@@ -6630,7 +6629,7 @@ async function onRequest({ request, env }) {
     }
     return json({ error: "M\xE9todo no permitido" }, 405);
   } catch (err) {
-    console.error(err);
+    console.error("[quotes]", err);
     return json({ error: err.message }, 500);
   }
 }

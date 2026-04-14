@@ -6464,7 +6464,7 @@ async function parseBody(request) {
 // src/api/users/index.js
 async function onRequest({ request, env }) {
   if (request.method === "OPTIONS") return cors204();
-  const user = getUser(request, env);
+  const user = await getUser(request, env);
   if (!user) return json({ error: "No autorizado" }, 401);
   const sql = getDb(env);
   await Promise.allSettled([
@@ -6474,7 +6474,7 @@ async function onRequest({ request, env }) {
     sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_clientes BOOLEAN DEFAULT false`,
     sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_con JSONB DEFAULT '[]'`
   ]);
-  const dbUser = await sql`SELECT rol, permisos FROM usuarios WHERE id=${user.id} AND activo=true`;
+  const dbUser = await sql`SELECT rol, COALESCE(permisos,'vendedor') as permisos FROM usuarios WHERE id=${user.id} AND activo=true`;
   if (!dbUser.length) return json({ error: "Usuario no encontrado" }, 401);
   const isPrincipalAdmin = dbUser[0].rol === "admin";
   const url = new URL(request.url);
@@ -6489,60 +6489,60 @@ async function onRequest({ request, env }) {
                  COALESCE(compartir_datos,false) as compartir_datos,
                  COALESCE(compartir_cotizaciones,false) as compartir_cotizaciones,
                  COALESCE(compartir_clientes,false) as compartir_clientes,
-                 COALESCE(compartir_con,'[]'::jsonb) as compartir_con,
-                 activo
+                 COALESCE(compartir_con,'[]'::jsonb) as compartir_con, activo
           FROM usuarios WHERE activo=true ORDER BY nombre ASC`;
         return json(rows2);
       }
-      if (!isPrincipalAdmin) return json({ error: "Solo el administrador principal puede gestionar usuarios" }, 403);
+      if (!isPrincipalAdmin) return json({ error: "Solo el administrador puede gestionar usuarios" }, 403);
       const rows = await sql`
         SELECT id, nombre, email, rol,
                COALESCE(permisos,'vendedor') as permisos,
                COALESCE(compartir_datos,false) as compartir_datos,
                COALESCE(compartir_cotizaciones,false) as compartir_cotizaciones,
                COALESCE(compartir_clientes,false) as compartir_clientes,
-               COALESCE(compartir_con,'[]'::jsonb) as compartir_con,
-               activo, creado_en
+               COALESCE(compartir_con,'[]'::jsonb) as compartir_con, activo, creado_en
         FROM usuarios ORDER BY creado_en ASC`;
       return json(rows);
     }
     if (request.method === "PUT") {
       if (!id) return json({ error: "ID requerido" }, 400);
       const targetId = parseInt(id);
-      const { rol, permisos, compartir_datos, compartir_cotizaciones, compartir_clientes, compartir_con } = await parseBody(request);
+      const body = await parseBody(request);
+      const { rol, permisos, compartir_datos, compartir_cotizaciones, compartir_clientes, compartir_con } = body;
       if (targetId === user.id && (compartir_datos !== void 0 || compartir_cotizaciones !== void 0 || compartir_clientes !== void 0 || compartir_con !== void 0)) {
-        const newCots = compartir_cotizaciones !== void 0 ? !!compartir_cotizaciones : null;
-        const newClis = compartir_clientes !== void 0 ? !!compartir_clientes : null;
-        const newLegacy = compartir_datos !== void 0 ? !!compartir_datos : null;
-        const newCon = compartir_con !== void 0 ? JSON.stringify(Array.isArray(compartir_con) ? compartir_con : []) : null;
+        const nd = compartir_datos !== void 0 ? !!compartir_datos : null;
+        const nc = compartir_cotizaciones !== void 0 ? !!compartir_cotizaciones : null;
+        const nl = compartir_clientes !== void 0 ? !!compartir_clientes : null;
+        const ncon = compartir_con !== void 0 ? JSON.stringify(Array.isArray(compartir_con) ? compartir_con : []) : null;
         const r = await sql`
           UPDATE usuarios SET
-            compartir_datos        = COALESCE(${newLegacy}, compartir_datos),
-            compartir_cotizaciones = COALESCE(${newCots}, compartir_cotizaciones),
-            compartir_clientes     = COALESCE(${newClis}, compartir_clientes),
-            compartir_con          = COALESCE(${newCon !== null ? newCon : null}::jsonb, compartir_con)
+            compartir_datos=COALESCE(${nd}, compartir_datos),
+            compartir_cotizaciones=COALESCE(${nc}, compartir_cotizaciones),
+            compartir_clientes=COALESCE(${nl}, compartir_clientes),
+            compartir_con=COALESCE(${ncon !== null ? ncon : null}::jsonb, compartir_con)
           WHERE id=${targetId}
           RETURNING id, nombre, email, rol,
                     COALESCE(permisos,'vendedor') as permisos,
                     COALESCE(compartir_datos,false) as compartir_datos,
                     COALESCE(compartir_cotizaciones,false) as compartir_cotizaciones,
                     COALESCE(compartir_clientes,false) as compartir_clientes,
-                    COALESCE(compartir_con,'[]'::jsonb) as compartir_con,
-                    activo`;
+                    COALESCE(compartir_con,'[]'::jsonb) as compartir_con, activo`;
         if (!r.length) return json({ error: "Usuario no encontrado" }, 404);
         return json(r[0]);
       }
-      if (!isPrincipalAdmin) return json({ error: "Solo el administrador principal puede cambiar roles" }, 403);
+      if (!isPrincipalAdmin) return json({ error: "Solo el administrador puede cambiar roles" }, 403);
       if (targetId === user.id) return json({ error: "No puedes modificar tu propio rol" }, 400);
       if (permisos !== void 0) {
         if (!["admin", "vendedor"].includes(permisos)) return json({ error: "Permiso inv\xE1lido" }, 400);
-        const r = await sql`UPDATE usuarios SET permisos=${permisos} WHERE id=${targetId} RETURNING id, nombre, email, rol, COALESCE(permisos,'vendedor') as permisos, activo`;
+        const r = await sql`UPDATE usuarios SET permisos=${permisos} WHERE id=${targetId}
+          RETURNING id, nombre, email, rol, COALESCE(permisos,'vendedor') as permisos, activo`;
         if (!r.length) return json({ error: "Usuario no encontrado" }, 404);
         return json(r[0]);
       }
       if (rol !== void 0) {
         if (!["admin", "vendedor"].includes(rol)) return json({ error: "Rol inv\xE1lido" }, 400);
-        const r = await sql`UPDATE usuarios SET rol=${rol} WHERE id=${targetId} RETURNING id, nombre, email, rol, COALESCE(permisos,'vendedor') as permisos, activo`;
+        const r = await sql`UPDATE usuarios SET rol=${rol} WHERE id=${targetId}
+          RETURNING id, nombre, email, rol, COALESCE(permisos,'vendedor') as permisos, activo`;
         if (!r.length) return json({ error: "Usuario no encontrado" }, 404);
         return json(r[0]);
       }

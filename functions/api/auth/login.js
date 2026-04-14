@@ -6391,28 +6391,28 @@ async function onRequest({ request, env }) {
   try {
     const { email, password } = await request.json().catch(() => ({}));
     if (!email || !password) return json({ error: "Email y contrase\xF1a requeridos" }, 400);
-    if (!env.DATABASE_URL) return json({ error: "Variable DATABASE_URL no configurada en Cloudflare Pages" }, 500);
+    if (!env.DATABASE_URL) return json({ error: "DATABASE_URL no configurada" }, 500);
     const sql = getDb(env);
-    try {
-      await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos VARCHAR(20) DEFAULT 'vendedor'`;
-    } catch (e) {
-    }
-    const users = await sql`SELECT id,nombre,email,password_hash,rol,permisos FROM usuarios WHERE email=${email.toLowerCase()} AND activo=true`;
+    await Promise.allSettled([
+      sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos VARCHAR(20) DEFAULT 'vendedor'`
+    ]);
+    const users = await sql`
+      SELECT id,nombre,email,password_hash,rol,COALESCE(permisos,'vendedor') as permisos
+      FROM usuarios WHERE email=${email.toLowerCase()} AND activo=true`;
     if (!users.length) return json({ error: "Credenciales incorrectas" }, 401);
     const user = users[0];
     const valid = await verifyPassword(password, user.password_hash);
     if (!valid) {
-      if (user.password_hash && user.password_hash.startsWith("$2")) {
-        return json({ error: "Tu contrase\xF1a usa un formato antiguo. Contacta al administrador para resetearla." }, 401);
+      if (user.password_hash?.startsWith("$2")) {
+        return json({ error: "Contrase\xF1a en formato antiguo. Usa el endpoint /api/auth/reset-password para resetearla." }, 401);
       }
       return json({ error: "Credenciales incorrectas" }, 401);
     }
-    const permisos = user.permisos || "vendedor";
     const token = await signToken(
-      { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, permisos },
+      { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, permisos: user.permisos },
       env
     );
-    return json({ token, usuario: { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol, permisos } });
+    return json({ token, usuario: { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol, permisos: user.permisos } });
   } catch (err) {
     console.error("[login]", err);
     return json({ error: `Error interno: ${err.message}` }, 500);
