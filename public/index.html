@@ -422,7 +422,7 @@
 
     // Redirigir si ya está logueado
     if (localStorage.getItem('token')) {
-      window.location.href = 'dashboard.html';
+      window.location.href = '/dashboard';
     }
 
     function mostrarTab(tab) {
@@ -471,7 +471,7 @@
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('usuario', JSON.stringify(data.usuario));
-        window.location.href = 'dashboard.html';
+        window.location.href = '/dashboard';
       } catch {
         mostrarAlerta('No se pudo conectar al servidor. Verifica tu conexión.');
       } finally {
@@ -500,7 +500,7 @@
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('usuario', JSON.stringify(data.usuario));
-        window.location.href = 'dashboard.html';
+        window.location.href = '/dashboard';
       } catch {
         mostrarAlerta('No se pudo conectar al servidor.');
       } finally {

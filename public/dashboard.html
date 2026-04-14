@@ -1963,9 +1963,9 @@ function textoResumenIva(todos,descPct,ivaVal,net){
 }
 
 (function init(){
-  if(!token){location.href='index.html';return;}
+  if(!token){location.href='/';return;}
   try{usuario=JSON.parse(localStorage.getItem('usuario'));}catch{}
-  if(!usuario){location.href='index.html';return;}
+  if(!usuario){location.href='/';return;}
   isAdmin=usuario.rol==='admin'||usuario.permisos==='admin';
   const isPrincipalAdmin=usuario.rol==='admin';
   document.getElementById('user-nm').textContent=usuario.nombre;
@@ -3882,7 +3882,7 @@ function toast(msg,tipo='ok'){
   el.className='show '+(tipo==='err'?'err':tipo==='info'?'info':'ok');
   clearTimeout(toastT);toastT=setTimeout(()=>{el.className='';el.textContent='';},tipo==='info'?5000:4000);
 }
-function logout(){localStorage.clear();location.href='index.html';}
+function logout(){localStorage.clear();location.href='/';}
 document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('on');}));
 document.addEventListener('click',e=>{
   const d=document.getElementById('nc-results-drop');
