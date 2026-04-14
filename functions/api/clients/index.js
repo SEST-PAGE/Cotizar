@@ -6467,18 +6467,11 @@ async function onRequest({ request, env }) {
   const user = getUser(request, env);
   if (!user) return json({ error: "No autorizado" }, 401);
   const sql = getDb(env);
-  try {
-    await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_datos BOOLEAN DEFAULT false`;
-  } catch (e) {
-  }
-  try {
-    await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_clientes BOOLEAN DEFAULT false`;
-  } catch (e) {
-  }
-  try {
-    await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_con JSONB DEFAULT '[]'`;
-  } catch (e) {
-  }
+  await Promise.allSettled([
+    sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_datos BOOLEAN DEFAULT false`,
+    sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_clientes BOOLEAN DEFAULT false`,
+    sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_con JSONB DEFAULT '[]'`
+  ]);
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
   const equipo = url.searchParams.get("equipo");
@@ -6487,10 +6480,9 @@ async function onRequest({ request, env }) {
       if (equipo === "1") {
         const rows2 = await sql`
           SELECT c.*, u.nombre AS usuario_nombre
-          FROM clientes c
-          JOIN usuarios u ON c.usuario_id=u.id
+          FROM clientes c JOIN usuarios u ON c.usuario_id=u.id
           WHERE u.id != ${user.id}
-            AND (u.compartir_clientes=true OR u.compartir_datos=true)
+            AND (COALESCE(u.compartir_clientes,false)=true OR COALESCE(u.compartir_datos,false)=true)
             AND (
               jsonb_array_length(COALESCE(u.compartir_con,'[]'::jsonb)) = 0
               OR u.compartir_con @> ${JSON.stringify([user.id])}::jsonb
@@ -6525,7 +6517,7 @@ async function onRequest({ request, env }) {
     }
     return json({ error: "M\xE9todo no permitido" }, 405);
   } catch (err) {
-    console.error(err);
+    console.error("[clients]", err);
     return json({ error: err.message }, 500);
   }
 }

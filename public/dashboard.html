@@ -2238,7 +2238,7 @@ async function guardarMat(){
   const errEl=document.getElementById('mat-err');
   if(!body.codigo||!body.nombre||!body.precio_venta){errEl.textContent='C\u00f3digo, nombre y precio de venta son requeridos';errEl.classList.add('show');return;}
   errEl.classList.remove('show');setBL('btn-save-mat',true);
-  const r=await api(id?`materials/index?id=${id}`:'materials/index',{method:id?'PUT':'POST',body:JSON.stringify(body)});
+  const r=await api(id?`materials?id=${id}`:'materials',{method:id?'PUT':'POST',body:JSON.stringify(body)});
   setBL('btn-save-mat',false,'Guardar');
   if(isErr(r)){errEl.textContent=r.msg;errEl.classList.add('show');return;}
   if(id){const i=mats.findIndex(m=>m.id===parseInt(id));if(i>=0)mats[i]={...mats[i],...r,categoria_nombre:cats.find(c=>c.id==r.categoria_id)?.nombre};}
@@ -2283,7 +2283,7 @@ async function guardarCli(){
   const errEl=document.getElementById('cli-err');
   if(!body.nombre){errEl.textContent='El nombre es requerido';errEl.classList.add('show');return;}
   errEl.classList.remove('show');setBL('btn-save-cli',true);
-  const r=await api(id?`clients/index?id=${id}`:'clients/index',{method:id?'PUT':'POST',body:JSON.stringify(body)});
+  const r=await api(id?`clients?id=${id}`:'clients',{method:id?'PUT':'POST',body:JSON.stringify(body)});
   setBL('btn-save-cli',false,'Guardar');
   if(isErr(r)){errEl.textContent=r.msg;errEl.classList.add('show');return;}
   if(id){const i=clis.findIndex(c=>c.id===parseInt(id));if(i>=0)clis[i]=r;}else clis.push(r);
