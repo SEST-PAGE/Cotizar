@@ -94,40 +94,47 @@ body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-
 /* Separador de sección */
 .nav{flex:1;padding:6px 0;overflow-y:auto;overflow-x:hidden}
 .nav-lbl{
-  padding:12px 0 4px;
-  display:flex;align-items:center;justify-content:center;
+  padding:14px 16px 4px;
+  display:flex;align-items:center;gap:8px;
   overflow:hidden;
 }
-/* línea separadora visible siempre */
+/* línea separadora solo en colapso */
 .nav-lbl::before{
   content:'';display:block;height:1px;
   background:var(--bd);
-  width:calc(100% - 18px);
+  width:0;flex-shrink:0;
   transition:width .28s;
 }
 /* texto del label solo en modo expandido */
 .nav-lbl-txt{
-  font-size:10px;font-weight:600;letter-spacing:1.5px;
+  font-size:10px;font-weight:700;letter-spacing:1.8px;
   text-transform:uppercase;color:var(--t3);
-  white-space:nowrap;padding:0 10px;
+  white-space:nowrap;
   max-width:160px;overflow:hidden;
-  transition:max-width .28s ease,opacity .2s ease,padding .28s;
+  transition:max-width .28s ease,opacity .2s ease;
 }
 .sidebar.collapsed .nav-lbl-txt{max-width:0;opacity:0;padding:0}
-.sidebar.collapsed .nav-lbl::before{width:calc(100% - 16px)}
+.sidebar.collapsed .nav-lbl::before{width:calc(100% - 12px)}
 
 /* Items de navegación */
 .nav-item{
   display:flex;align-items:center;
   gap:10px;
-  padding:8px 13px;
+  padding:9px 12px;
+  margin:1px 10px;
   cursor:pointer;color:var(--t2);font-size:13.5px;font-weight:500;
-  border-left:2px solid transparent;
-  transition:color .13s,background .13s,border-color .13s,padding .28s;
+  border-left:none;
+  border-radius:10px;
+  transition:color .15s,background .15s,box-shadow .15s,padding .28s,margin .28s;
   white-space:nowrap;position:relative;overflow:hidden;
 }
-.nav-item:hover{color:var(--t1);background:rgba(255,255,255,.05)}
-.nav-item.on{color:var(--acc);border-left-color:var(--acc);background:var(--acc-d)}
+.nav-item:hover{color:var(--t1);background:rgba(255,255,255,.07)}
+.nav-item.on{
+  color:#000;
+  background:var(--acc);
+  box-shadow:0 4px 18px rgba(245,200,0,.25);
+}
+.nav-item.on .nav-ico{color:#000}
 /* icono: SIEMPRE visible, nunca se oculta */
 .nav-ico{
   width:22px;height:22px;
@@ -146,14 +153,15 @@ body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-
 .sidebar.collapsed .nav-txt{max-width:0;opacity:0}
 /* En colapso: centra el icono */
 .sidebar.collapsed .nav-item{
-  padding:8px 0;
+  padding:10px 0;
+  margin:1px 6px;
   justify-content:center;
-  border-left-color:transparent;
 }
 .sidebar.collapsed .nav-item.on{
-  background:var(--acc-d);
-  border-left-color:transparent;
+  background:var(--acc);
+  box-shadow:0 4px 18px rgba(245,200,0,.25);
 }
+.sidebar.collapsed .nav-item.on .nav-ico{color:#000}
 /* Tooltip en colapso */
 .sidebar.collapsed .nav-item::after{
   content:attr(data-tip);
@@ -558,7 +566,7 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   .sidebar{transform:translateX(-100%);width:var(--sw)!important}.sidebar.open{transform:translateX(0)}
   .sidebar.collapsed{width:var(--sw)!important}
   .sb-toggle{display:none!important}
-  .overlay{display:block}.hamburger{display:flex}
+  .overlay{display:none}.hamburger{display:flex}
   .main{margin-left:0!important}.content{padding:12px 10px}
   .topbar{padding:0 12px}
   .fg{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}
@@ -1069,7 +1077,8 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
                 <div class="res-row"><span id="nc-t-iva-lbl">IVA (15% aplicado)</span><span class="v" id="nc-t-iva">$0.00</span></div>
                 <div class="res-total"><span>TOTAL</span><span class="v" id="nc-t-total">$0.00</span></div>
                 <div class="res-note" style="display:flex;gap:8px;align-items:flex-start"><i data-lucide="info" style="width:14px;height:14px;flex-shrink:0;margin-top:2px"></i><span>El IVA se elige por &#237;tem (0%, 5%, 12% o 15%). Por defecto 15%.</span></div>
-                <button type="button" class="btn-guardar" id="btn-guardar-cot" onclick="guardarCot()"><i data-lucide="save" style="width:18px;height:18px;flex-shrink:0"></i><span class="btn-lbl">Guardar Cotizaci&#243;n</span></button>
+                <button type="button" class="btn-guardar" id="btn-guardar-cot" onclick="guardarCot()"><i data-lucide="save" style="width:18px;height:18px;flex-shrink:0"></i><span class="btn-lbl">Guardar Cotización</span></button>
+                <button type="button" id="btn-pdf-nc" onclick="exportarPDFNc()" style="width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:10px;border:1.5px solid var(--info);background:var(--info-d);color:var(--info);font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;transition:all .15s"><i data-lucide="file-down" style="width:17px;height:17px;flex-shrink:0"></i><span>Exportar PDF</span></button>
               </div>
             </div>
           </div>
@@ -2005,6 +2014,8 @@ function closeSidebar(){
   document.getElementById('overlay').style.display='none';
 }
 function toggleCollapse(){
+  // No colapsar en dispositivos móviles
+  if(window.innerWidth<=768){return;}
   const sb=document.getElementById('sidebar');
   const main=document.getElementById('main-content');
   const collapsed=sb.classList.toggle('collapsed');
@@ -2127,6 +2138,7 @@ function tablaCotsHTML(lista,acc){
     <td style="font-size:12px;color:var(--t3)">${new Date(c.creado_en).toLocaleDateString('es-EC')}</td>
     ${acc?`<td><div style="display:flex;gap:5px;align-items:center">
       <button type="button" class="btn btn-ghost btn-sm" onclick="verCot(${c.id})"><i data-lucide="eye" style="width:14px;height:14px"></i> Ver</button>
+      <button type="button" class="btn btn-info btn-sm" onclick="exportarPDFDirecto(${c.id})" title="Exportar PDF"><i data-lucide="file-down" style="width:14px;height:14px"></i></button>
       <button type="button" class="btn btn-ok btn-sm" onclick="prepEditarCot(${c.id})" title="Editar"><i data-lucide="pencil" style="width:14px;height:14px"></i></button>
       <button type="button" class="btn btn-danger btn-sm" onclick="eliminarCot(${c.id},'${c.numero}')" title="Eliminar cotización"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
     </div></td>`:''}
@@ -2145,6 +2157,12 @@ async function eliminarCot(id,numero){
   actualizarContadores();
   renderCots(cots);renderRecientes();
   toast(`Cotización ${numero} eliminada`,'ok');
+}
+async function exportarPDFDirecto(id){
+  const r=await api(`quotes?id=${id}`);
+  if(isErr(r)){toast(r.msg||'Error al cargar cotización','err');return;}
+  cotActual=r;
+  await exportarPDF();
 }
 async function eliminarCotDesdeModal(){
   if(!cotActual)return;
