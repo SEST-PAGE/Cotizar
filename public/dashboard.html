@@ -2074,7 +2074,7 @@ function sSet(id,v){const el=document.getElementById(id);if(el)el.value=v;}
 function sTxt(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 
 async function cargarTodo(){
-  const[dc,dm,dq]=await Promise.all([api('clients/index'),api('materials/index'),api('quotes/index')]);
+  const[dc,dm,dq]=await Promise.all([api('clients'),api('materials'),api('quotes')]);
   if(!isErr(dc))clis=Array.isArray(dc)?dc:[];
   if(!isErr(dm)){mats=dm.materiales||[];cats=dm.categorias||[];poblarCats();}
   if(!isErr(dq))cots=Array.isArray(dq)?dq:[];
@@ -2082,7 +2082,7 @@ async function cargarTodo(){
   actualizarContadores();
   renderRecientes();
   // Cargar también los clientes compartidos para que aparezcan en el buscador
-  const dc2=await api('clients/index?equipo=1');
+  const dc2=await api('clients?equipo=1');
   if(!isErr(dc2)&&Array.isArray(dc2)&&dc2.length) _mergeClientesCompartidos(dc2);
 }
 function poblarCats(){
@@ -2133,12 +2133,12 @@ function tablaCotsHTML(lista,acc){
   </tr>`).join('')}</tbody></table>`;
 }
 async function cambiarEstado(id,estado){
-  const r=await api(`quotes/index?id=${id}`,{method:'PUT',body:JSON.stringify({estado})});
+  const r=await api(`quotes?id=${id}`,{method:'PUT',body:JSON.stringify({estado})});
   if(!isErr(r)){const i=cots.findIndex(c=>c.id===id);if(i>=0)cots[i].estado=estado;actualizarContadores();toast('Estado actualizado','ok');}else toast(r.msg,'err');
 }
 async function eliminarCot(id,numero){
   if(!confirm(`¿Eliminar la cotización ${numero}?\nEsta acción no se puede deshacer.`))return;
-  const r=await api(`quotes/index?id=${id}`,{method:'DELETE'});
+  const r=await api(`quotes?id=${id}`,{method:'DELETE'});
   if(isErr(r)){toast(r.msg||'Error al eliminar','err');return;}
   cots=cots.filter(c=>c.id!==id);
   sTxt('s-cots',cots.length);
@@ -2156,7 +2156,7 @@ async function verCot(id){
   openModal('m-ver');
   document.getElementById('ver-body').innerHTML='<div class="loading"><div class="spin"></div><p>Cargando\u2026</p></div>';
   const ve=document.getElementById('ver-elaborado');if(ve)ve.value='';
-  const r=await api(`quotes/index?id=${id}`);
+  const r=await api(`quotes?id=${id}`);
   if(isErr(r)){document.getElementById('ver-body').innerHTML=`<div class="empty"><p>${r.msg}</p></div>`;return;}
   cotActual=r;document.getElementById('ver-title').textContent=r.numero;
   document.getElementById('ver-body').innerHTML=cotDetailHTML(r);
@@ -2248,7 +2248,7 @@ async function guardarMat(){
 async function eliminarMat(id){
   if(!isAdmin){toast('Solo administradores pueden eliminar','err');return;}
   if(!confirm('\u00bfEliminar este material?'))return;
-  const r=await api(`materials/index?id=${id}`,{method:'DELETE'});
+  const r=await api(`materials?id=${id}`,{method:'DELETE'});
   if(isErr(r)){toast(r.msg,'err');return;}
   mats=mats.filter(m=>m.id!==id);sTxt('s-mats',mats.length);filtrarMats();toast('Material eliminado','ok');
 }
@@ -2291,7 +2291,7 @@ async function guardarCli(){
 }
 async function eliminarCli(id){
   if(!confirm('\u00bfEliminar este cliente?'))return;
-  const r=await api(`clients/index?id=${id}`,{method:'DELETE'});
+  const r=await api(`clients?id=${id}`,{method:'DELETE'});
   if(isErr(r)){toast(r.msg,'err');return;}
   clis=clis.filter(c=>c.id!==id);sTxt('s-clis',clis.length);filtrarClis();toast('Cliente eliminado','ok');
 }
@@ -2517,7 +2517,7 @@ document.addEventListener('click',e=>{
 /* Editar cotización guardada — carga todos los datos al builder */
 let cotEditandoId=null;
 async function prepEditarCot(id){
-  const r=await api(`quotes/index?id=${id}`);
+  const r=await api(`quotes?id=${id}`);
   if(isErr(r)){toast(r.msg,'err');return;}
   cotEditandoId=id;
   limpiarCot(false);
@@ -2670,9 +2670,9 @@ async function guardarCot(){
   ['btn-guardar-top','btn-guardar-cot'].forEach(id=>setBL(id,true));
   let r;
   if(cotEditandoId){
-    r=await api(`quotes/index?id=${cotEditandoId}`,{method:'PUT',body:JSON.stringify({...body,_fullEdit:true})});
+    r=await api(`quotes?id=${cotEditandoId}`,{method:'PUT',body:JSON.stringify({...body,_fullEdit:true})});
   } else {
-    r=await api('quotes/index',{method:'POST',body:JSON.stringify(body)});
+    r=await api('quotes',{method:'POST',body:JSON.stringify(body)});
   }
   setBL('btn-guardar-top',false,'Guardar');
   setBL('btn-guardar-cot',false,'Guardar Cotizaci\u00f3n');
@@ -3912,7 +3912,7 @@ async function guardarCat(){
   const errEl=document.getElementById('cat-err');
   if(!nombre){errEl.textContent='El nombre es requerido';errEl.classList.add('show');return;}
   errEl.classList.remove('show');setBL('btn-save-cat',true);
-  const r=await api('categories/index',{method:'POST',body:JSON.stringify({nombre,descripcion:desc})});
+  const r=await api('categories',{method:'POST',body:JSON.stringify({nombre,descripcion:desc})});
   setBL('btn-save-cat',false,'Guardar');
   if(isErr(r)){errEl.textContent=r.msg;errEl.classList.add('show');return;}
   cats.push(r);poblarCats();renderCatsAdmin();
@@ -3932,7 +3932,7 @@ function rolIconHTML(u){
 async function cargarUsuarios(){
   const el=document.getElementById('tbl-usuarios');if(!el)return;
   el.innerHTML='<div class="loading"><div class="spin"></div><p>Cargando\u2026</p></div>';
-  const r=await api('users/index');
+  const r=await api('users');
   if(isErr(r)){el.innerHTML=`<div class="empty"><p>${r.msg}</p></div>`;return;}
   usuarios=r;
   const isPrincipalAdmin=usuario?.rol==='admin';
@@ -3959,7 +3959,7 @@ async function cargarUsuarios(){
 async function togglePermisoAdmin(userId,darPermiso){
   if(usuario?.rol!=='admin'){toast('Solo el administrador principal puede cambiar permisos','err');return;}
   const permisos=darPermiso?'admin':'vendedor';
-  const r=await api(`users/index?id=${userId}`,{method:'PUT',body:JSON.stringify({permisos})});
+  const r=await api(`users?id=${userId}`,{method:'PUT',body:JSON.stringify({permisos})});
   if(isErr(r)){toast(r.msg,'err');return;}
   toast(darPermiso?'\u2728 Acceso admin otorgado. El usuario debe re-iniciar sesi\u00f3n.':'Acceso revertido a vendedor','ok');
   cargarUsuarios();
@@ -4041,7 +4041,7 @@ function initCalculadora() {
     calcInited = true;
     // Check DB connection status
     _updateDbBadge('loading');
-    api('electrical-projects/index').then(r=>{
+    api('electrical-projects').then(r=>{
       _updateDbBadge(isErr(r)?'err':'ok');
     }).catch(()=>_updateDbBadge('err'));
     window._ccSistema = '120/240';
@@ -5178,7 +5178,7 @@ async function toggleCompartirTipo(tipo){
 
 async function _cargarEquipoUsuarios(){
   try{
-    const r=await api('users/index?todos=1');
+    const r=await api('users?todos=1');
     if(!isErr(r)&&Array.isArray(r)) equipoUsuarios=r.filter(u=>u.id!==usuario?.id&&u.activo!==false);
   }catch(e){}
 }
@@ -5206,7 +5206,7 @@ function _toggleUsuarioCon(id){
 
 async function _guardarCompartir(){
   const body={compartir_cotizaciones:miCompartirCots,compartir_clientes:miCompartirClis,compartir_con:miCompartirCon};
-  const r=await api(`users/index?id=${usuario?.id}`,{method:'PUT',body:JSON.stringify(body)});
+  const r=await api(`users?id=${usuario?.id}`,{method:'PUT',body:JSON.stringify(body)});
   if(isErr(r)){toast(r.msg||'Error al guardar','err');return false;}
   miCompartir=miCompartirCots||miCompartirClis;
   return true;
@@ -5233,7 +5233,7 @@ async function toggleCompartirDatos(){
 
 async function cargarEquipo(){
   // Cargar estado del usuario actual
-  const ru=await api('users/index?todos=1');
+  const ru=await api('users?todos=1');
   if(!isErr(ru)&&Array.isArray(ru)){
     const yo=ru.find(u=>u.id===usuario?.id);
     if(yo){
@@ -5248,7 +5248,7 @@ async function cargarEquipo(){
     if(miCompartirCots||miCompartirClis) _renderUsuariosLista();
   }
 
-  const [rq,rc]=await Promise.all([api('quotes/index?equipo=1'),api('clients/index?equipo=1')]);
+  const [rq,rc]=await Promise.all([api('quotes?equipo=1'),api('clients?equipo=1')]);
 
   // Tabla cotizaciones compartidas (con botón editar)
   const tblCots=document.getElementById('tbl-eq-cots');
@@ -5304,7 +5304,7 @@ function _mergeClientesCompartidos(compartidos){
 // Editar cotización compartida de otro usuario (abre en el editor)
 async function editarCotCompartida(id){
   // Carga la cotización usando el endpoint equipo para permitir acceso
-  const r=await api(`quotes/index?id=${id}&equipo=1`);
+  const r=await api(`quotes?id=${id}&equipo=1`);
   if(isErr(r)){toast(r.msg||'No se pudo cargar la cotización','err');return;}
   // Reutilizamos la lógica de prepEditarCot pero con datos ya cargados
   cotEditandoId=id;
@@ -5615,7 +5615,7 @@ function _setBalancesCache(arr){localStorage.setItem('sest_balances_cache',JSON.
 
 async function _loadBalancesFromDB(){
   try{
-    const r=await api('electrical-projects/index');
+    const r=await api('electrical-projects');
     if(!isErr(r)&&Array.isArray(r)){
       _setBalancesCache(r);
       _updateDbBadge('ok');
@@ -5629,8 +5629,8 @@ async function _loadBalancesFromDB(){
 async function _saveBalanceToDB(data){
   try{
     const r=data.id
-      ? await api(`electrical-projects/index?id=${data.id}`,{method:'PUT',body:JSON.stringify(data)})
-      : await api('electrical-projects/index',{method:'POST',body:JSON.stringify(data)});
+      ? await api(`electrical-projects?id=${data.id}`,{method:'PUT',body:JSON.stringify(data)})
+      : await api('electrical-projects',{method:'POST',body:JSON.stringify(data)});
     if(!isErr(r)){
       // Refresh cache
       const all=await _loadBalancesFromDB();
@@ -5650,7 +5650,7 @@ async function _saveBalanceToDB(data){
 
 async function _deleteBalanceFromDB(id){
   try{
-    const r=await api(`electrical-projects/index?id=${id}`,{method:'DELETE'});
+    const r=await api(`electrical-projects?id=${id}`,{method:'DELETE'});
     if(!isErr(r)){
       const all=await _loadBalancesFromDB();
       return true;
@@ -5784,7 +5784,7 @@ async function confirmarGuardarCalcCable(){
     cargas: [snap],   // reutilizamos el campo JSONB para el snapshot
   };
   try{
-    const r=await api('electrical-projects/index',{method:'POST',body:JSON.stringify(payload)});
+    const r=await api('electrical-projects',{method:'POST',body:JSON.stringify(payload)});
     if(isErr(r)){
       errEl.textContent=r?.msg||'Error al guardar en la base de datos';
       errEl.classList.add('show');
@@ -5830,7 +5830,7 @@ async function abrirHistorialCalcCable(){
   listEl.innerHTML='<div class="loading"><div class="spin"></div><p>Cargando desde PostgreSQL…</p></div>';
   _updateCcDbBadge('loading');
   try{
-    const r=await api('electrical-projects/index');
+    const r=await api('electrical-projects');
     if(isErr(r)){
       listEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--err)">${r?.msg||'Error al cargar historial'}</div>`;
       _updateCcDbBadge('err');
@@ -5906,7 +5906,7 @@ async function cargarCalcCable(id){
   // 2. Si no está en caché, re-fetch de toda la lista y buscar por id
   if(!record){
     toast('Cargando cálculo…','info');
-    const r = await api('electrical-projects/index');
+    const r = await api('electrical-projects');
     if(isErr(r)){ toast(r?.msg||'Error al cargar cálculo','err'); return; }
     const todos = Array.isArray(r) ? r : (r?.data ? r.data : []);
     _ccCalcsCache = todos.filter(p => p.tipo === 'cable_calc');
@@ -5948,7 +5948,7 @@ async function cargarCalcCable(id){
 async function eliminarCalcCable(id, btnEl){
   if(!confirm('¿Eliminar este cálculo? La acción no se puede deshacer.'))return;
   if(btnEl){btnEl.disabled=true;btnEl.textContent='…';}
-  const r=await api(`electrical-projects/index?id=${id}`,{method:'DELETE'});
+  const r=await api(`electrical-projects?id=${id}`,{method:'DELETE'});
   if(isErr(r)){toast(r?.msg||'Error al eliminar','err');if(btnEl){btnEl.disabled=false;btnEl.innerHTML='<i data-lucide="trash-2" style="width:13px;height:13px"></i>';refreshIcons();}return;}
   toast('Cálculo eliminado','ok');
   abrirHistorialCalcCable();
@@ -6142,7 +6142,7 @@ async function exportarPDFBalanceFromRecord(id){
   const todos = _getBalancesCache();
   let record = todos.find(x=>String(x.id)===String(id));
   if(!record){
-    const r=await api('electrical-projects/index');
+    const r=await api('electrical-projects');
     if(!isErr(r)){_setBalancesCache(Array.isArray(r)?r:[]);record=_getBalancesCache().find(x=>String(x.id)===String(id));}
   }
   if(!record){toast('No se encontró el registro','err');return;}
@@ -6315,7 +6315,7 @@ async function confirmarGuardarProteccion(){
   const snap=_prSnapshot();
   const payload={nombre,cliente,ubicacion:notas,tipo:'proteccion_calc',temp_f:'1.0',sistema:snap.v||'220',cargas:[snap]};
   try{
-    const r=await api('electrical-projects/index',{method:'POST',body:JSON.stringify(payload)});
+    const r=await api('electrical-projects',{method:'POST',body:JSON.stringify(payload)});
     if(isErr(r)){errEl.textContent=r?.msg||'Error al guardar';errEl.classList.add('show');}
     else{closeModal('m-pr-guardar');toast('✅ Protección guardada en PostgreSQL','ok');}
   }catch(e){errEl.textContent='Error de conexión';errEl.classList.add('show');}
@@ -6328,7 +6328,7 @@ async function abrirHistorialProtecciones(){
   const listEl=document.getElementById('pr-historial-list');
   listEl.innerHTML='<div class="loading"><div class="spin"></div><p>Cargando desde PostgreSQL…</p></div>';
   try{
-    const r=await api('electrical-projects/index');
+    const r=await api('electrical-projects');
     if(isErr(r)){listEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--err)">${r?.msg||'Error al cargar'}</div>`;return;}
     const todos=Array.isArray(r)?r:(r?.data?r.data:[]);
     const calcs=todos.filter(p=>p.tipo==='proteccion_calc');
@@ -6376,7 +6376,7 @@ async function abrirHistorialProtecciones(){
 async function cargarProteccion(id){
   closeModal('m-protecciones');
   let record=_prCalcsCache.find(c=>String(c.id)===String(id));
-  if(!record){const r=await api('electrical-projects/index');if(isErr(r)){toast('Error al cargar','err');return;}const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_prCalcsCache=todos.filter(p=>p.tipo==='proteccion_calc');record=_prCalcsCache.find(c=>String(c.id)===String(id));}
+  if(!record){const r=await api('electrical-projects');if(isErr(r)){toast('Error al cargar','err');return;}const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_prCalcsCache=todos.filter(p=>p.tipo==='proteccion_calc');record=_prCalcsCache.find(c=>String(c.id)===String(id));}
   if(!record){toast('No se encontró el registro','err');return;}
   const snap=_parseCargasField(record.cargas)[0]||null;
   if(!snap){toast('Sin datos de cálculo en este registro','err');return;}
@@ -6385,7 +6385,7 @@ async function cargarProteccion(id){
 async function eliminarProteccion(id,btnEl){
   if(!confirm('¿Eliminar este cálculo? La acción no se puede deshacer.'))return;
   if(btnEl){btnEl.disabled=true;btnEl.textContent='…';}
-  const r=await api(`electrical-projects/index?id=${id}`,{method:'DELETE'});
+  const r=await api(`electrical-projects?id=${id}`,{method:'DELETE'});
   if(isErr(r)){toast(r?.msg||'Error al eliminar','err');if(btnEl){btnEl.disabled=false;btnEl.innerHTML='<i data-lucide="trash-2" style="width:13px;height:13px"></i>';refreshIcons();}return;}
   toast('Cálculo eliminado','ok');abrirHistorialProtecciones();
 }
@@ -6393,7 +6393,7 @@ async function eliminarProteccion(id,btnEl){
 // ── PDF Protección ────────────────────────────────────────────
 async function exportarPDFProteccionFromRecord(id){
   let record=_prCalcsCache.find(c=>String(c.id)===String(id));
-  if(!record){const r=await api('electrical-projects/index');if(!isErr(r)){const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_prCalcsCache=todos.filter(p=>p.tipo==='proteccion_calc');record=_prCalcsCache.find(c=>String(c.id)===String(id));}}
+  if(!record){const r=await api('electrical-projects');if(!isErr(r)){const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_prCalcsCache=todos.filter(p=>p.tipo==='proteccion_calc');record=_prCalcsCache.find(c=>String(c.id)===String(id));}}
   if(!record){toast('No se encontró el registro','err');return;}
   const snap=_parseCargasField(record.cargas)[0]||{};
   await _exportarPDFProteccion(snap, record.nombre||'Protección', record.cliente||'—', record.ubicacion||'');
@@ -6534,7 +6534,7 @@ async function confirmarGuardarTuberia(){
   const snap=_tbSnapshot();
   const payload={nombre,cliente,ubicacion:notas,tipo:'tuberia_calc',temp_f:'1.0',sistema:snap.tipo||'EMT',cargas:[snap]};
   try{
-    const r=await api('electrical-projects/index',{method:'POST',body:JSON.stringify(payload)});
+    const r=await api('electrical-projects',{method:'POST',body:JSON.stringify(payload)});
     if(isErr(r)){errEl.textContent=r?.msg||'Error al guardar';errEl.classList.add('show');}
     else{closeModal('m-tb-guardar');toast('✅ Tubería guardada en PostgreSQL','ok');}
   }catch(e){errEl.textContent='Error de conexión';errEl.classList.add('show');}
@@ -6547,7 +6547,7 @@ async function abrirHistorialTuberias(){
   const listEl=document.getElementById('tb-historial-list');
   listEl.innerHTML='<div class="loading"><div class="spin"></div><p>Cargando desde PostgreSQL…</p></div>';
   try{
-    const r=await api('electrical-projects/index');
+    const r=await api('electrical-projects');
     if(isErr(r)){listEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--err)">${r?.msg||'Error al cargar'}</div>`;return;}
     const todos=Array.isArray(r)?r:(r?.data?r.data:[]);
     const calcs=todos.filter(p=>p.tipo==='tuberia_calc');
@@ -6595,7 +6595,7 @@ async function abrirHistorialTuberias(){
 async function cargarTuberia(id){
   closeModal('m-tuberias');
   let record=_tbCalcsCache.find(c=>String(c.id)===String(id));
-  if(!record){const r=await api('electrical-projects/index');if(isErr(r)){toast('Error al cargar','err');return;}const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_tbCalcsCache=todos.filter(p=>p.tipo==='tuberia_calc');record=_tbCalcsCache.find(c=>String(c.id)===String(id));}
+  if(!record){const r=await api('electrical-projects');if(isErr(r)){toast('Error al cargar','err');return;}const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_tbCalcsCache=todos.filter(p=>p.tipo==='tuberia_calc');record=_tbCalcsCache.find(c=>String(c.id)===String(id));}
   if(!record){toast('No se encontró el registro','err');return;}
   const snap=_parseCargasField(record.cargas)[0]||null;
   if(!snap){toast('Sin datos de cálculo en este registro','err');return;}
@@ -6604,7 +6604,7 @@ async function cargarTuberia(id){
 async function eliminarTuberia(id,btnEl){
   if(!confirm('¿Eliminar este cálculo? La acción no se puede deshacer.'))return;
   if(btnEl){btnEl.disabled=true;btnEl.textContent='…';}
-  const r=await api(`electrical-projects/index?id=${id}`,{method:'DELETE'});
+  const r=await api(`electrical-projects?id=${id}`,{method:'DELETE'});
   if(isErr(r)){toast(r?.msg||'Error al eliminar','err');if(btnEl){btnEl.disabled=false;btnEl.innerHTML='<i data-lucide="trash-2" style="width:13px;height:13px"></i>';refreshIcons();}return;}
   toast('Cálculo eliminado','ok');abrirHistorialTuberias();
 }
@@ -6612,7 +6612,7 @@ async function eliminarTuberia(id,btnEl){
 // ── PDF Tubería ───────────────────────────────────────────────
 async function exportarPDFTuberiaFromRecord(id){
   let record=_tbCalcsCache.find(c=>String(c.id)===String(id));
-  if(!record){const r=await api('electrical-projects/index');if(!isErr(r)){const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_tbCalcsCache=todos.filter(p=>p.tipo==='tuberia_calc');record=_tbCalcsCache.find(c=>String(c.id)===String(id));}}
+  if(!record){const r=await api('electrical-projects');if(!isErr(r)){const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_tbCalcsCache=todos.filter(p=>p.tipo==='tuberia_calc');record=_tbCalcsCache.find(c=>String(c.id)===String(id));}}
   if(!record){toast('No se encontró el registro','err');return;}
   const snap=_parseCargasField(record.cargas)[0]||{};
   await _exportarPDFTuberia(snap, record.nombre||'Tubería', record.cliente||'—', record.ubicacion||'');
@@ -6703,7 +6703,7 @@ async function _exportarPDFTuberia(snap, nombre, cliente, notas){
 // Verificar conexión Neon al abrir la tab Cables
 // ───────────────────────────────────────────────────────────────
 function _initCcDbBadge(){
-  api('electrical-projects/index').then(r=>{
+  api('electrical-projects').then(r=>{
     _updateCcDbBadge(isErr(r)?'err':'ok');
   }).catch(()=>_updateCcDbBadge('err'));
 }
