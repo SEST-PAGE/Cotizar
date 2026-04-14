@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <title>SEST · Cotizador</title>
 <link rel="icon" type="image/jpeg" href="logo.jpg"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -466,6 +466,7 @@ tbody td{padding:10px 14px;font-size:13px;vertical-align:middle}
 .loading{text-align:center;padding:48px;color:var(--t3)}
 .spin{display:inline-block;width:28px;height:28px;border:3px solid var(--s4);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:10px}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse-dot{0%{transform:scale(1);opacity:.6}70%{transform:scale(2.2);opacity:0}100%{transform:scale(1);opacity:0}}
 .empty{text-align:center;padding:48px 24px;color:var(--t3)}
 .empty-ico{font-size:32px;margin-bottom:10px}
 /* TOAST */
@@ -577,7 +578,30 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   .cot-tab{flex:1;justify-content:center;padding:8px 6px;font-size:11px;min-width:0}
   .g5{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}
   .icols{display:none}
-  .item-row,.adic-row{display:flex;flex-direction:column;gap:6px;padding:8px}
+  .item-row,.adic-row{
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    grid-template-areas:
+      "desc desc"
+      "cant unid"
+      "precio iva"
+      "subtotal del"!important;
+    gap:6px;padding:10px;
+  }
+  .item-row > input:nth-child(1),
+  .adic-row > input:nth-child(1){ grid-area:desc }
+  .item-row > input:nth-child(2),
+  .adic-row > input:nth-child(2){ grid-area:cant }
+  .item-row > select:nth-child(3),
+  .adic-row > select:nth-child(3){ grid-area:unid }
+  .item-row > input:nth-child(4),
+  .adic-row > input:nth-child(4){ grid-area:precio }
+  .item-row > select:nth-child(5),
+  .adic-row > select:nth-child(5){ grid-area:iva }
+  .item-row > .item-total,
+  .adic-row > .item-total{ grid-area:subtotal;font-size:14px;font-weight:700;display:flex;align-items:center }
+  .item-row > .del-item,
+  .adic-row > .del-item{ grid-area:del;justify-self:end;align-self:center }
   table{display:block;overflow-x:auto}
   .modal-bg{padding:8px}.modal,.modal-xl{max-width:100%}
   .nc-header{flex-direction:column;align-items:flex-start;gap:8px}
@@ -595,14 +619,8 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   .nc-card-head{padding:10px 12px}
   .cot-tabs{padding:3px}
   .cot-tab{padding:7px 4px;font-size:10px;gap:4px}
-  .item-row,.adic-row{padding:6px}
-  /* En móviles muy pequeños, hacer layout de items más simple */
-  .item-row,.adic-row{
-    display:flex;flex-direction:column;gap:6px;
-  }
-  .item-row-top{display:flex;align-items:center;gap:6px;width:100%}
-  .item-row-fields{display:grid;grid-template-columns:1fr 1fr;gap:5px;width:100%}
-  .item-row-bottom{display:flex;justify-content:space-between;align-items:center;width:100%}
+  .item-row,.adic-row{padding:8px}
+  /* En móviles pequeños aún más compacto */
   .nc-header > div:last-child{grid-template-columns:1fr}
 }
 @media(max-width:360px){
@@ -2405,25 +2423,21 @@ function renderItems(){
     </div>`;refreshIcons();return;
   }
   cont.innerHTML=cotItems.map((it,i)=>`
-    <div class="item-row" style="display:flex;flex-direction:column;gap:6px;">
-      <div style="display:flex;align-items:center;gap:6px;width:100%">
-        <input class="item-inp" style="flex:1;min-width:0" value="${esc(it.descripcion)}" placeholder="Descripci\u00f3n" onchange="cotItems[${i}].descripcion=this.value"/>
-        <button type="button" class="del-item" title="Quitar" onclick="cotItems.splice(${i},1);renderItems();calcTotals()"><i data-lucide="x" style="width:16px;height:16px"></i></button>
-      </div>
-      <div style="display:grid;grid-template-columns:70px 1fr 90px 80px 70px;gap:5px;align-items:center">
-        <input class="item-inp num-plain" type="number" value="${it.cantidad}" min="1" step="1" style="text-align:center" placeholder="Cant."
-          onchange="cotItems[${i}].cantidad=Math.max(1,parseInt(this.value,10)||1);renderItems();calcTotals()"/>
-        <select class="item-inp" onchange="cotItems[${i}].unidad=this.value">
-          ${UNIDADES.map(u=>`<option${u===it.unidad?' selected':''}>${u}</option>`).join('')}
-        </select>
-        <input class="item-inp num-plain" type="number" value="${it.precio_unitario}" min="0" step="1" style="text-align:right" placeholder="Precio"
-          onchange="cotItems[${i}].precio_unitario=Math.max(0,parseFloat(this.value)||0);renderItems();calcTotals()"/>
-        <select class="item-inp iva-sel" title="IVA"
-          onchange="var v=parseInt(this.value,10);cotItems[${i}].iva_pct=v;cotItems[${i}].tiene_iva=v>0;calcTotals()">
-          ${IVA_OPCIONES.map(o=>`<option value="${o}"${normalizarIvaPct(it)===o?' selected':''}>${o===0?'No':o+'%'}</option>`).join('')}
-        </select>
-        <div class="item-total">$${(it.cantidad*it.precio_unitario).toFixed(2)}</div>
-      </div>
+    <div class="item-row">
+      <input class="item-inp" value="${esc(it.descripcion)}" placeholder="Descripción" onchange="cotItems[${i}].descripcion=this.value"/>
+      <input class="item-inp num-plain" type="number" value="${it.cantidad}" min="1" step="1" style="text-align:center" placeholder="Cant."
+        onchange="cotItems[${i}].cantidad=Math.max(1,parseInt(this.value,10)||1);renderItems();calcTotals()"/>
+      <select class="item-inp" onchange="cotItems[${i}].unidad=this.value">
+        ${UNIDADES.map(u=>`<option${u===it.unidad?' selected':''}>${u}</option>`).join('')}
+      </select>
+      <input class="item-inp num-plain" type="number" value="${it.precio_unitario}" min="0" step="0.01" style="text-align:right" placeholder="Precio"
+        onchange="cotItems[${i}].precio_unitario=Math.max(0,parseFloat(this.value)||0);renderItems();calcTotals()"/>
+      <select class="item-inp iva-sel" title="IVA"
+        onchange="var v=parseInt(this.value,10);cotItems[${i}].iva_pct=v;cotItems[${i}].tiene_iva=v>0;calcTotals()">
+        ${IVA_OPCIONES.map(o=>`<option value="${o}"${normalizarIvaPct(it)===o?' selected':''}>${o===0?'No':o+'%'}</option>`).join('')}
+      </select>
+      <div class="item-total">$${(it.cantidad*it.precio_unitario).toFixed(2)}</div>
+      <button type="button" class="del-item" title="Quitar" onclick="cotItems.splice(${i},1);renderItems();calcTotals()"><i data-lucide="x" style="width:15px;height:15px"></i></button>
     </div>`).join('');
   refreshIcons();
 }
@@ -2436,25 +2450,21 @@ function agregarAdicional(){
 function renderAdic(){
   const cont=document.getElementById('nc-adic-list');if(!cont)return;
   cont.innerHTML=cotAdic.map((it,i)=>`
-    <div class="adic-row" style="display:flex;flex-direction:column;gap:6px;">
-      <div style="display:flex;align-items:center;gap:6px;width:100%">
-        <input class="item-inp" style="flex:1;min-width:0" value="${esc(it.descripcion)}" placeholder="Material o servicio adicional" onchange="cotAdic[${i}].descripcion=this.value"/>
-        <button type="button" class="del-item" title="Quitar" onclick="cotAdic.splice(${i},1);renderAdic();calcTotals()"><i data-lucide="x" style="width:16px;height:16px"></i></button>
-      </div>
-      <div style="display:grid;grid-template-columns:70px 1fr 90px 80px 70px;gap:5px;align-items:center">
-        <input class="item-inp num-plain" type="number" value="${it.cantidad}" min="1" step="1" style="text-align:center"
-          onchange="cotAdic[${i}].cantidad=Math.max(1,parseInt(this.value,10)||1);renderAdic();calcTotals()"/>
-        <select class="item-inp" onchange="cotAdic[${i}].unidad=this.value">
-          ${UNIDADES.map(u=>`<option${u===it.unidad?' selected':''}>${u}</option>`).join('')}
-        </select>
-        <input class="item-inp num-plain" type="number" value="${it.precio_unitario}" min="0" step="1" style="text-align:right" placeholder="0"
-          onchange="cotAdic[${i}].precio_unitario=Math.max(0,parseFloat(this.value)||0);renderAdic();calcTotals()"/>
-        <select class="item-inp iva-sel" title="IVA"
-          onchange="var v=parseInt(this.value,10);cotAdic[${i}].iva_pct=v;cotAdic[${i}].tiene_iva=v>0;calcTotals()">
-          ${IVA_OPCIONES.map(o=>`<option value="${o}"${normalizarIvaPct(it)===o?' selected':''}>${o===0?'No':o+'%'}</option>`).join('')}
-        </select>
-        <div class="item-total">$${(it.cantidad*it.precio_unitario).toFixed(2)}</div>
-      </div>
+    <div class="adic-row">
+      <input class="item-inp" value="${esc(it.descripcion)}" placeholder="Material o servicio adicional" onchange="cotAdic[${i}].descripcion=this.value"/>
+      <input class="item-inp num-plain" type="number" value="${it.cantidad}" min="1" step="1" style="text-align:center"
+        onchange="cotAdic[${i}].cantidad=Math.max(1,parseInt(this.value,10)||1);renderAdic();calcTotals()"/>
+      <select class="item-inp" onchange="cotAdic[${i}].unidad=this.value">
+        ${UNIDADES.map(u=>`<option${u===it.unidad?' selected':''}>${u}</option>`).join('')}
+      </select>
+      <input class="item-inp num-plain" type="number" value="${it.precio_unitario}" min="0" step="0.01" style="text-align:right" placeholder="0"
+        onchange="cotAdic[${i}].precio_unitario=Math.max(0,parseFloat(this.value)||0);renderAdic();calcTotals()"/>
+      <select class="item-inp iva-sel" title="IVA"
+        onchange="var v=parseInt(this.value,10);cotAdic[${i}].iva_pct=v;cotAdic[${i}].tiene_iva=v>0;calcTotals()">
+        ${IVA_OPCIONES.map(o=>`<option value="${o}"${normalizarIvaPct(it)===o?' selected':''}>${o===0?'No':o+'%'}</option>`).join('')}
+      </select>
+      <div class="item-total">$${(it.cantidad*it.precio_unitario).toFixed(2)}</div>
+      <button type="button" class="del-item" title="Quitar" onclick="cotAdic.splice(${i},1);renderAdic();calcTotals()"><i data-lucide="x" style="width:15px;height:15px"></i></button>
     </div>`).join('');
   refreshIcons();
 }
@@ -3971,7 +3981,17 @@ async function cargarUsuarios(){
       <div style="width:10px;height:10px;border-radius:50%;background:${u.compartir_datos?'var(--ok)':'var(--s4)'}"></div>
       <span style="font-size:12px;color:${u.compartir_datos?'var(--ok)':'var(--t3)'};">${u.compartir_datos?'Activo':'Inactivo'}</span>
     </div></td>
-    <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${u.activo?'var(--ok)':'var(--err)'};margin-right:6px"></span>${u.activo?'Activo':'Inactivo'}</td>
+    <td>
+      ${(()=>{
+        const fiveMin = 5*60*1000;
+        const online = u.last_seen && (Date.now() - new Date(u.last_seen).getTime()) < fiveMin;
+        const color = online ? 'var(--ok)' : 'rgba(144,144,170,.4)';
+        const pulse = online ? '<span style="position:absolute;inset:0;border-radius:50%;background:var(--ok);animation:pulse-dot .8s ease-out infinite;opacity:.6"></span>' : '';
+        const label = online ? 'Conectado' : 'Inactivo';
+        const labelColor = online ? 'var(--ok)' : 'var(--t3)';
+        return '<div style="display:flex;align-items:center;gap:7px"><span style="position:relative;display:inline-flex;width:10px;height:10px">'+pulse+'<span style="position:relative;display:inline-block;width:10px;height:10px;border-radius:50%;background:'+color+'"></span></span><span style="font-size:12px;font-weight:600;color:'+labelColor+'">'+label+'</span></div>';
+      })()}
+    </td>
   </tr>`).join('')}</tbody></table>`;
 }
 async function togglePermisoAdmin(userId,darPermiso){
@@ -7391,6 +7411,20 @@ if('serviceWorker' in navigator){
   window.addEventListener('online', mostrarEstadoRed);
   window.addEventListener('offline', mostrarEstadoRed);
   mostrarEstadoRed();
+})();
+
+// ── Heartbeat de presencia (last_seen) ──
+(function iniciarHeartbeat(){
+  async function ping(){
+    if(!usuario?.id || !navigator.onLine) return;
+    try{ await api(`users?id=${usuario.id}`,{method:'PUT',body:JSON.stringify({ping:true})}); }catch(e){}
+  }
+  // Ping inmediato al cargar
+  setTimeout(ping, 2000);
+  // Ping cada 2 minutos mientras la pestaña esté activa
+  setInterval(ping, 2*60*1000);
+  // Ping extra al volver a visibilidad
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) ping(); });
 })();
 </script>
 
