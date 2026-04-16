@@ -1,81 +1,138 @@
-// ============================================================
-// SEST - Service Worker v4 - Fix redirect handling
-// ============================================================
-const CACHE_NAME = 'sest-v4';
-const CACHE_STATIC = 'sest-static-v4';
+// ══════════════════════════════════════════════════════════════
+//  SEST · Service Worker  v1.2
+//  Estrategia:
+//    • Assets estáticos  → Cache First  (rápido, offline OK)
+//    • Llamadas /api/*   → Network First (datos siempre frescos)
+//    • Resto             → Network First con fallback a cache
+// ══════════════════════════════════════════════════════════════
 
-const PRECACHE_URLS = [
+const CACHE_NAME   = 'sest-v1.2';
+const OFFLINE_PAGE = '/dashboard.html';   // fallback si no hay red
+
+// Archivos que se precargan al instalar el SW
+const PRECACHE_ASSETS = [
+  '/',
   '/dashboard.html',
-  '/index.html',
+  '/IVAConfig.js',
+  '/logo.jpg',
 ];
 
-// ── Instalación ─────────────────────────────────────────────
+// ── INSTALL: precarga assets clave ───────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_STATIC).then(cache => {
-      return cache.addAll(PRECACHE_URLS).catch(() => {});
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(
+        PRECACHE_ASSETS.map(url => new Request(url, { cache: 'reload' }))
+      );
     }).then(() => self.skipWaiting())
+     .catch(() => self.skipWaiting()) // si falla precache, no bloquear
   );
 });
 
-// ── Activación: limpiar caches viejos ───────────────────────
+// ── ACTIVATE: elimina caches viejos ──────────────────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(k => k !== CACHE_STATIC && k !== CACHE_NAME)
-          .map(k => caches.delete(k))
+          .filter(key => key !== CACHE_NAME)
+          .map(key => caches.delete(key))
       )
     ).then(() => self.clients.claim())
   );
 });
 
-// ── Fetch ────────────────────────────────────────────────────
+// ── FETCH: estrategia por tipo de recurso ─────────────────────
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Solo manejar GET del mismo origen
+  // Ignorar peticiones que no son GET (POST, PUT, DELETE, etc.)
   if (request.method !== 'GET') return;
-  if (url.origin !== self.location.origin) return;
 
-  // API → siempre red, nunca cache
+  // Ignorar extensiones de Chrome y peticiones no-http
+  if (!url.protocol.startsWith('http')) return;
+  if (url.pathname.startsWith('/chrome-extension')) return;
+
+  // ── /api/* → Network First: siempre intentar red primero ──
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request, { redirect: 'follow' }).catch(() =>
-        new Response(
-          JSON.stringify({ error: 'Sin conexión.' }),
-          { status: 503, headers: { 'Content-Type': 'application/json' } }
-        )
-      )
-    );
+    event.respondWith(networkFirst(request));
     return;
   }
 
-  // Assets estáticos → Network-first con fallback a cache
-  event.respondWith(
-    fetch(request, { redirect: 'follow' })
-      .then(networkRes => {
-        // Solo cachear respuestas válidas (no redirects, no errores)
-        if (networkRes && networkRes.status === 200 && networkRes.type === 'basic') {
-          const cloned = networkRes.clone();
-          caches.open(CACHE_STATIC).then(cache => cache.put(request, cloned));
-        }
-        return networkRes;
-      })
-      .catch(async () => {
-        // Sin red → buscar en cache
-        const cached = await caches.match(request);
-        if (cached) return cached;
+  // ── Assets estáticos → Cache First ────────────────────────
+  const isStaticAsset = /\.(js|css|woff2?|ttf|otf|eot|jpg|jpeg|png|gif|svg|ico|webp)$/i.test(url.pathname);
+  if (isStaticAsset) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
 
-        // Fallback HTML
-        if (request.headers.get('accept')?.includes('text/html')) {
-          const fallback = await caches.match('/index.html');
-          if (fallback) return fallback;
-        }
+  // ── HTML y resto → Network First con fallback ─────────────
+  event.respondWith(networkFirstWithFallback(request));
+});
 
-        return new Response('Sin conexión', { status: 503 });
-      })
-  );
+// ─────────────────────────────────────────────────────────────
+//  Helpers de estrategia
+// ─────────────────────────────────────────────────────────────
+
+/** Cache First: devuelve caché si existe, si no va a red y guarda */
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    if (response && response.status === 200) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return new Response('Recurso no disponible offline', { status: 503 });
+  }
+}
+
+/** Network First: intenta red, si falla usa caché */
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (response && response.status === 200) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    return new Response(
+      JSON.stringify({ _err: true, msg: 'Sin conexión con el servidor' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/** Network First con fallback a página offline para navegación */
+async function networkFirstWithFallback(request) {
+  try {
+    const response = await fetch(request);
+    if (response && response.status === 200) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    // Fallback: mostrar dashboard cacheado
+    const fallback = await caches.match(OFFLINE_PAGE);
+    if (fallback) return fallback;
+    return new Response(
+      '<h1 style="font-family:sans-serif;padding:2rem">Sin conexión</h1>',
+      { status: 503, headers: { 'Content-Type': 'text/html' } }
+    );
+  }
+}
+
+// ── Mensaje desde la página para forzar actualización ─────────
+self.addEventListener('message', event => {
+  if (event.data === 'skipWaiting') self.skipWaiting();
 });
