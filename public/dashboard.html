@@ -11,6 +11,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -2387,7 +2389,7 @@ function renderMats(lista){
     <td><span style="font-size:12px;color:var(--t3)">${m.categoria_nombre||'\u2014'}</span></td>
     <td style="color:var(--t3);font-size:12px">${m.unidad}</td>
     ${adminTds}
-    <td><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+    <td><div style="display:flex;gap:5px;align-items:center;flex-wrap:nowrap">
       <button type="button" class="btn btn-ok btn-sm" onclick="addItem(${m.id});ir('nueva-cot');irSubTab('cotizacion');toast('Agregado \u2713','ok')"><i data-lucide="plus" style="width:14px;height:14px"></i> Cot.</button>
       <button type="button" class="btn btn-ghost btn-sm" onclick="editarMat(${m.id})" title="Editar"><i data-lucide="pencil" style="width:14px;height:14px"></i></button>
       ${isAdmin?`<button type="button" class="btn btn-danger btn-sm" onclick="eliminarMat(${m.id})" title="Eliminar"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>`:''}
@@ -4412,7 +4414,7 @@ function setMaterial(mat) {
     const b = document.getElementById('tempcol-' + k);
     if (b) b.style.display = !isCu ? '' : 'none';
   });
-  // Reset to sensible default
+  // Restablecer valores predeterminados sensatos
   if (isCu && !['cu60','cu75','cu90'].includes(window._ccTempCol)) setTempCol('cu90');
   else if (!isCu && !['al75','al90'].includes(window._ccTempCol)) setTempCol('al90');
   else calcCable();
@@ -5642,13 +5644,43 @@ function calcTablero() {
 
   // Agrupar cargas por tipo para distribución
   const TIPO_COLOR = {
-    iluminacion: { color:'#facc15', bg:'rgba(250,204,21,.15)', label:'Iluminación', icon:'💡' },
-    tomacorriente:{ color:'#60a5fa', bg:'rgba(96,165,250,.15)', label:'Tomacorrientes', icon:'🔌' },
-    motor:       { color:'#4ade80', bg:'rgba(74,222,128,.15)', label:'Motores', icon:'⚙️' },
-    hvac:        { color:'#38bdf8', bg:'rgba(56,189,248,.15)', label:'HVAC/Clima', icon:'❄️' },
-    resistivo:   { color:'#f87171', bg:'rgba(248,113,113,.15)', label:'Resistivos', icon:'🔥' },
-    otro:        { color:'#a78bfa', bg:'rgba(167,139,250,.15)', label:'Especiales', icon:'📦' },
-  };
+  iluminacion: { 
+    color: '#facc15', 
+    bg: 'rgba(250,204,21,.15)', 
+    label: 'Iluminación', 
+    icon: 'ph-lightbulb' 
+  },
+  tomacorriente: { 
+    color: '#60a5fa', 
+    bg: 'rgba(96,165,250,.15)', 
+    label: 'Tomacorrientes', 
+    icon: 'ph-plug' 
+  },
+  motor: { 
+    color: '#4ade80', 
+    bg: 'rgba(74,222,128,.15)', 
+    label: 'Motores', 
+    icon: 'ph-gear' 
+  },
+  hvac: { 
+    color: '#38bdf8', 
+    bg: 'rgba(56,189,248,.15)', 
+    label: 'HVAC/Clima', 
+    icon: 'ph-fan' 
+  },
+  resistivo: { 
+    color: '#f87171', 
+    bg: 'rgba(248,113,113,.15)', 
+    label: 'Resistivos', 
+    icon: 'ph-fire' 
+  },
+  otro: { 
+    color: '#a78bfa', 
+    bg: 'rgba(167,139,250,.15)', 
+    label: 'Especiales', 
+    icon: 'ph-package' 
+  },
+};
 
   // Construir lista de circuitos con cálculos completos
   const circuitos = [];
