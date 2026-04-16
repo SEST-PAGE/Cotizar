@@ -102,7 +102,28 @@ function toggleCollapse(){
 function refreshIcons(){
   if(typeof lucide!=='undefined'&&lucide.createIcons)lucide.createIcons();
 }
-
+//=====================================================================================================================
+// Mejoras táctiles para móvil en cotización
+if (window.matchMedia('(pointer: coarse)').matches) {
+  // Aumentar área de toque en selects de IVA
+  document.querySelectorAll('select.iva-sel').forEach(sel => {
+    sel.style.minHeight = '44px';
+    sel.style.fontSize = '16px'; // Prevenir zoom en iOS
+  });
+  
+  // Focus visible más claro en móvil
+  document.querySelectorAll('.item-row input, .adic-row input').forEach(inp => {
+    inp.addEventListener('focus', function() {
+      this.closest('.item-row, .adic-row').style.borderColor = 'var(--acc)';
+      this.closest('.item-row, .adic-row').style.boxShadow = '0 0 0 2px rgba(245,200,0,.2)';
+    });
+    inp.addEventListener('blur', function() {
+      this.closest('.item-row, .adic-row').style.borderColor = '';
+      this.closest('.item-row, .adic-row').style.boxShadow = '';
+    });
+  });
+}
+//==================================================================================================================================
 function ir(sec){
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.nav-item[data-nav]').forEach(n=>n.classList.toggle('on',n.dataset.nav===sec));

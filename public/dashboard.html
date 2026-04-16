@@ -185,7 +185,7 @@ body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-
 .sb-foot{padding:10px 9px;border-top:1px solid var(--bd);overflow:hidden}
 .user-card{
   background:var(--s2);border-radius:var(--r);
-  padding:9px;display:flex;align-items:center;gap:9px;
+  padding:4px;display:flex;align-items:center;gap:4px;
   overflow:hidden;cursor:pointer;position:relative;
   border:1px solid transparent;
   transition:border-color .15s,background .15s;
@@ -635,7 +635,7 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   .adic-row > .item-total{ grid-area:subtotal;font-size:14px;font-weight:700;display:flex;align-items:center }
   .item-row > .del-item,
   .adic-row > .del-item{ grid-area:del;justify-self:end;align-self:center }
-  table{display:block;overflow-x:auto}
+  table{display:inline-table;overflow-x:auto}
   .modal-bg{padding:8px}.modal,.modal-xl{max-width:100%}
   .nc-header{flex-direction:column;align-items:flex-start;gap:8px}
   .nc-header > div:last-child{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -647,7 +647,257 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   .nc-right{order:999;margin-top:4px}
   /* user dropdown arriba del sidebar */
  /* .user-dropdown{bottom:calc(100% + 6px)}*/
+
 }
+/*==================================================================================================*/
+/* ═══════════ MEJORAS MÓVIL: MATERIALES EN COTIZACIÓN ═══════════ */
+
+@media(max-width:768px){
+  /* Contenedor principal con más aire */
+  .nc-card-body {
+    padding: 16px 12px;
+  }
+  
+  /* El header con el toggle IVA y botón agregar: stack vertical en móvil pequeño */
+  .nc-card-head {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  
+  .nc-card-head > div[style*="display:flex"] {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  /* Toggle IVA más grande para dedos */
+  #iva-toggle-dot {
+    width: 50px !important;
+    height: 28px !important;
+  }
+  #iva-toggle-knob {
+    width: 20px !important;
+    height: 20px !important;
+    top: 3px !important;
+    left: 3px !important;
+  }
+  #iva-toggle-knob.active {
+    left: 26px !important;
+  }
+  
+  /* Cada fila de item se convierte en tarjeta */
+  .item-row, .adic-row {
+    display: flex !important;
+    flex-direction: column !important;
+    background: var(--s2) !important;
+    border: 1px solid var(--bd) !important;
+    border-radius: 12px !important;
+    padding: 14px !important;
+    margin-bottom: 12px !important;
+    gap: 12px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  
+  /* La descripción ocupa todo el ancho arriba */
+  .item-row > input:nth-child(1),
+  .adic-row > input:nth-child(1) {
+    width: 100% !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    padding: 10px 12px !important;
+    background: var(--s3) !important;
+    border-radius: 8px !important;
+    margin-bottom: 4px;
+  }
+  
+  /* Grid de 2 columnas para los campos numéricos */
+  .item-row::before,
+  .adic-row::before {
+    content: "Detalles del ítem";
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--t3);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  
+  /* Contenedor interno para organizar campos en grid */
+  .item-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-areas: 
+      "desc desc"
+      "cant unidad"
+      "precio iva"
+      "total eliminar" !important;
+  }
+  
+  /* Asignación de áreas específica */
+  .item-row > *:nth-child(1) { grid-area: desc !important; }
+  .item-row > *:nth-child(2) { grid-area: cant !important; }
+  .item-row > *:nth-child(3) { grid-area: unidad !important; }
+  .item-row > *:nth-child(4) { grid-area: precio !important; }
+  .item-row > *:nth-child(5) { grid-area: iva !important; }
+  .item-row > .item-total { grid-area: total !important; }
+  .item-row > .del-item { grid-area: eliminar !important; }
+  
+  /* Inputs más táctiles (mínimo 44px altura) */
+  .item-row input, 
+  .adic-row input,
+  .item-row select,
+  .adic-row select {
+    height: 44px !important;
+    font-size: 15px !important;
+    padding: 0 12px !important;
+    background: var(--s3) !important;
+    border: 1.5px solid var(--bd2) !important;
+    border-radius: 8px !important;
+    width: 100% !important;
+  }
+  
+  /* Selects con flecha más visible */
+  .item-row select, .adic-row select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239090aa' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px !important;
+  }
+  
+  /* Etiquetas flotantes para campos */
+  .item-row > div::before,
+  .adic-row > div::before {
+    content: attr(data-label);
+    font-size: 11px;
+    color: var(--t3);
+    display: block;
+    margin-bottom: 4px;
+    text-transform: capitalize;
+  }
+  
+  /* El subtotal destacado */
+  .item-total {
+    font-size: 16px !important;
+    color: var(--acc) !important;
+    font-weight: 700 !important;
+    text-align: left !important;
+    padding: 10px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+  
+  .item-total::before {
+    content: "Subtotal:";
+    font-size: 12px;
+    color: var(--t3);
+    font-weight: 500;
+  }
+  
+  /* Botón eliminar más grande y visible */
+  .del-item {
+    width: 44px !important;
+    height: 44px !important;
+    background: rgba(239,68,68,.1) !important;
+    border-radius: 8px !important;
+    justify-self: end !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  .del-item:hover {
+    background: rgba(239,68,68,.2) !important;
+    transform: scale(1.05) !important;
+  }
+  
+  /* Buscador rápido más grande */
+  #nc-bi {
+    height: 48px !important;
+    font-size: 15px !important;
+    padding-left: 42px !important;
+  }
+  
+  /* Dropdown de resultados más ancho */
+  #nc-results-drop {
+    left: -12px !important;
+    right: -12px !important;
+    width: calc(100% + 24px) !important;
+    max-height: 300px !important;
+    border-radius: 12px !important;
+    margin-top: 8px !important;
+  }
+  
+  /* Espaciado entre secciones */
+  .nc-card {
+    margin-bottom: 20px !important;
+  }
+}
+/*======================================================================================================================*/
+/* Ajustes específicos para pantallas muy pequeñas */
+@media(max-width:480px){
+  /* Una sola columna para evitar campos muy estrechos */
+  .item-row, .adic-row {
+    grid-template-columns: 1fr !important;
+    grid-template-areas: 
+      "desc"
+      "cant"
+      "unidad"
+      "precio"
+      "iva"
+      "total"
+      "eliminar" !important;
+  }
+  
+  /* El subtotal alineado con el botón eliminar en una fila */
+  .item-row {
+    position: relative;
+    padding-bottom: 60px !important; /* espacio para el footer */
+  }
+  
+  .item-total {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+  }
+  
+  .del-item {
+    position: absolute;
+    bottom: 14px;
+    right: 14px;
+  }
+  
+  /* Labels visibles sobre cada campo */
+  .item-row > *:nth-child(2)::before { content: "Cantidad"; display:block; font-size:11px; color:var(--t3); margin-bottom:4px; }
+  .item-row > *:nth-child(3)::before { content: "Unidad"; display:block; font-size:11px; color:var(--t3); margin-bottom:4px; }
+  .item-row > *:nth-child(4)::before { content: "Precio Unit."; display:block; font-size:11px; color:var(--t3); margin-bottom:4px; }
+  .item-row > *:nth-child(5)::before { content: "IVA %"; display:block; font-size:11px; color:var(--t3); margin-bottom:4px; }
+  
+  /* Botón agregar del catálogo full width */
+  .nc-card-head button {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 12px !important;
+    height: auto !important;
+  }
+  
+  /* Toggle IVA centrado */
+  #iva-toggle-lbl {
+    font-size: 13px !important;
+  }
+}
+
+/* Animación suave al agregar items */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.item-row, .adic-row {
+  animation: slideIn 0.3s ease-out;
+}
+
 @media(max-width:480px){
   .stats{grid-template-columns:1fr}
   .btn{padding:7px 12px;font-size:12px}
