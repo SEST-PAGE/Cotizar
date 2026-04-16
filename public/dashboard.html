@@ -24,7 +24,7 @@
   --sw:230px;--sw-col:60px;--r:10px;--rl:14px;
 }
 html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;min-height:100vh;min-width:200px;overflow-x:hidden}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:var(--s4);border-radius:9px}
 /* ═══════════ SIDEBAR ═══════════ */
@@ -186,14 +186,17 @@ body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-
 .user-card{
   background:var(--s2);border-radius:var(--r);
   padding:9px;display:flex;align-items:center;gap:9px;
-  overflow:hidden;
+  overflow:hidden;cursor:pointer;position:relative;
+  border:1px solid transparent;
+  transition:border-color .15s,background .15s;
 }
+.user-card:hover{border-color:var(--bd2);background:var(--s3)}
 .user-av{
-  width:26px;height:26px;border-radius:50%;
+  width:32px;height:32px;border-radius:50%;
   background:var(--acc);color:#000;
-  font-weight:700;font-size:14px;
+  font-weight:700;font-size:15px;
   display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;
+  flex-shrink:0;box-shadow:0 2px 8px rgba(245,200,0,.3);
 }
 .user-info{flex:1;min-width:0;overflow:hidden;
   max-width:140px;
@@ -206,17 +209,47 @@ body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-
 .r-admin-delegado{background:rgba(168,85,247,.15);color:#c084fc}
 .role-icon{display:inline-flex;align-items:center;gap:4px}
 .role-icon svg{width:13px;height:13px;flex-shrink:0}
-/* Botón salir: se oculta en colapso, queda el avatar como indicio */
-.btn-out{
-  width:100%;margin-top:8px;
-  background:transparent;border:1px solid var(--bd2);color:var(--t2);
-  padding:8px;border-radius:var(--r);cursor:pointer;
-  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;
-  transition:border-color .15s,color .15s,opacity .2s,max-height .28s,margin .28s,padding .28s;
-  overflow:hidden;max-height:50px;
+/* Chevron del user-card */
+.user-chevron{
+  flex-shrink:0;color:var(--t3);
+  transition:transform .25s,opacity .2s,max-width .28s;
+  display:flex;align-items:center;
 }
-.btn-out:hover{border-color:var(--err);color:var(--err)}
-.sidebar.collapsed .btn-out{max-height:0;opacity:0;pointer-events:none;margin:0;padding:0;border-width:0}
+.sidebar.collapsed .user-chevron{max-width:0;opacity:0;overflow:hidden}
+.user-card.dd-open .user-chevron{transform:rotate(180deg)}
+/* Dropdown del perfil — fixed para escapar del overflow:hidden del sidebar */
+.user-dropdown{
+  position:fixed;
+  background:var(--s2);border:1px solid var(--bd2);border-radius:12px;
+  padding:6px;box-shadow:0 8px 40px rgba(0,0,0,.7);
+  display:none;z-index:1200;
+  min-width:210px;
+  animation:ddFadeIn .18s ease;
+}
+.user-dropdown.open{display:block}
+@keyframes ddFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.dd-item{
+  display:flex;align-items:center;gap:9px;
+  padding:9px 11px;border-radius:8px;
+  font-size:13px;font-weight:500;color:var(--t1);
+  cursor:pointer;transition:background .12s,color .12s;
+  border:none;background:none;width:100%;text-align:left;
+  font-family:'DM Sans',sans-serif;
+}
+.dd-item:hover{background:var(--s3)}
+.dd-item.danger:hover{background:rgba(239,68,68,.12);color:var(--err)}
+.dd-item svg{width:15px;height:15px;flex-shrink:0;color:var(--t3)}
+.dd-item.danger svg{color:var(--err)}
+.dd-sep{height:1px;background:var(--bd);margin:4px 0}
+/* Modal perfil */
+.modal-perfil-av{
+  width:56px;height:56px;border-radius:50%;
+  background:var(--acc);color:#000;font-weight:800;font-size:24px;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 16px;box-shadow:0 4px 16px rgba(245,200,0,.35);
+}
+/* Botón salir legacy oculto */
+.btn-out{display:none}
 /* HAMBURGER */
 /* ── Botón menú móvil ── */
 .hamburger{
@@ -608,6 +641,12 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   .nc-header > div:last-child{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .nc-header > div:last-child .btn{justify-content:center;width:100%}
   .nc-title{font-size:17px}
+  /* Cotización: cliente info grid a 1 col */
+  .g5{grid-template-columns:1fr 1fr}
+  /* Resumen sticky en móvil */
+  .nc-right{order:999;margin-top:4px}
+  /* user dropdown arriba del sidebar */
+  .user-dropdown{bottom:calc(100% + 6px)}
 }
 @media(max-width:480px){
   .stats{grid-template-columns:1fr}
@@ -620,8 +659,21 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   .cot-tabs{padding:3px}
   .cot-tab{padding:7px 4px;font-size:10px;gap:4px}
   .item-row,.adic-row{padding:8px}
-  /* En móviles pequeños aún más compacto */
   .nc-header > div:last-child{grid-template-columns:1fr}
+  /* Ocultar texto de tabs, solo iconos */
+  .cot-tab i{width:14px;height:14px}
+  /* Formulario cotización: todos los campos full width */
+  .g5,.g3{grid-template-columns:1fr!important}
+  /* Botones de acción en columna */
+  .nc-header{gap:6px}
+  .nc-header-actions{width:100%;justify-content:stretch}
+  .nc-header-actions .btn{flex:1;justify-content:center}
+  /* Ajustar padding del nc-card-head cuando hay filtros */
+  .nc-card-head .search-wrap,.nc-card-head select{width:100%!important}
+  /* Modal más compacto */
+  .modal-body{padding:12px}
+  .modal-ft{padding:10px 12px;gap:6px;flex-wrap:wrap}
+  .modal-ft .btn{flex:1;justify-content:center}
 }
 @media(max-width:360px){
   .content{padding:6px 4px}
@@ -629,9 +681,44 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   .topbar{padding:0 8px}
   .page-title{font-size:13px}
   .cot-tab{font-size:9px;padding:6px 3px}
-  /* item inner grid a 2 cols en pantallas muy pequeñas */
   .item-row .item-fields-grid,
   .adic-row .item-fields-grid{grid-template-columns:60px 1fr 80px!important}
+  /* item rows en pantallas muy pequeñas: todo en 1 col */
+  .item-row,.adic-row{grid-template-columns:1fr!important;grid-template-areas:"desc""cant""unid""precio""iva""subtotal""del"!important}
+  .item-row > .del-item,.adic-row > .del-item{justify-self:start}
+}
+@media(max-width:280px){
+  :root{--sw:100vw}
+  .content{padding:4px 2px}
+  .topbar{padding:0 6px;height:46px}
+  .page-title{font-size:11px}
+  .hamburger{width:30px;height:30px}
+  .nc-card-head{padding:8px}
+  .nc-card-body{padding:6px}
+  .nc-card-title{font-size:12px}
+  .btn{padding:6px 8px;font-size:11px;gap:4px}
+  .btn i,[data-lucide]{width:13px!important;height:13px!important}
+  .cot-tabs{gap:2px;padding:2px}
+  .cot-tab{padding:5px 2px;font-size:9px;gap:2px;border-radius:6px}
+  .fld label{font-size:10px}
+  .fld input,.fld select,.fld textarea{font-size:12px;padding:6px 8px}
+  .modal-bg{padding:2px}
+  .modal,.modal-xl{border-radius:8px}
+  .modal-hd{padding:10px 10px}
+  .modal-body{padding:8px}
+  .modal-ft{padding:8px;gap:4px}
+  .res-row{font-size:12px}
+  .res-total{font-size:15px}
+  .nc-title{font-size:13px}
+  .nc-eyebrow{font-size:8px}
+  .btn-guardar{font-size:12px;padding:10px}
+  table th,table td{font-size:11px;padding:6px 4px}
+  .item-row,.adic-row{gap:4px;padding:6px}
+  .stats{grid-template-columns:1fr}
+  .kpi-val{font-size:22px}
+  .kpi-card{padding:10px;gap:8px}
+  .user-nm{font-size:11px}
+  .role-badge{font-size:9px;padding:1px 5px}
 }
 /* ═══════ DASHBOARD INICIO ═══════ */
 .dash-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
@@ -776,9 +863,34 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
     <div class="nav-item" data-nav="equipo" data-tip="Equipo" onclick="ir('equipo')"><span class="nav-ico"><i data-lucide="users-2"></i></span><span class="nav-txt">Equipo</span></div>
   </div>
   <div class="sb-foot">
-    <div class="user-card">
+    <div class="user-card" id="user-card-btn" onclick="toggleUserDropdown(event)" role="button" aria-haspopup="true" aria-expanded="false">
       <div class="user-av" id="user-av">?</div>
-      <div class="user-info"><div class="user-nm" id="user-nm">Cargando…</div><span class="role-badge r-vendedor" id="role-badge">vendedor</span></div>
+      <div class="user-info">
+        <div class="user-nm" id="user-nm">Cargando…</div>
+        <span class="role-badge r-vendedor" id="role-badge">vendedor</span>
+      </div>
+      <span class="user-chevron">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+      </span>
+      <!-- Dropdown -->
+      <div class="user-dropdown" id="user-dropdown">
+        <div class="modal-perfil-av" id="dd-av" style="width:40px;height:40px;font-size:18px;margin:8px auto 10px">?</div>
+        <div style="text-align:center;margin-bottom:10px;padding:0 8px">
+          <div style="font-size:13px;font-weight:700;color:var(--t1)" id="dd-nombre">—</div>
+          <div style="font-size:11px;color:var(--t3)" id="dd-email">—</div>
+          <div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace;margin-top:2px" id="dd-cedula"></div>
+        </div>
+        <div class="dd-sep"></div>
+        <button class="dd-item" onclick="abrirEditarPerfil()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Editar mi perfil
+        </button>
+        <div class="dd-sep"></div>
+        <button class="dd-item danger" onclick="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Cerrar sesión
+        </button>
+      </div>
     </div>
     <button class="btn-out" onclick="logout()">Cerrar sesión</button>
   </div>
@@ -952,7 +1064,7 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
           <div class="nc-eyebrow">Crear cotizaci&#243;n</div>
           <div class="nc-title" style="display:flex;align-items:center;gap:10px"><i data-lucide="banknote" style="width:26px;height:26px;stroke-width:2;color:var(--acc)"></i> NUEVA COTIZACI&#211;N</div>
         </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;gap:10px;flex-wrap:wrap" class="nc-header-actions">
           <button type="button" class="btn btn-ghost" onclick="limpiarCot(true)"><i data-lucide="eraser" style="width:16px;height:16px"></i> Limpiar</button>
           <button type="button" class="btn btn-acc" id="btn-guardar-top" onclick="guardarCot()"><i data-lucide="save" style="width:16px;height:16px"></i><span class="btn-lbl">Guardar</span></button>
         </div>
@@ -967,12 +1079,12 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
         <div class="nc-card">
           <div class="nc-card-head">
             <div class="nc-card-title" style="gap:8px"><i data-lucide="package" style="width:15px;height:15px"></i> Cat&#225;logo de Materiales</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-              <div class="search-wrap">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%">
+              <div class="search-wrap" style="flex:1;min-width:140px">
                 <i data-lucide="search" style="position:absolute;left:10px;width:15px;height:15px;color:var(--t3);pointer-events:none"></i>
-                <input class="inp-search" id="nc-bm" placeholder="cable 10, breaker, led 40w&#8230;" oninput="filtrarNcMats()" style="width:210px;padding-left:34px"/>
+                <input class="inp-search" id="nc-bm" placeholder="cable 10, breaker, led 40w&#8230;" oninput="filtrarNcMats()" style="width:100%;padding-left:34px"/>
               </div>
-              <select class="inp-search" id="nc-bm-cat" style="width:155px;padding-left:10px" onchange="filtrarNcMats()"><option value="">Todas las categor&#237;as</option></select>
+              <select class="inp-search" id="nc-bm-cat" style="min-width:120px;padding-left:10px;flex:1" onchange="filtrarNcMats()"><option value="">Todas las categor&#237;as</option></select>
             </div>
           </div>
           <div class="tbl-wrap" id="nc-tbl-mats"><div class="loading"><div class="spin"></div><p>Cargando cat&#225;logo&#8230;</p></div></div>
@@ -986,13 +1098,13 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
             <!-- Info cliente -->
             <div class="nc-card">
               <div class="nc-card-head"><div class="nc-card-title" style="gap:8px"><i data-lucide="user-circle" style="width:15px;height:15px"></i> Informaci&#243;n del Cliente</div>
-                <div style="display:flex;gap:8px;align-items:center">
-                  <div style="position:relative">
-                    <div class="search-wrap">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                  <div style="position:relative;flex:1;min-width:160px">
+                    <div class="search-wrap" style="width:100%">
                       <i data-lucide="search" style="position:absolute;left:10px;width:15px;height:15px;color:var(--t3);pointer-events:none"></i>
-                      <input class="inp-search" id="nc-cli-buscar" style="width:200px;padding-left:34px" placeholder="Buscar cliente registrado&#8230;" oninput="buscarClienteNc()" autocomplete="off"/>
+                      <input class="inp-search" id="nc-cli-buscar" style="width:100%;padding-left:34px" placeholder="Buscar cliente registrado&#8230;" oninput="buscarClienteNc()" autocomplete="off"/>
                     </div>
-                    <div id="nc-cli-drop" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--s2);border:1px solid var(--bd2);border-radius:10px;margin-top:4px;max-height:200px;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.55);min-width:260px"></div>
+                    <div id="nc-cli-drop" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--s2);border:1px solid var(--bd2);border-radius:10px;margin-top:4px;max-height:200px;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.55);min-width:220px"></div>
                   </div>
                   <button type="button" class="btn btn-ghost btn-sm" onclick="limpiarClienteNc()" title="Limpiar datos del cliente"><i data-lucide="eraser" style="width:13px;height:13px"></i></button>
                 </div>
@@ -1059,15 +1171,7 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
             <div class="nc-card">
               <div class="nc-card-head"><div class="nc-card-title" style="gap:8px"><i data-lucide="sliders-horizontal" style="width:15px;height:15px"></i> Opciones de Pago y Notas</div></div>
               <div class="nc-card-body">
-                <div class="fld" style="margin-bottom:14px">
-                  <label>Documento elaborado por <span style="font-weight:400;color:var(--t3);text-transform:none;letter-spacing:0">(PDF)</span></label>
-                  <input id="nc-elaborado" placeholder="Nombre en el documento PDF" autocomplete="name"/>
-                </div>
-                 <!--  NUEVO CAMPO -->
-    <div class="fld" style="margin-bottom:14px">
-      <label>RUC / Cédula del Ingeniero <span style="font-weight:400;color:var(--t3);text-transform:none;letter-spacing:0">(PDF)</span></label>
-      <input id="nc-ingeniero-ruc" placeholder="Número de identificación del ingeniero" autocomplete="off"/>
-    </div>
+                <!-- Elaborado por se toma automáticamente del perfil del usuario -->
                 <div style="display:grid;grid-template-columns:1fr 130px;gap:12px;margin-bottom:12px">
                   <div class="fld"><label>Forma de Pago</label>
                     <select id="nc-forma-pago">
@@ -1936,10 +2040,6 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   <div class="modal modal-xl">
     <div class="modal-hd"><div class="modal-title" id="ver-title">Cotizaci&#243;n</div><button type="button" class="modal-x" onclick="closeModal('m-ver')" aria-label="Cerrar"><i data-lucide="x"></i></button></div>
     <div class="modal-body" style="padding-top:16px">
-      <div class="fld" style="margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--bd)">
-        <label>Documento elaborado por <span style="font-weight:400;color:var(--t3);text-transform:none;letter-spacing:0">(PDF)</span></label>
-        <input id="ver-elaborado" placeholder="Nombre que aparecer\u00e1 en el PDF" autocomplete="name"/>
-      </div>
       <div id="ver-body"><div class="loading"><div class="spin"></div><p>Cargando&#8230;</p></div></div>
     </div>
     <div class="modal-ft">
@@ -1947,6 +2047,35 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
       <button type="button" class="btn btn-ghost" onclick="closeModal('m-ver')">Cerrar</button>
       <button type="button" class="btn btn-ok" onclick="prepEditarCotDesdeModal()"><i data-lucide="pencil" style="width:16px;height:16px"></i> Editar</button>
       <button type="button" class="btn btn-info" onclick="exportarPDF()"><i data-lucide="download" style="width:16px;height:16px"></i> Exportar PDF</button>
+    </div>
+  </div>
+</div>
+<!-- MODAL EDITAR PERFIL -->
+<div class="modal-bg" id="m-perfil">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-hd">
+      <div class="modal-title">Mi Perfil</div>
+      <button type="button" class="modal-x" onclick="closeModal('m-perfil')" aria-label="Cerrar"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" style="padding-top:20px">
+      <div class="modal-perfil-av" id="perfil-av-big">?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="fld"><label>Nombre *</label><input id="perfil-nombre" placeholder="Tu nombre"/></div>
+        <div class="fld"><label>Apellido</label><input id="perfil-apellido" placeholder="Tu apellido"/></div>
+      </div>
+      <div class="fld" style="margin-top:12px">
+        <label>Cédula / RUC</label>
+        <input id="perfil-cedula" placeholder="Número de identificación" style="font-family:'DM Mono',monospace"/>
+      </div>
+      <div class="fld" style="margin-top:12px">
+        <label>Correo electrónico</label>
+        <input id="perfil-email" placeholder="correo@ejemplo.com" type="email" autocomplete="email"/>
+      </div>
+      <div id="perfil-err" class="err-msg" style="margin-top:10px"></div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('m-perfil')">Cancelar</button>
+      <button type="button" class="btn btn-acc" id="btn-save-perfil" onclick="guardarPerfil()"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar</button>
     </div>
   </div>
 </div>
@@ -1995,8 +2124,7 @@ function textoResumenIva(todos,descPct,ivaVal,net){
   if(!usuario){location.href='/';return;}
   isAdmin=usuario.rol==='admin'||usuario.permisos==='admin';
   const isPrincipalAdmin=usuario.rol==='admin';
-  document.getElementById('user-nm').textContent=usuario.nombre;
-  document.getElementById('user-av').textContent=usuario.nombre[0].toUpperCase();
+  _actualizarUiUsuario();
   const rb=document.getElementById('role-badge');
   if(usuario.rol==='admin'){
     rb.innerHTML=`<span class="role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 7.5L12 4l-4 7.5z"/></svg> Admin Principal</span>`;
@@ -2008,14 +2136,26 @@ function textoResumenIva(todos,descPct,ivaVal,net){
     rb.innerHTML=`<span class="role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Vendedor</span>`;
     rb.className='role-badge r-vendedor';
   }
-  // admin-only nav: categorias visible to isAdmin, usuarios only to principal admin
   if(isAdmin){document.querySelectorAll('.admin-only[data-nav="categorias"]').forEach(el=>el.style.display='flex');}
   if(isPrincipalAdmin){document.querySelectorAll('.admin-only[data-nav="usuarios"]').forEach(el=>el.style.display='flex');}
   cargarTodo();
   refreshIcons();
-  const neo=document.getElementById('nc-elaborado');
-  if(neo&&!String(neo.value||'').trim())neo.value=usuario.nombre||'';
+  // Recargar datos frescos del usuario desde la BD (para obtener apellido, cedula, etc.)
+  _recargarUsuarioDesdeDB();
 })();
+
+async function _recargarUsuarioDesdeDB(){
+  try{
+    const rows=await api('users?todos=1');
+    if(!isErr(rows)&&Array.isArray(rows)){
+      const yo=rows.find(u=>u.id===usuario?.id);
+      if(yo){
+        usuario={...usuario,...yo};
+        _actualizarUiUsuario();
+      }
+    }
+  }catch(e){}
+}
 
 function toggleSidebar(){
   const sb=document.getElementById('sidebar');
@@ -2064,8 +2204,6 @@ function ir(sec){
   if(sec==='equipo')cargarEquipo();
   if(sec==='nueva-cot'){
     renderNcMats();
-    const neo=document.getElementById('nc-elaborado');
-    if(neo&&!String(neo.value||'').trim())neo.value=usuario?.nombre||'';
   }
   refreshIcons();
 }
@@ -2191,12 +2329,10 @@ async function eliminarCotDesdeModal(){
 async function verCot(id){
   openModal('m-ver');
   document.getElementById('ver-body').innerHTML='<div class="loading"><div class="spin"></div><p>Cargando\u2026</p></div>';
-  const ve=document.getElementById('ver-elaborado');if(ve)ve.value='';
   const r=await api(`quotes?id=${id}`);
   if(isErr(r)){document.getElementById('ver-body').innerHTML=`<div class="empty"><p>${r.msg}</p></div>`;return;}
   cotActual=r;document.getElementById('ver-title').textContent=r.numero;
   document.getElementById('ver-body').innerHTML=cotDetailHTML(r);
-  if(ve)ve.value=(r.usuario_nombre||usuario?.nombre||'').trim();
   refreshIcons();
 }
 function cotDetailHTML(c){
@@ -2348,7 +2484,7 @@ function limpiarCot(mostrarAviso){
   sSet('nc-validez','30');sSet('nc-cliente','');sSet('nc-ruc','');sSet('nc-telefono','');
   sSet('nc-email','');sSet('nc-direccion','');sSet('nc-descripcion','');
   sSet('nc-descuento','0');sSet('nc-notas','');sSet('nc-bi','');
-  sSet('nc-elaborado',usuario?.nombre||'');sSet('nc-cliente-id','');
+  sSet('nc-cliente-id','');
   const d=document.getElementById('nc-results-drop');if(d)d.style.display='none';
   // Reset button state
   ['btn-guardar-top','btn-guardar-cot'].forEach(id=>{
@@ -2549,7 +2685,6 @@ async function prepEditarCot(id){
   if(isErr(r)){toast(r.msg,'err');return;}
   cotEditandoId=id;
   limpiarCot(false);
-  sSet('nc-ingeniero-ruc', '');
   sSet('nc-numero',r.numero);
   sSet('nc-fecha',(r.creado_en||new Date().toISOString()).split('T')[0]);
   sSet('nc-validez',r.validez_dias||30);
@@ -2626,7 +2761,7 @@ function generarVP(){
           <img src="logo.jpg" alt="SEST" style="width:60px;height:60px;border-radius:10px;object-fit:cover;box-shadow:var(--acc-g)"/>
           <div>
             <div style="font-size:12px;color:var(--t3);text-transform:uppercase;letter-spacing:2px">Servicios El\u00e9ctricos y Seguridad Tapia</div>
-            <div style="font-size:11px;color:var(--t3);margin-top:2px">${escPdf(sGet('nc-elaborado').trim()||usuario?.nombre||'')}</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:2px">${escPdf((()=>{const n=usuario?.nombre||'';const a=usuario?.apellido||'';return a?`${n} ${a}`:n;})())}</div>
           </div>
         </div>
         <div style="text-align:right">
@@ -2777,8 +2912,8 @@ function construirModeloPdfNuevaCot(){
   });
   return{
     numero:num,fechaFmt,validez,
-    elaborador:sGet('nc-elaborado').trim()||usuario?.nombre||'',
-    ingenieroRuc: sGet('nc-ingeniero-ruc').trim() || '',
+    elaborador:(()=>{const n=usuario?.nombre||'';const a=usuario?.apellido||'';return a?`${n} ${a}`:n;})(),
+    ingenieroRuc: usuario?.cedula || '',
     cliente:{
       nombre:sGet('nc-cliente').trim()||'Sin cliente',
       empresa:'',
@@ -2807,14 +2942,14 @@ function construirModeloPdfGuardada(c){
   return{
     numero:c.numero||'',fechaFmt,
     validez:parseInt(c.validez_dias,10)||30,
-    elaborador:c.usuario_nombre||'',
+    elaborador:(()=>{const n=usuario?.nombre||'';const a=usuario?.apellido||'';return a?`${n} ${a}`:(n||c.usuario_nombre||'');})(),
+    ingenieroRuc: usuario?.cedula || '',
     cliente:{
       nombre:c.cliente_nombre||'Sin cliente',
       empresa:(c.cliente_empresa||'').trim(),
       ruc:(c.cliente_ruc||'').trim(),
       tel:(c.cliente_telefono||'').trim(),
       email:(c.cliente_email||'').trim(),
-      ingenieroRuc: '',
       dir:(c.cliente_direccion||'').trim()
     },
     descripcionTrabajo:(c.descripcion||c.titulo||'').trim(),
@@ -3542,13 +3677,10 @@ async function exportarPDF() {
   _actualizarLoadingPdf('Cargando cotización guardada…', 15);
 
   const modelo = construirModeloPdfGuardada(cotActual);
-  const elabPdf = document.getElementById('ver-elaborado')?.value.trim();
-  if (elabPdf) modelo.elaborador = elabPdf;
-  
-  // Para cotizaciones guardadas, el RUC del ingeniero se puede agregar manualmente si se desea
-  const ingenieroRucInput = document.getElementById('ver-ingeniero-ruc')?.value.trim();
-  if (ingenieroRucInput) modelo.ingenieroRuc = ingenieroRucInput;
-  
+  // Elaborador e ingenieroRuc se toman siempre del perfil del usuario
+  modelo.elaborador = (()=>{const n=usuario?.nombre||'';const a=usuario?.apellido||'';return a?`${n} ${a}`:n;})();
+  modelo.ingenieroRuc = usuario?.cedula || '';
+
   _actualizarLoadingPdf('Generando PDF...', 35);
 
   const { jsPDF } = window.jspdf;
@@ -3910,7 +4042,112 @@ function toast(msg,tipo='ok'){
   el.className='show '+(tipo==='err'?'err':tipo==='info'?'info':'ok');
   clearTimeout(toastT);toastT=setTimeout(()=>{el.className='';el.textContent='';},tipo==='info'?5000:4000);
 }
+// ─── PERFIL / USER DROPDOWN ────────────────────────────────────
+function _actualizarUiUsuario(){
+  const nombre=usuario?.nombre||'';
+  const apellido=usuario?.apellido||'';
+  const nombreCompleto=apellido?`${nombre} ${apellido}`:nombre;
+  const inicial=nombre[0]?.toUpperCase()||'?';
+  // sidebar
+  const nmEl=document.getElementById('user-nm');
+  const avEl=document.getElementById('user-av');
+  if(nmEl)nmEl.textContent=nombreCompleto;
+  if(avEl)avEl.textContent=inicial;
+  // dropdown
+  const ddAv=document.getElementById('dd-av');
+  const ddNm=document.getElementById('dd-nombre');
+  const ddEm=document.getElementById('dd-email');
+  const ddCed=document.getElementById('dd-cedula');
+  if(ddAv)ddAv.textContent=inicial;
+  if(ddNm)ddNm.textContent=nombreCompleto;
+  if(ddEm)ddEm.textContent=usuario?.email||'';
+  if(ddCed)ddCed.textContent=usuario?.cedula?`CI/RUC: ${usuario.cedula}`:'';
+}
+function toggleUserDropdown(e){
+  e.stopPropagation();
+  const card=document.getElementById('user-card-btn');
+  const dd=document.getElementById('user-dropdown');
+  if(!dd||!card)return;
+  const isOpen=dd.classList.contains('open');
+  if(isOpen){
+    dd.style.display='none';dd.classList.remove('open');
+    card.classList.remove('dd-open');card.setAttribute('aria-expanded','false');
+  } else {
+    // Calcular posición fija basada en la tarjeta del usuario
+    const rect=card.getBoundingClientRect();
+    dd.style.display='block';
+    dd.style.left=rect.left+'px';
+    dd.style.width=rect.width+'px';
+    // Intentar arriba primero, si no cabe abajo
+    const ddH=dd.offsetHeight||200;
+    if(rect.top-ddH-8>0){
+      dd.style.top=(rect.top-ddH-8)+'px';
+    } else {
+      dd.style.top=(rect.bottom+8)+'px';
+    }
+    dd.classList.add('open');
+    card.classList.add('dd-open');card.setAttribute('aria-expanded','true');
+  }
+}
+document.addEventListener('click',function(e){
+  const card=document.getElementById('user-card-btn');
+  const dd=document.getElementById('user-dropdown');
+  if(dd&&card&&!card.contains(e.target)&&!dd.contains(e.target)){
+    dd.style.display='none';dd.classList.remove('open');
+    card.classList.remove('dd-open');card.setAttribute('aria-expanded','false');
+  }
+});
+function abrirEditarPerfil(){
+  // cerrar dropdown
+  const dd=document.getElementById('user-dropdown');
+  const card=document.getElementById('user-card-btn');
+  if(dd){dd.style.display='none';dd.classList.remove('open');}
+  if(card){card.classList.remove('dd-open');card.setAttribute('aria-expanded','false');}
+  // rellenar modal
+  const inicial=(usuario?.nombre||'?')[0].toUpperCase();
+  const avBig=document.getElementById('perfil-av-big');
+  if(avBig)avBig.textContent=inicial;
+  const s=v=>document.getElementById(v);
+  if(s('perfil-nombre'))s('perfil-nombre').value=usuario?.nombre||'';
+  if(s('perfil-apellido'))s('perfil-apellido').value=usuario?.apellido||'';
+  if(s('perfil-cedula'))s('perfil-cedula').value=usuario?.cedula||'';
+  if(s('perfil-email'))s('perfil-email').value=usuario?.email||'';
+  const errEl=document.getElementById('perfil-err');
+  if(errEl){errEl.textContent='';errEl.classList.remove('show');}
+  openModal('m-perfil');
+  refreshIcons();
+}
+async function guardarPerfil(){
+  const nombre=(document.getElementById('perfil-nombre')?.value||'').trim();
+  const apellido=(document.getElementById('perfil-apellido')?.value||'').trim();
+  const cedula=(document.getElementById('perfil-cedula')?.value||'').trim();
+  const email=(document.getElementById('perfil-email')?.value||'').trim();
+  const errEl=document.getElementById('perfil-err');
+  if(!nombre){
+    if(errEl){errEl.textContent='El nombre es requerido';errEl.classList.add('show');}
+    return;
+  }
+  if(errEl){errEl.textContent='';errEl.classList.remove('show');}
+  const btn=document.getElementById('btn-save-perfil');
+  if(btn){btn.disabled=true;btn.innerHTML='<i data-lucide="loader-2" style="width:14px;height:14px"></i> Guardando…';refreshIcons();}
+
+  const body={nombre,apellido,cedula,email:email||usuario?.email};
+  const r=await api(`users?id=${usuario?.id}`,{method:'PUT',body:JSON.stringify(body)});
+
+  if(btn){btn.disabled=false;btn.innerHTML='<i data-lucide="save" style="width:14px;height:14px"></i> Guardar';refreshIcons();}
+
+  if(isErr(r)){
+    if(errEl){errEl.textContent=r.msg||'Error al guardar en el servidor';errEl.classList.add('show');}
+    return;
+  }
+  // Actualizar objeto local SOLO con la respuesta del servidor
+  usuario={...usuario,...r};
+  _actualizarUiUsuario();
+  closeModal('m-perfil');
+  toast('✨ Perfil guardado correctamente','ok');
+}
 function logout(){localStorage.clear();location.href='/';}
+
 document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('on');}));
 document.addEventListener('click',e=>{
   const d=document.getElementById('nc-results-drop');

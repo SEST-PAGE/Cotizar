@@ -13,6 +13,8 @@ export async function onRequest({ request, env }) {
     sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_cotizaciones BOOLEAN DEFAULT false`,
     sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_clientes BOOLEAN DEFAULT false`,
     sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_con JSONB DEFAULT '[]'`,
+    sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS apellido VARCHAR(100) DEFAULT ''`,
+    sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cedula VARCHAR(20) DEFAULT ''`,
   ]);
 
   const dbUser = await sql`SELECT rol, COALESCE(permisos,'vendedor') as permisos FROM usuarios WHERE id=${user.id} AND activo=true`;
@@ -27,7 +29,7 @@ export async function onRequest({ request, env }) {
     if (request.method === 'GET') {
       if (todos === '1') {
         const rows = await sql`
-          SELECT id, nombre, email, rol,
+          SELECT id, nombre, COALESCE(apellido,'') as apellido, COALESCE(cedula,'') as cedula, email, rol,
                  COALESCE(permisos,'vendedor') as permisos,
                  COALESCE(compartir_datos,false) as compartir_datos,
                  COALESCE(compartir_cotizaciones,false) as compartir_cotizaciones,
@@ -38,7 +40,7 @@ export async function onRequest({ request, env }) {
       }
       if (!isPrincipalAdmin) return json({ error: 'Solo el administrador puede gestionar usuarios' }, 403);
       const rows = await sql`
-        SELECT id, nombre, email, rol,
+        SELECT id, nombre, COALESCE(apellido,'') as apellido, COALESCE(cedula,'') as cedula, email, rol,
                COALESCE(permisos,'vendedor') as permisos,
                COALESCE(compartir_datos,false) as compartir_datos,
                COALESCE(compartir_cotizaciones,false) as compartir_cotizaciones,
@@ -52,7 +54,30 @@ export async function onRequest({ request, env }) {
       if (!id) return json({ error: 'ID requerido' }, 400);
       const targetId = parseInt(id);
       const body = await parseBody(request);
-      const { rol, permisos, compartir_datos, compartir_cotizaciones, compartir_clientes, compartir_con } = body;
+      const { nombre, apellido, cedula, email, rol, permisos, compartir_datos, compartir_cotizaciones, compartir_clientes, compartir_con } = body;
+
+      // ── Actualizar perfil propio (nombre, apellido, cedula, email) ──
+      if (targetId === user.id && (nombre !== undefined || apellido !== undefined || cedula !== undefined || email !== undefined)) {
+        if (nombre !== undefined && !String(nombre).trim()) return json({ error: 'El nombre no puede estar vacío' }, 400);
+        const r = await sql`
+          UPDATE usuarios SET
+            nombre   = COALESCE(${nombre   != null ? String(nombre).trim()   : null}, nombre),
+            apellido = COALESCE(${apellido != null ? String(apellido).trim() : null}, COALESCE(apellido,'')),
+            cedula   = COALESCE(${cedula   != null ? String(cedula).trim()   : null}, COALESCE(cedula,'')),
+            email    = COALESCE(${email    != null ? String(email).trim()    : null}, email)
+          WHERE id = ${targetId}
+          RETURNING id, nombre,
+                    COALESCE(apellido,'') as apellido,
+                    COALESCE(cedula,'')   as cedula,
+                    email, rol,
+                    COALESCE(permisos,'vendedor') as permisos,
+                    COALESCE(compartir_datos,false) as compartir_datos,
+                    COALESCE(compartir_cotizaciones,false) as compartir_cotizaciones,
+                    COALESCE(compartir_clientes,false) as compartir_clientes,
+                    COALESCE(compartir_con,'[]'::jsonb) as compartir_con, activo`;
+        if (!r.length) return json({ error: 'Usuario no encontrado' }, 404);
+        return json(r[0]);
+      }
 
       // Own sharing preferences
       if (targetId === user.id && (compartir_datos !== undefined || compartir_cotizaciones !== undefined || compartir_clientes !== undefined || compartir_con !== undefined)) {

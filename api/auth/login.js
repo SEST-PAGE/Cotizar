@@ -12,10 +12,13 @@ export async function onRequest({ request, env }) {
     const sql = getDb(env);
     await Promise.allSettled([
       sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos VARCHAR(20) DEFAULT 'vendedor'`,
+      sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS apellido VARCHAR(100) DEFAULT ''`,
+      sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cedula VARCHAR(20) DEFAULT ''`,
     ]);
 
     const users = await sql`
-      SELECT id,nombre,email,password_hash,rol,COALESCE(permisos,'vendedor') as permisos
+      SELECT id, nombre, COALESCE(apellido,'') as apellido, COALESCE(cedula,'') as cedula,
+             email, password_hash, rol, COALESCE(permisos,'vendedor') as permisos
       FROM usuarios WHERE email=${email.toLowerCase()} AND activo=true`;
     if (!users.length) return json({ error: 'Credenciales incorrectas' }, 401);
 
@@ -32,7 +35,7 @@ export async function onRequest({ request, env }) {
       { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, permisos: user.permisos },
       env
     );
-    return json({ token, usuario: { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol, permisos: user.permisos } });
+    return json({ token, usuario: { id: user.id, nombre: user.nombre, apellido: user.apellido, cedula: user.cedula, email: user.email, rol: user.rol, permisos: user.permisos } });
   } catch (err) {
     console.error('[login]', err);
     return json({ error: `Error interno: ${err.message}` }, 500);
