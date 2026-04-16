@@ -2034,26 +2034,33 @@ function abrirEditarPerfil(){
   refreshIcons();
 }
 async function guardarPerfil(){
+  if(!usuario?.id){toast('Error: sesión no válida, recarga la página','err');return;}
   const nombre=(document.getElementById('perfil-nombre')?.value||'').trim();
   const apellido=(document.getElementById('perfil-apellido')?.value||'').trim();
   const cedula=(document.getElementById('perfil-cedula')?.value||'').trim();
-  const email=(document.getElementById('perfil-email')?.value||'').trim();
+  const emailInput=(document.getElementById('perfil-email')?.value||'').trim();
+  const email=emailInput||usuario?.email||'';
   const errEl=document.getElementById('perfil-err');
   if(!nombre){
     if(errEl){errEl.textContent='El nombre es requerido';errEl.classList.add('show');}
+    return;
+  }
+  if(!email){
+    if(errEl){errEl.textContent='El email es requerido';errEl.classList.add('show');}
     return;
   }
   if(errEl){errEl.textContent='';errEl.classList.remove('show');}
   const btn=document.getElementById('btn-save-perfil');
   if(btn){btn.disabled=true;btn.innerHTML='<i data-lucide="loader-2" style="width:14px;height:14px"></i> Guardando…';refreshIcons();}
 
-  const body={nombre,apellido,cedula,email:email||usuario?.email};
-  const r=await api(`users?id=${usuario?.id}`,{method:'PUT',body:JSON.stringify(body)});
+  const body={nombre,apellido:apellido||'',cedula:cedula||'',email};
+  const r=await api(`users?id=${usuario.id}`,{method:'PUT',body:JSON.stringify(body)});
 
   if(btn){btn.disabled=false;btn.innerHTML='<i data-lucide="save" style="width:14px;height:14px"></i> Guardar';refreshIcons();}
 
   if(isErr(r)){
-    if(errEl){errEl.textContent=r.msg||'Error al guardar en el servidor';errEl.classList.add('show');}
+    const msg=r.msg||'Error al guardar en el servidor';
+    if(errEl){errEl.textContent=msg;errEl.classList.add('show');}
     return;
   }
   // Actualizar objeto local SOLO con la respuesta del servidor
@@ -3395,12 +3402,27 @@ function _toggleUsuarioCon(id){
   _renderUsuariosLista();
 }
 
+let _guardarCompartirTimer=null;
 async function _guardarCompartir(){
-  const body={compartir_cotizaciones:miCompartirCots,compartir_clientes:miCompartirClis,compartir_con:miCompartirCon};
-  const r=await api(`users?id=${usuario?.id}`,{method:'PUT',body:JSON.stringify(body)});
-  if(isErr(r)){toast(r.msg||'Error al guardar','err');return false;}
-  miCompartir=miCompartirCots||miCompartirClis;
-  return true;
+  // Debounce: esperar 400ms antes de enviar, para evitar múltiples PUTs seguidos
+  return new Promise((resolve)=>{
+    clearTimeout(_guardarCompartirTimer);
+    _guardarCompartirTimer=setTimeout(async()=>{
+      if(!usuario?.id){resolve(false);return;}
+      const body={
+        compartir_cotizaciones:miCompartirCots,
+        compartir_clientes:miCompartirClis,
+        // El servidor espera compartir_con como JSON string, no como array
+        compartir_con:JSON.stringify(miCompartirCon||[]),
+        // Campo legacy para compatibilidad con versiones anteriores del API
+        compartir_datos:!!(miCompartirCots||miCompartirClis)
+      };
+      const r=await api(`users?id=${usuario.id}`,{method:'PUT',body:JSON.stringify(body)});
+      if(isErr(r)){toast(r.msg||'Error al guardar preferencias','err');resolve(false);return;}
+      miCompartir=miCompartirCots||miCompartirClis;
+      resolve(true);
+    },400);
+  });
 }
 
 async function guardarPrefsCompartir(){
@@ -5322,4 +5344,3 @@ async function generarInformePDF() {
   await htmlAPdfDesdeNodoFuente(cont, `Informe_${nombre.replace(/[^a-zA-Z0-9]/g,'_')}.pdf`);
   cont.innerHTML = '';
 }
-

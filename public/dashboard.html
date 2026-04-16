@@ -1114,7 +1114,7 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
                 <div class="g5">
                   <div class="fld"><label>N&#176; Cotizaci&#243;n</label><input id="nc-numero" readonly style="background:var(--s3);color:var(--acc);font-family:'DM Mono',monospace;font-size:12px;font-weight:700"/></div>
                   <div class="fld"><label>Fecha</label><input type="date" id="nc-fecha"/></div>
-                  <div class="fld"><label>V&#225;lido (d&#237;as)</label><input type="number" class="num-plain" id="nc-validez" value="30" min="1" step="1"/></div>
+                  <div class="fld"><label>Val. (d&#237;as)</label><input type="number" class="num-plain" id="nc-validez" value="30" min="1" step="1"/></div>
                   <div class="fld"><label>Cliente</label><input id="nc-cliente" placeholder="Nombre o empresa"/></div>
                   <div class="fld"><label>RUC / C&#233;dula</label><input id="nc-ruc" placeholder="0000000000001"/></div>
                 </div>
@@ -1182,7 +1182,7 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
                       <option>Transferencia bancaria</option>
                     </select>
                   </div>
-                  <div class="fld"><label>Descuento General (%)</label><input type="number" class="num-plain" id="nc-descuento" value="0" min="0" max="100" step="1" oninput="calcTotals()"/></div>
+                  <div class="fld"><label>Descuento (%)</label><input type="number" class="num-plain" id="nc-descuento" value="0" min="0" max="100" step="1" oninput="calcTotals()"/></div>
                 </div>
                 <div class="fld"><label>Notas y Condiciones</label><textarea id="nc-notas" rows="3" placeholder="Garant&#237;as, condiciones, observaciones&#8230;"></textarea></div>
               </div>
@@ -1198,7 +1198,7 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
                 <div class="res-row"><span id="nc-t-desc-lbl">Descuento (0%)</span><span class="v" id="nc-t-desc" style="color:var(--ok)">-$0.00</span></div>
                 <div class="res-row"><span id="nc-t-iva-lbl">IVA (15% aplicado)</span><span class="v" id="nc-t-iva">$0.00</span></div>
                 <div class="res-total"><span>TOTAL</span><span class="v" id="nc-t-total">$0.00</span></div>
-                <div class="res-note" style="display:flex;gap:8px;align-items:flex-start"><i data-lucide="info" style="width:14px;height:14px;flex-shrink:0;margin-top:2px"></i><span>El IVA se elige por &#237;tem (0%, 5%, 12% o 15%). Por defecto 15%.</span></div>
+                <div class="res-note" style="display:flex;gap:8px;align-items:flex-start"><i data-lucide="info" style="width:14px;height:14px;flex-shrink:0;margin-top:2px"></i><span>El IVA se elige por defecto 15%.</span></div>
                 <button type="button" class="btn-guardar" id="btn-guardar-cot" onclick="guardarCot()"><i data-lucide="save" style="width:18px;height:18px;flex-shrink:0"></i><span class="btn-lbl">Guardar Cotización</span></button>
                 <button type="button" id="btn-pdf-nc" onclick="exportarPDFNc()" style="width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:10px;border:1.5px solid var(--info);background:var(--info-d);color:var(--info);font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;transition:all .15s"><i data-lucide="file-down" style="width:17px;height:17px;flex-shrink:0"></i><span>Exportar PDF</span></button>
               </div>
