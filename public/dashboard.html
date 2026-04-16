@@ -47,12 +47,12 @@ body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-
   min-height:66px;position:relative;overflow:visible;
 }
 .sb-logo{
-  width:40px;height:40px;border-radius:10px;
+  width:40px;height:40px;
   overflow:hidden;flex-shrink:0;
-  box-shadow:var(--acc-g);cursor:pointer;
   transition:box-shadow .2s;
+  filter: drop-shadow(0 0 12px rgba(245, 200, 0, .4));
 }
-.sb-logo:hover{box-shadow:0 0 0 2px var(--acc)}
+.sb-logo:hover{filter: drop-shadow(0 0 12px rgba(0, 45, 245, 0.4));}
 .sb-logo img{width:100%;height:100%;object-fit:cover}
 /* texto cabecera: se oculta pero el logo NO */
 .sb-info{display:flex;flex-direction:column;overflow:hidden;flex:1;min-width:0}
@@ -840,7 +840,7 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
 <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 <nav class="sidebar" id="sidebar">
   <div class="sb-brand">
-    <div class="sb-logo" onclick="toggleCollapse()" title="Colapsar menú"><img src="logo.jpg" alt="SEST"/></div>
+    <div class="sb-logo" onclick="toggleCollapse()" title="Colapsar menú"><img src="logo_Pantalla.jpg" alt="SEST"/></div>
     <div class="sb-info">
       <div class="sb-name">SEST</div>
       <div class="sb-tag">Serv. Eléctricos &amp; Seg.</div>
