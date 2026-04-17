@@ -70,6 +70,7 @@ body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-
   background:var(--s3);
   border-color:rgba(245,200,0,.4);
   box-shadow:0 0 0 3px rgba(245,200,0,.12),0 4px 14px rgba(0,0,0,.5);
+  display:none;
 }
 .sb-toggle svg{width:22px;height:22px;transition:transform .28s cubic-bezier(.4,0,.2,1)}
 .sidebar.collapsed .sb-toggle svg{transform:rotate(180deg); display:none;}
@@ -704,7 +705,7 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   .nc-card-body{padding:10px}
   .nc-card-head{padding:10px 12px}
   .cot-tabs{padding:3px}
-  .cot-tab{padding:7px 4px;font-size:10px;gap:4px}
+  .cot-tab{font-size:12px;padding:8px 68px;}
   .item-row,.adic-row{padding:8px}
   .nc-header > div:last-child{grid-template-columns:1fr}
   /* Ocultar texto de tabs, solo iconos */
@@ -727,7 +728,6 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   .nc-card-body{padding:8px}
   .topbar{padding:0 8px}
   .page-title{font-size:13px}
-  .cot-tab{font-size:9px;padding:6px 3px}
   .item-row .item-fields-grid,
   .adic-row .item-fields-grid{grid-template-columns:60px 1fr 80px!important}
   /* item rows en pantallas muy pequeñas: todo en 1 col */
@@ -746,7 +746,6 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
   .btn{padding:6px 8px;font-size:11px;gap:4px}
   .btn i,[data-lucide]{width:13px!important;height:13px!important}
   .cot-tabs{gap:2px;padding:2px}
-  .cot-tab{padding:5px 2px;font-size:9px;gap:2px;border-radius:6px}
   .fld label{font-size:10px}
   .fld input,.fld select,.fld textarea{font-size:12px;padding:6px 8px}
   .modal-bg{padding:2px}
