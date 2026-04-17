@@ -2,6 +2,7 @@ const API=window.location.origin;
 let token=localStorage.getItem('token'),usuario=null,isAdmin=false;
 let mats=[],cats=[],clis=[],cots=[];
 let cotItems=[],cotAdic=[],cotActual=null;
+let notas=[];
 const UNIDADES=['metro','rollo','unidad','tramo 3m','caja','hora','kg','ml','par','juego','gl'];
 const IVA_OPCIONES=[0,5,12,15];
 function normalizarIvaPct(i){
@@ -129,7 +130,7 @@ function ir(sec){
   document.querySelectorAll('.nav-item[data-nav]').forEach(n=>n.classList.toggle('on',n.dataset.nav===sec));
   const secEl=document.getElementById('sec-'+sec);
   if(secEl)secEl.classList.add('on');
-  const tit={inicio:'Inicio',cotizaciones:'Mis Cotizaciones','nueva-cot':'Nueva Cotizaci\u00f3n',materiales:'Cat\u00e1logo de Materiales',calculadora:'Calculadora El\u00e9ctrica NEC',clientes:'Mis Clientes',categorias:'Categor\u00edas',usuarios:'Gesti\u00f3n de Usuarios',equipo:'Datos del Equipo'};
+  const tit={inicio:'Inicio',notas:'Notas',cotizaciones:'Mis Cotizaciones','nueva-cot':'Nueva Cotizaci\u00f3n',materiales:'Cat\u00e1logo de Materiales',calculadora:'Calculadora El\u00e9ctrica NEC',clientes:'Mis Clientes',categorias:'Categor\u00edas',usuarios:'Gesti\u00f3n de Usuarios',equipo:'Datos del Equipo'};
   document.getElementById('page-title').textContent=tit[sec]||sec;
   closeSidebar();
   if(sec==='materiales')renderMats(mats);
@@ -139,6 +140,7 @@ function ir(sec){
   if(sec==='categorias')renderCatsAdmin();
   if(sec==='usuarios')cargarUsuarios();
   if(sec==='equipo')cargarEquipo();
+  if(sec==='notas')renderNotas(notas);
   if(sec==='nueva-cot'){
     renderNcMats();
   }
@@ -178,7 +180,8 @@ function sSet(id,v){const el=document.getElementById(id);if(el)el.value=v;}
 function sTxt(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 
 async function cargarTodo(){
-  const[dc,dm,dq]=await Promise.all([api('clients'),api('materials'),api('quotes')]);
+  const[dc,dm,dq,dn]=await Promise.all([api('clients'),api('materials'),api('quotes'),api('notes')]);
+  if(!isErr(dn))notas=Array.isArray(dn)?dn:[];
   if(!isErr(dc))clis=Array.isArray(dc)?dc:[];
   if(!isErr(dm)){mats=dm.materiales||[];cats=dm.categorias||[];poblarCats();}
   if(!isErr(dq))cots=Array.isArray(dq)?dq:[];
@@ -5364,4 +5367,127 @@ async function generarInformePDF() {
   cont.innerHTML = htmlInforme;
   await htmlAPdfDesdeNodoFuente(cont, `Informe_${nombre.replace(/[^a-zA-Z0-9]/g,'_')}.pdf`);
   cont.innerHTML = '';
+}
+/* ═══════════ NOTAS ═══════════ */
+function renderNotas(lista){
+  const el=document.getElementById('tbl-notas');
+  if(!lista.length){
+    el.innerHTML=`<div class="empty">
+      <div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)">
+        <i data-lucide="sticky-note" style="width:36px;height:36px"></i>
+      </div>
+      <p>Sin notas guardadas</p>
+      <p style="font-size:12px;color:var(--t3);margin-top:8px">Crea tu primera nota para recordar ideas, cálculos o datos importantes</p>
+    </div>`;
+    refreshIcons();
+    return;
+  }
+  // Ordenar por fecha descendente
+  const ordenadas=[...lista].sort((a,b)=>new Date(b.fecha||b.creado_en)-new Date(a.fecha||a.creado_en));
+  
+  el.innerHTML=`<table>
+    <thead>
+      <tr>
+        <th style="width:110px">Fecha</th>
+        <th>Título</th>
+        <th style="max-width:40%">Vista previa</th>
+        <th style="width:90px"></th>
+      </tr>
+    </thead>
+    <tbody>${ordenadas.map(n=>{
+      const fecha=new Date(n.fecha||n.creado_en).toLocaleDateString('es-EC',{day:'2-digit',month:'short',year:'numeric'});
+      const preview=(n.contenido||'').substring(0,60)+(n.contenido?.length>60?'...':'');
+      return`<tr>
+        <td style="font-size:12px;color:var(--t3);white-space:nowrap;font-family:'DM Mono',monospace">${fecha}</td>
+        <td style="font-weight:600;color:var(--t1)">${esc(n.titulo)||'Sin título'}</td>
+        <td style="color:var(--t2);font-size:13px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(n.contenido)}">${esc(preview)||'—'}</td>
+        <td>
+          <div style="display:flex;gap:5px;align-items:center;justify-content:flex-end">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="editarNota(${n.id})" title="Editar">
+              <i data-lucide="pencil" style="width:14px;height:14px"></i>
+            </button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="eliminarNota(${n.id})" title="Eliminar">
+              <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+  refreshIcons();
+}
+
+function abrirModalNota(nota=null){
+  document.getElementById('nota-err').className='alert err';
+  document.getElementById('m-nota-title').textContent=nota?'Editar nota':'Nueva nota';
+  document.getElementById('nota-id').value=nota?.id||'';
+  document.getElementById('nota-titulo').value=nota?.titulo||'';
+  document.getElementById('nota-contenido').value=nota?.contenido||'';
+  
+  // Fecha: usar la de la nota o la actual
+  const fechaDefault=nota?.fecha?nota.fecha.split('T')[0]:new Date().toISOString().split('T')[0];
+  document.getElementById('nota-fecha').value=fechaDefault;
+  
+  openModal('m-nota');
+  // Focus en título si es nueva
+  if(!nota)setTimeout(()=>document.getElementById('nota-titulo').focus(),100);
+}
+
+function editarNota(id){
+  const n=notas.find(x=>x.id===id);
+  if(n)abrirModalNota(n);
+  else toast('Nota no encontrada','err');
+}
+
+async function guardarNota(){
+  const id=document.getElementById('nota-id').value;
+  const titulo=document.getElementById('nota-titulo').value.trim();
+  const contenido=document.getElementById('nota-contenido').value.trim();
+  const fecha=document.getElementById('nota-fecha').value||new Date().toISOString().split('T')[0];
+  
+  const errEl=document.getElementById('nota-err');
+  if(!titulo||!contenido){
+    errEl.textContent='El título y el contenido son obligatorios';
+    errEl.classList.add('show');
+    return;
+  }
+  errEl.classList.remove('show');
+  setBL('btn-save-nota',true);
+  
+  const body={titulo,contenido,fecha};
+  const r=await api(id?`notes?id=${id}`:'notes',{method:id?'PUT':'POST',body:JSON.stringify(body)});
+  setBL('btn-save-nota',false,'Guardar');
+  
+  if(isErr(r)){
+    errEl.textContent=r.msg||'Error al guardar en la base de datos';
+    errEl.classList.add('show');
+    return;
+  }
+  
+  if(id){
+    const i=notas.findIndex(n=>n.id===parseInt(id));
+    if(i>=0)notas[i]={...notas[i],...r};
+    toast('Nota actualizada ✓','ok');
+  }else{
+    notas.unshift(r);
+    toast('Nota guardada ✓','ok');
+  }
+  
+  closeModal('m-nota');
+  renderNotas(notas);
+}
+
+async function eliminarNota(id){
+  const n=notas.find(x=>x.id===id);
+  if(!confirm(`¿Eliminar la nota "${n?.titulo||'esta nota'}"?\n\nEsta acción no se puede deshacer.`))return;
+  
+  const r=await api(`notes?id=${id}`,{method:'DELETE'});
+  if(isErr(r)){
+    toast(r.msg||'Error al eliminar','err');
+    return;
+  }
+  
+  notas=notas.filter(x=>x.id!==id);
+  renderNotas(notas);
+  toast('Nota eliminada','ok');
 }
