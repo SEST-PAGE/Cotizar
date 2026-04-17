@@ -1,12 +1,24 @@
 // functions/api/notes/index.js
 
-// Función para extraer el usuario del token JWT
-function getUserIdFromToken(request) {
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders }
+  });
+}
+
+function getUserId(request) {
+  const auth = request.headers.get('Authorization') || '';
+  if (!auth.startsWith('Bearer ')) return null;
   
-  const token = authHeader.split(' ')[1];
   try {
+    const token = auth.split(' ')[1];
     const payload = JSON.parse(atob(token.split('.')[1]));
     return payload.user_id || payload.id || payload.sub;
   } catch {
@@ -14,173 +26,143 @@ function getUserIdFromToken(request) {
   }
 }
 
-// GET - Listar notas
-export async function onRequestGet(context) {
-  const { env, request } = context;
-  const userId = getUserIdFromToken(request);
-  
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'No autorizado' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' }
-    });
+// Verificar conexión a BD
+function getDB(env) {
+  if (!env.DB) {
+    throw new Error('Database not configured. Check wrangler.toml [[d1_databases]] binding.');
   }
+  return env.DB;
+}
 
+// GET - Listar notas
+export async function onRequestGet({ env, request }) {
   try {
-    const { results } = await env.DB.prepare(
+    const userId = getUserId(request);
+    if (!userId) return json({ error: 'No autorizado' }, 401);
+
+    const db = getDB(env);
+    const { results } = await db.prepare(
       `SELECT id, titulo, contenido, fecha, creado_en, updated_at 
        FROM notes 
        WHERE user_id = ? 
        ORDER BY fecha DESC, creado_en DESC`
     ).bind(userId).all();
 
-    return new Response(JSON.stringify(results), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return json(results || []);
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    console.error('GET Error:', error);
+    return json({ error: error.message }, 500);
   }
 }
 
 // POST - Crear nota
-export async function onRequestPost(context) {
-  const { env, request } = context;
-  const userId = getUserIdFromToken(request);
-  
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'No autorizado' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
+export async function onRequestPost({ env, request }) {
   try {
-    const body = await request.json();
-    const { titulo, contenido, fecha } = body;
+    const userId = getUserId(request);
+    if (!userId) return json({ error: 'No autorizado' }, 401);
 
-    if (!titulo || !contenido) {
-      return new Response(JSON.stringify({ error: 'Título y contenido son obligatorios' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'JSON inválido' }, 400);
     }
 
-    const { results } = await env.DB.prepare(
-      `INSERT INTO notes (user_id, titulo, contenido, fecha) 
-       VALUES (?, ?, ?, ?) 
-       RETURNING id, titulo, contenido, fecha, creado_en`
-    ).bind(userId, titulo, contenido, fecha || new Date().toISOString().split('T')[0]).all();
+    const { titulo, contenido, fecha } = body;
+    if (!titulo?.trim() || !contenido?.trim()) {
+      return json({ error: 'Título y contenido son obligatorios' }, 400);
+    }
 
-    return new Response(JSON.stringify(results[0]), {
-      status: 201,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const db = getDB(env);
+    const fechaValor = fecha || new Date().toISOString().split('T')[0];
+    
+    const result = await db.prepare(
+      `INSERT INTO notes (user_id, titulo, contenido, fecha) 
+       VALUES (?, ?, ?, ?)`
+    ).bind(userId, titulo.trim(), contenido.trim(), fechaValor).run();
+
+    // Recuperar la nota creada
+    const { results } = await db.prepare(
+      `SELECT * FROM notes WHERE id = last_insert_rowid()`
+    ).all();
+
+    return json(results[0], 201);
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    console.error('POST Error:', error);
+    return json({ error: error.message }, 500);
   }
 }
 
 // PUT - Actualizar nota
-export async function onRequestPut(context) {
-  const { env, request } = context;
-  const userId = getUserIdFromToken(request);
-  const url = new URL(request.url);
-  const id = url.searchParams.get('id');
-  
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'No autorizado' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
-  if (!id) {
-    return new Response(JSON.stringify({ error: 'ID requerido' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
+export async function onRequestPut({ env, request }) {
   try {
-    const body = await request.json();
-    const { titulo, contenido, fecha } = body;
+    const userId = getUserId(request);
+    if (!userId) return json({ error: 'No autorizado' }, 401);
 
-    // Verificar que la nota existe y pertenece al usuario
-    const { results: existing } = await env.DB.prepare(
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+    if (!id) return json({ error: 'ID requerido' }, 400);
+
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'JSON inválido' }, 400);
+    }
+
+    const db = getDB(env);
+
+    // Verificar propiedad
+    const { results: existing } = await db.prepare(
       'SELECT id FROM notes WHERE id = ? AND user_id = ?'
     ).bind(id, userId).all();
 
-    if (!existing.length) {
-      return new Response(JSON.stringify({ error: 'Nota no encontrada' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    if (!existing?.length) {
+      return json({ error: 'Nota no encontrada o sin permisos' }, 404);
     }
 
-    const { results } = await env.DB.prepare(
+    const { titulo, contenido, fecha } = body;
+    
+    await db.prepare(
       `UPDATE notes 
        SET titulo = ?, contenido = ?, fecha = ?, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = ? AND user_id = ? 
-       RETURNING *`
-    ).bind(titulo, contenido, fecha, id, userId).all();
+       WHERE id = ? AND user_id = ?`
+    ).bind(titulo?.trim(), contenido?.trim(), fecha, id, userId).run();
 
-    return new Response(JSON.stringify(results[0]), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const { results } = await db.prepare(
+      'SELECT * FROM notes WHERE id = ?'
+    ).bind(id).all();
+
+    return json(results[0]);
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    console.error('PUT Error:', error);
+    return json({ error: error.message }, 500);
   }
 }
 
 // DELETE - Eliminar nota
-export async function onRequestDelete(context) {
-  const { env, request } = context;
-  const userId = getUserIdFromToken(request);
-  const url = new URL(request.url);
-  const id = url.searchParams.get('id');
-  
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'No autorizado' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
-  if (!id) {
-    return new Response(JSON.stringify({ error: 'ID requerido' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
+export async function onRequestDelete({ env, request }) {
   try {
-    const { meta } = await env.DB.prepare(
+    const userId = getUserId(request);
+    if (!userId) return json({ error: 'No autorizado' }, 401);
+
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+    if (!id) return json({ error: 'ID requerido' }, 400);
+
+    const db = getDB(env);
+    
+    const result = await db.prepare(
       'DELETE FROM notes WHERE id = ? AND user_id = ?'
     ).bind(id, userId).run();
 
-    if (meta.changes === 0) {
-      return new Response(JSON.stringify({ error: 'Nota no encontrada' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    if (result.meta?.changes === 0) {
+      return json({ error: 'Nota no encontrada o sin permisos' }, 404);
     }
 
-    return new Response(JSON.stringify({ success: true, message: 'Nota eliminada' }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return json({ success: true, message: 'Nota eliminada' });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    console.error('DELETE Error:', error);
+    return json({ error: error.message }, 500);
   }
 }
