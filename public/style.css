@@ -375,7 +375,7 @@ tbody td{padding:10px 14px;font-size:13px;vertical-align:middle}
   background:var(--s3);padding:2px 7px;border-radius:5px;
 }
 .calc-inp-unit-sel{
-  position:absolute;right:0;top:0;bottom:0;
+  position:relative;right:0;top:0;bottom:0;
   background:var(--s3);border:none;border-left:1.5px solid var(--bd2);
   border-radius:0 10px 10px 0;
   color:var(--t1);font-family:'DM Sans',sans-serif;
@@ -909,3 +909,37 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
 /* bc enhanced header uses pf-inp */
 .bc-enhanced-header .pf-inp,.bc-enhanced-header .bc-config-inp{background:var(--s2);border:1.5px solid rgba(255,255,255,.09);border-radius:10px;color:var(--t1);font-family:'DM Sans',sans-serif;font-size:12px;padding:8px 12px;outline:none;transition:border-color .2s,box-shadow .2s}
 .bc-enhanced-header .pf-inp:focus,.bc-enhanced-header .bc-config-inp:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(245,200,0,.12)}
+.metodo-instalacion-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.metodo-item input {
+    display: none; /* Escondemos el radio button circular */
+}
+
+.metodo-content {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    padding: 15px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #888;
+}
+
+/* Colores personalizados al seleccionar */
+.metodo-item input:checked + .metodo-content {
+    border-color: #ffc107;
+    background: rgba(255, 193, 7, 0.05);
+    color: #fff;
+}
+
+.icon-ducto { color: #3498db; }
+.icon-aire { color: #f1c40f; }

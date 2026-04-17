@@ -485,12 +485,31 @@
             <div class="calc-field">
               <label class="calc-lbl"><i data-lucide="layers" style="width:13px;height:13px"></i> Tipo de instalación</label>
               <select class="calc-inp" id="cc-instalacion" onchange="calcCable()">
-                <option value="ducto">🔵 Ducto / Conduit (EMT, PVC)</option>
-                <option value="libre">🟡 Libre en aire</option>
-                <option value="directa">🟤 Enterrado directamente</option>
-                <option value="bandeja">⬜ Bandeja portacables</option>
+                <option value="ducto"><i data-lucide="layers"></i> Ducto / Conduit (EMT, PVC)</option>
+                <option value="libre"><i data-lucide="wind"></i> Libre en aire</option>
+                <option value="directa"><i data-lucide="mountain"></i> Enterrado directamente</option>
+                <option value="bandeja"><i data-lucide="layout-list"></i> Bandeja portacables</option>
               </select>
             </div>
+            <div class="metodo-instalacion-grid">
+    <label class="metodo-item">
+        <input type="radio" name="metodo" value="ducto" checked>
+        <div class="metodo-content">
+            <i data-lucide="layers" class="icon-ducto"></i>
+            <span>Ducto / Conduit</span>
+        </div>
+    </label>
+
+    <label class="metodo-item">
+        <input type="radio" name="metodo" value="libre">
+        <div class="metodo-content">
+            <i data-lucide="wind" class="icon-aire"></i>
+            <span>Libre en aire</span>
+        </div>
+    </label>
+    <!-- Repetir para los otros dos -->
+</div>
+
 
             <!-- Ingresar por -->
             <div class="calc-field">
