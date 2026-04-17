@@ -483,25 +483,14 @@
 
             <!-- Tipo de instalación -->
             <div class="calc-field">
-    <label class="calc-lbl"><i data-lucide="layers" style="width:13px;height:13px"></i> Tipo de instalación</label>
-    <div class="install-selector">
-        <button type="button" class="install-opt active" onclick="setInstall('ducto')">
-            <i data-lucide="layers"></i> Ducto / Conduit (EMT, PVC)
-        </button>
-        <button type="button" class="install-opt" onclick="setInstall('libre')">
-            <i data-lucide="wind"></i> Libre en aire
-        </button>
-        <button type="button" class="install-opt" onclick="setInstall('directa')">
-            <i data-lucide="mountain"></i> Enterrado directamente
-        </button>
-        <button type="button" class="install-opt" onclick="setInstall('bandeja')">
-            <i data-lucide="layout-list"></i> Bandeja portacables
-        </button>
-    </div>
-    <!-- Input oculto para que tu función calcCable() siga funcionando -->
-    <input type="hidden" id="cc-instalacion" value="ducto">
-</div>
-
+              <label class="calc-lbl"><i data-lucide="layers" style="width:13px;height:13px"></i> Tipo de instalación</label>
+              <select class="calc-inp" id="cc-instalacion" onchange="calcCable()">
+                <option value="ducto"><i data-lucide="layers"></i> Ducto / Conduit (EMT, PVC)</option>
+                <option value="libre"><i data-lucide="wind"></i> Libre en aire</option>
+                <option value="directa"><i data-lucide="mountain"></i> Enterrado directamente</option>
+                <option value="bandeja"><i data-lucide="layout-list"></i> Bandeja portacables</option>
+              </select>
+            </div>
 
             <!-- Ingresar por -->
             <div class="calc-field">
