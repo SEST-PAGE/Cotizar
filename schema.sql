@@ -333,3 +333,17 @@ CREATE INDEX IF NOT EXISTS idx_cotizaciones_cliente ON cotizaciones(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_cotizaciones_usuario ON cotizaciones(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_items_cotizacion ON cotizacion_items(cotizacion_id);
 CREATE INDEX IF NOT EXISTS idx_clientes_usuario ON clientes(usuario_id);
+-- ============================================================
+-- TABLA DE NOTAS (agregar a Neon si no existe)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS notes (
+  id        SERIAL PRIMARY KEY,
+  user_id   INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  titulo    VARCHAR(300) NOT NULL,
+  contenido TEXT NOT NULL,
+  fecha     DATE NOT NULL DEFAULT CURRENT_DATE,
+  creado_en TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(user_id);
