@@ -75,7 +75,7 @@ body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-
   box-shadow:0 0 0 3px rgba(245,200,0,.12),0 4px 14px rgba(0,0,0,.5);
 }
 .sb-toggle svg{width:13px;height:13px;transition:transform .28s cubic-bezier(.4,0,.2,1)}
-.sidebar.collapsed .sb-toggle svg{transform:rotate(180deg)}
+.sidebar.collapsed .sb-toggle svg{transform:rotate(180deg) diplay:none}
 
 /* Separador de sección */
 .nav{flex:1;padding:6px 0;overflow-y:auto;overflow-x:hidden}
