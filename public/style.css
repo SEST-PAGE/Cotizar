@@ -909,35 +909,3 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
 /* bc enhanced header uses pf-inp */
 .bc-enhanced-header .pf-inp,.bc-enhanced-header .bc-config-inp{background:var(--s2);border:1.5px solid rgba(255,255,255,.09);border-radius:10px;color:var(--t1);font-family:'DM Sans',sans-serif;font-size:12px;padding:8px 12px;outline:none;transition:border-color .2s,box-shadow .2s}
 .bc-enhanced-header .pf-inp:focus,.bc-enhanced-header .bc-config-inp:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(245,200,0,.12)}
-.install-selector {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 2 columnas en móvil, puedes cambiar a 4 en PC */
-    gap: 8px;
-    margin-top: 5px;
-}
-
-.install-opt {
-    background: #111;
-    border: 1px solid #333;
-    color: #888;
-    padding: 10px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.install-opt.active {
-    border-color: #ffc107;
-    color: #ffc107;
-    background: rgba(255, 193, 7, 0.1);
-}
-
-.install-opt svg {
-    width: 16px;
-    height: 16px;
-}
