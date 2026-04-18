@@ -2,7 +2,6 @@ const API=window.location.origin;
 let token=localStorage.getItem('token'),usuario=null,isAdmin=false;
 let mats=[],cats=[],clis=[],cots=[];
 let cotItems=[],cotAdic=[],cotActual=null;
-let notas=[];
 const UNIDADES=['metro','rollo','unidad','tramo 3m','caja','hora','kg','ml','par','juego','gl'];
 const IVA_OPCIONES=[0,5,12,15];
 function normalizarIvaPct(i){
@@ -130,7 +129,7 @@ function ir(sec){
   document.querySelectorAll('.nav-item[data-nav]').forEach(n=>n.classList.toggle('on',n.dataset.nav===sec));
   const secEl=document.getElementById('sec-'+sec);
   if(secEl)secEl.classList.add('on');
-  const tit={inicio:'Inicio',notas:'Notas',cotizaciones:'Mis Cotizaciones','nueva-cot':'Nueva Cotizaci\u00f3n',materiales:'Cat\u00e1logo de Materiales',calculadora:'Calculadora El\u00e9ctrica NEC',clientes:'Mis Clientes',categorias:'Categor\u00edas',usuarios:'Gesti\u00f3n de Usuarios',equipo:'Datos del Equipo'};
+  const tit={inicio:'Inicio',cotizaciones:'Mis Cotizaciones','nueva-cot':'Nueva Cotizaci\u00f3n',materiales:'Cat\u00e1logo de Materiales',calculadora:'Calculadora El\u00e9ctrica NEC',clientes:'Mis Clientes',categorias:'Categor\u00edas',usuarios:'Gesti\u00f3n de Usuarios',equipo:'Datos del Equipo'};
   document.getElementById('page-title').textContent=tit[sec]||sec;
   closeSidebar();
   if(sec==='materiales')renderMats(mats);
@@ -140,7 +139,6 @@ function ir(sec){
   if(sec==='categorias')renderCatsAdmin();
   if(sec==='usuarios')cargarUsuarios();
   if(sec==='equipo')cargarEquipo();
-  if(sec==='notas')renderNotas(notas);
   if(sec==='nueva-cot'){
     renderNcMats();
   }
@@ -180,8 +178,7 @@ function sSet(id,v){const el=document.getElementById(id);if(el)el.value=v;}
 function sTxt(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 
 async function cargarTodo(){
-  const[dc,dm,dq,dn]=await Promise.all([api('clients'),api('materials'),api('quotes'),api('notes')]);
-  if(!isErr(dn))notas=Array.isArray(dn)?dn:[];
+  const[dc,dm,dq]=await Promise.all([api('clients'),api('materials'),api('quotes')]);
   if(!isErr(dc))clis=Array.isArray(dc)?dc:[];
   if(!isErr(dm)){mats=dm.materiales||[];cats=dm.categorias||[];poblarCats();}
   if(!isErr(dq))cots=Array.isArray(dq)?dq:[];
@@ -4235,167 +4232,145 @@ async function exportarPDFCable(){
   const tempColInfo=TEMPCOL_MAP[snap.tempCol||'cu90']||TEMPCOL_MAP['cu90'];
   const sisInfo=SISTEMAS_EC[snap.sistema]||SISTEMAS_EC['120/240'];
 
-  // Construir HTML del PDF
-  const htmlPDF=`
-  <div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#111827;background:#fff;padding:40px;max-width:750px;margin:0 auto">
-    <!-- ENCABEZADO -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #f5c800;padding-bottom:16px;margin-bottom:20px">
-      <div>
-        <div style="font-size:22px;font-weight:900;color:#111827;letter-spacing:-0.5px">SEST</div>
-        <div style="font-size:11px;color:#6b7280;font-weight:500;text-transform:uppercase;letter-spacing:1px">Servicios Eléctricos y Seguridad Tapia</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:13px;font-weight:700;color:#111827">Cálculo de Conductor AWG</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:2px">NEC 310.15(B)(16) · NTE INEN 2345</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:2px">${fecha}</div>
-        ${usuario?.nombre?`<div style="font-size:11px;color:#6b7280;margin-top:2px">Elaborado por: <strong>${usuario.nombre}</strong></div>`:''}
-      </div>
-    </div>
+  _mostrarLoadingPdf('Preparando documento…');
+  _actualizarLoadingPdf('Cargando logo…',20);
+  const logoImg=await cargarLogoBase64();
+  _actualizarLoadingPdf('Calculando resultados…',40);
 
-    <!-- PARÁMETROS DE ENTRADA -->
-    <div style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #f5c800;padding-left:8px;margin-bottom:10px">1. PARÁMETROS DE ENTRADA</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Sistema</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${sisInfo.label||snap.sistema}</div>
-        </div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">${snap.modo==='corriente'?'Corriente de entrada':'Potencia de la carga'}</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.modo==='corriente'?(snap.amperes||'—')+' A':(snap.potencia||'—')+' '+snap.unidad}</div>
-        </div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Aislamiento</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${tempColInfo.label}</div>
-        </div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Longitud del circuito</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.longitud||'—'} m</div>
-        </div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Factor de potencia</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.fp||'—'} cos φ</div>
-        </div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Caída de tensión máx.</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.caidaMax||'—'} %</div>
-        </div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Factor temperatura</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.temp||'1.0'}</div>
-        </div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Factor agrupamiento</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.agrup||'1.0'}</div>
-        </div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Tipo de instalación</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.instalacion||'—'}</div>
-        </div>
-      </div>
-    </div>
+  const sys=snap.sistema||'120/240';
+  const cfg=SISTEMAS_EC[sys]||SISTEMAS_EC['120/240'];
+  const circuito=snap.circuito||'mono-ll';
+  const material=snap.material||'Cu';
+  const fp=parseFloat(snap.fp)||0.9;
+  const eff=parseFloat(snap.eff)||0.85;
+  const tempF=parseFloat(snap.temp)||1.0;
+  const agrupF=parseFloat(snap.agrup)||1.0;
+  const tipoMotor=parseInt(snap.motor)||0;
+  const longitud=parseFloat(snap.longitud)||1;
+  const caidaMax=parseFloat(snap.caidaMax)||3;
+  let tension=cfg.tension,nFases=cfg.fases;
+  if(sys==='120/240'){tension=circuito==='mono-ln'?120:240;nFases=1;}
+  else if(sys==='380'){tension=circuito==='tri-fn'?220:380;nFases=circuito==='tri-fn'?1:3;}
+  let Ic=0;
+  if(snap.modo==='corriente'){Ic=parseFloat(snap.amperes)||0;}
+  else{let Wp=parseFloat(snap.potencia)||0;const pu=snap.unidad||'W';
+    if(pu==='kW')Wp*=1000;if(pu==='HP')Wp*=746;if(pu==='kVA')Wp*=1000;
+    const sq=nFases===3?Math.sqrt(3):1;Ic=Wp/(tension*sq*fp*(pu==='HP'?eff:1));}
+  const factorMotor=(tipoMotor===1||tipoMotor===2)?1.25:1.0;
+  const IdCorr=Ic*factorMotor/(tempF*agrupF);
+  const tempColKey=snap.tempCol||'cu90';
+  const colIdx=(TEMPCOL_MAP[tempColKey]||TEMPCOL_MAP['cu90']).idx;
+  const awgPorAmp=AWG_TABLE.find(r=>r[colIdx]!=null&&r[colIdx]>=IdCorr)||AWG_TABLE[AWG_TABLE.length-1];
+  const rho=material==='Cu'?0.0172:0.0282;
+  let awgFinal=awgPorAmp,caidaReal=0;
+  if(awgPorAmp){
+    const R0=rho*longitud/awgPorAmp[1],Vd0=Ic*R0*2;caidaReal=(Vd0/tension)*100;
+    if(caidaReal>caidaMax){
+      const aMin=(rho*longitud*Ic*2)/(tension*caidaMax/100);
+      const cand=AWG_TABLE.find(r=>r[1]>=aMin&&r[colIdx]!=null);
+      if(cand){awgFinal=cand;const R2=rho*longitud/cand[1];caidaReal=(Ic*R2*2/tension)*100;}
+    }
+  }
+  const IbMin=Ic*((tipoMotor===1||tipoMotor===2)?2.5:1.25);
+  const brkRec=BREAKERS_STD.find(b=>b>=IbMin)||BREAKERS_STD[BREAKERS_STD.length-1];
+  const polos=nFases===3?'3 polos':'2 polos';
+  const caidaOk=caidaReal<=caidaMax;
 
-    <!-- RESULTADO DEL CÁLCULO -->
-    <div style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #f5c800;padding-left:8px;margin-bottom:10px">2. RESULTADO DEL CÁLCULO</div>
-      <div style="background:#fffbeb;border:2px solid #f5c800;border-radius:10px;padding:16px">
-        ${(()=>{
-          // Re-run calc logic to get clean values for PDF
-          const sys=snap.sistema||'120/240';
-          const cfg=SISTEMAS_EC[sys]||SISTEMAS_EC['120/240'];
-          const circuito=snap.circuito||'mono-ll';
-          const material=snap.material||'Cu';
-          const fp=parseFloat(snap.fp)||0.9;
-          const eff=parseFloat(snap.eff)||0.85;
-          const tempF=parseFloat(snap.temp)||1.0;
-          const agrupF=parseFloat(snap.agrup)||1.0;
-          const tipoMotor=parseInt(snap.motor)||0;
-          const longitud=parseFloat(snap.longitud)||1;
-          const caidaMax=parseFloat(snap.caidaMax)||3;
-          let tension=cfg.tension,nFases=cfg.fases;
-          if(sys==='120/240'){tension=circuito==='mono-ln'?120:240;nFases=1;}
-          else if(sys==='380'){tension=circuito==='tri-fn'?220:380;nFases=circuito==='tri-fn'?1:3;}
-          let Ic=0;
-          if(snap.modo==='corriente'){Ic=parseFloat(snap.amperes)||0;}
-          else{let W=parseFloat(snap.potencia)||0;const pu=snap.unidad||'W';if(pu==='kW')W*=1000;if(pu==='HP')W*=746;if(pu==='kVA')W*=1000;const sq=nFases===3?Math.sqrt(3):1;Ic=W/(tension*sq*fp*(pu==='HP'?eff:1));}
-          if(Ic<=0)return '<p style="color:#6b7280">Sin datos de carga.</p>';
-          const factorMotor=(tipoMotor===1||tipoMotor===2)?1.25:1.0;
-          const IdCorr=Ic*factorMotor/(tempF*agrupF);
-          const tempColKey=snap.tempCol||'cu90';
-          const colIdx=(TEMPCOL_MAP[tempColKey]||TEMPCOL_MAP['cu90']).idx;
-          const awgPorAmp=AWG_TABLE.find(r=>r[colIdx]!=null&&r[colIdx]>=IdCorr)||AWG_TABLE[AWG_TABLE.length-1];
-          const rho=material==='Cu'?0.0172:0.0282;
-          let awgFinal=awgPorAmp;let caidaReal=0;
-          if(awgPorAmp){const R0=rho*longitud/awgPorAmp[1];const Vd0=Ic*R0*2;caidaReal=(Vd0/tension)*100;
-            if(caidaReal>caidaMax){const aMin=(rho*longitud*Ic*2)/(tension*caidaMax/100);const cand=AWG_TABLE.find(r=>r[1]>=aMin&&r[colIdx]!=null);if(cand){awgFinal=cand;const R2=rho*longitud/cand[1];caidaReal=(Ic*R2*2/tension)*100;}}
-          }
-          const IbMin=Ic*((tipoMotor===1||tipoMotor===2)?2.5:1.25);
-          const brkRec=BREAKERS_STD.find(b=>b>=IbMin)||BREAKERS_STD[BREAKERS_STD.length-1];
-          const polos=nFases===3?'3 polos':tension<=120?'2 polos':'2 polos';
-          const caidaOk=caidaReal<=caidaMax;
-          return `
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
-            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center">
-              <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Calibre Final AWG</div>
-              <div style="font-size:26px;font-weight:900;color:#f5c800;font-family:monospace">${awgFinal?'AWG '+awgFinal[0]:'—'}</div>
-              <div style="font-size:10px;color:#374151;margin-top:2px">${awgFinal?awgFinal[1].toFixed(2)+' mm²':''}</div>
-            </div>
-            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center">
-              <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Corriente de diseño</div>
-              <div style="font-size:26px;font-weight:900;color:#3b82f6;font-family:monospace">${IdCorr.toFixed(2)}</div>
-              <div style="font-size:10px;color:#374151;margin-top:2px">A (con factores)</div>
-            </div>
-            <div style="background:#fff;border:1px solid ${caidaOk?'#bbf7d0':'#fecaca'};border-radius:8px;padding:12px;text-align:center">
-              <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Caída de tensión</div>
-              <div style="font-size:26px;font-weight:900;color:${caidaOk?'#16a34a':'#dc2626'};font-family:monospace">${caidaReal.toFixed(2)}%</div>
-              <div style="font-size:10px;color:#374151;margin-top:2px">${caidaOk?'✅ OK':'⚠️ Excede '+caidaMax+'%'}</div>
-            </div>
-            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center">
-              <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Corriente de carga</div>
-              <div style="font-size:20px;font-weight:800;color:#111827;font-family:monospace">${Ic.toFixed(2)} A</div>
-              <div style="font-size:10px;color:#374151;margin-top:2px">${tension} V · ${nFases===3?'Trifásico':'Monofásico'}</div>
-            </div>
-            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center">
-              <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Breaker recomendado</div>
-              <div style="font-size:20px;font-weight:800;color:#111827;font-family:monospace">${brkRec} A</div>
-              <div style="font-size:10px;color:#374151;margin-top:2px">${polos} · IEC/NTE INEN</div>
-            </div>
-            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center">
-              <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Ampacidad del cable</div>
-              <div style="font-size:20px;font-weight:800;color:#111827;font-family:monospace">${awgFinal?awgFinal[colIdx]+' A':'—'}</div>
-              <div style="font-size:10px;color:#374151;margin-top:2px">${tempColInfo.label}</div>
-            </div>
-          </div>`;
-        })()}
-      </div>
-    </div>
+  _actualizarLoadingPdf('Generando PDF…',60);
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+  const PW=doc.internal.pageSize.getWidth(),PH=doc.internal.pageSize.getHeight();
+  const mg=14,cw=PW-mg*2;
 
-    <!-- NOTAS TÉCNICAS -->
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #f5c800;padding-left:8px;margin-bottom:10px">3. NORMATIVA APLICADA</div>
-      <div style="font-size:11px;line-height:1.75;color:#374151">
-        <p>• <strong>Norma de ampacidad:</strong> NEC 310.15(B)(16) / NTE INEN 2345 · Columna: ${tempColInfo.label} · ${tempColInfo.desc}</p>
-        <p>• <strong>Caída de tensión:</strong> Calculada con ρ = ${snap.material==='Al'?'0.0282':'0.0172'} Ω·mm²/m (${snap.material==='Al'?'Aluminio':'Cobre'})</p>
-        <p>• <strong>Método de selección:</strong> MAX(Criterio Ampacidad, Criterio Caída de Tensión)</p>
-        <p>• <strong>Motores:</strong> Factor de servicio 1.25 — NEC 430.22</p>
-        <p>• <strong>Protecciones:</strong> Serie IEC/NTE INEN (Ecuador): 1, 2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125 A…</p>
-        <p>• <strong>Sistema eléctrico:</strong> ${sisInfo.label||snap.sistema}</p>
-      </div>
-    </div>
+  const _secT=(t,y,color)=>{
+    doc.setFillColor(...(color||[245,200,0]));doc.rect(mg,y,3,5.5,'F');
+    doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(55,65,81);
+    doc.text(t,mg+5,y+4.5);return y+10;
+  };
 
-    <!-- PIE -->
-    <div style="text-align:center;font-size:10px;color:#9ca3af;padding-top:12px;border-top:1px solid #e5e7eb;margin-top:20px">
-      <p>Documento generado por SEST · Calibrador de Conductores AWG · ${fecha}</p>
-      <p>Cálculo conforme a NEC (National Electrical Code) y NTE INEN aplicables en Ecuador 🇪🇨</p>
-    </div>
-  </div>`;
+  let y=14;
+  if(logoImg)doc.addImage(logoImg,'JPEG',mg,y,22,22);
+  const tx=logoImg?mg+26:mg;
+  doc.setFontSize(18);doc.setFont('helvetica','bold');doc.setTextColor(0,0,0);doc.text('SEST',tx,y+8);
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+  doc.text('Servicios Eléctricos y Seguridad Tapia',tx,y+14);
+  if(usuario?.nombre)doc.text('Elaborado por: '+usuario.nombre,tx,y+19);
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(0,0,0);
+  doc.text('CÁLCULO DE CONDUCTOR AWG',PW-mg,y+8,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(100,100,100);
+  doc.text('NEC 310.15(B)(16) · NTE INEN 2345',PW-mg,y+14,{align:'right'});
+  doc.text(fecha,PW-mg,y+20,{align:'right'});
+  doc.setDrawColor(245,200,0);doc.setLineWidth(0.8);doc.line(mg,y+25,PW-mg,y+25);
+  y+=30;
 
-  const tpl=document.getElementById('pdf-template');
-  if(!tpl){toast('Error: contenedor PDF no encontrado','err');return;}
-  tpl.innerHTML=htmlPDF;
+  y=_secT('1. PARÁMETROS DE ENTRADA',y);
+  const params=[
+    ['Sistema',sisInfo.label||snap.sistema],
+    [snap.modo==='corriente'?'Corriente entrada':'Potencia carga',snap.modo==='corriente'?(snap.amperes||'—')+' A':(snap.potencia||'—')+' '+(snap.unidad||'W')],
+    ['Aislamiento',tempColInfo.label],
+    ['Longitud',(snap.longitud||'—')+' m'],
+    ['Factor potencia',(snap.fp||'—')+' cosφ'],
+    ['Caída tensión máx.',(snap.caidaMax||'—')+'%'],
+    ['Factor temperatura',snap.temp||'1.0'],
+    ['Factor agrupamiento',snap.agrup||'1.0'],
+    ['Tipo instalación',snap.instalacion||'—']
+  ];
+  const pC=3,pW=(cw-(pC-1)*3)/pC,pH=15;
+  params.forEach((p,i)=>{
+    const col=i%pC,row=Math.floor(i/pC),bx=mg+col*(pW+3),by=y+row*(pH+3);
+    doc.setFillColor(249,250,251);doc.roundedRect(bx,by,pW,pH,2,2,'F');
+    doc.setDrawColor(220,220,220);doc.setLineWidth(0.15);doc.roundedRect(bx,by,pW,pH,2,2,'S');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(120,120,120);
+    doc.text(String(p[0]).toUpperCase(),bx+pW/2,by+4.5,{align:'center'});
+    doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(17,24,39);
+    const vls=doc.splitTextToSize(String(p[1]),pW-4);
+    doc.text(vls,bx+pW/2,by+10,{align:'center'});
+  });
+  y+=Math.ceil(params.length/pC)*(pH+3)+6;
 
-  await htmlAPdfDesdeNodoFuente(tpl,`Calculo_Cable_AWG_${new Date().toISOString().slice(0,10)}.pdf`);
-  tpl.innerHTML='';
+  y=_secT('2. RESULTADO DEL CÁLCULO',y);
+  const rDefs=[
+    {l:'Calibre Final AWG',v:awgFinal?'AWG '+awgFinal[0]:'—',s:awgFinal?awgFinal[1].toFixed(2)+' mm²':'',f:[255,251,235],c:[180,130,0]},
+    {l:'Corriente de diseño',v:IdCorr.toFixed(2)+' A',s:'Con factores aplicados',f:[239,246,255],c:[37,99,235]},
+    {l:'Caída de tensión',v:caidaReal.toFixed(2)+'%',s:caidaOk?'OK – dentro del límite':'Excede '+caidaMax+'%',f:caidaOk?[240,253,244]:[255,242,242],c:caidaOk?[22,163,74]:[220,38,38]},
+    {l:'Corriente de carga',v:Ic.toFixed(2)+' A',s:tension+'V · '+(nFases===3?'Trifásico':'Monofásico'),f:[249,250,251],c:[17,24,39]},
+    {l:'Breaker recomendado',v:brkRec+' A',s:polos+' · NTE INEN',f:[249,250,251],c:[17,24,39]},
+    {l:'Ampacidad del cable',v:awgFinal?awgFinal[colIdx]+' A':'—',s:tempColInfo.label,f:[249,250,251],c:[17,24,39]}
+  ];
+  const rC=3,rW=(cw-(rC-1)*3)/rC,rH=22;
+  rDefs.forEach((r,i)=>{
+    const col=i%rC,row=Math.floor(i/rC),bx=mg+col*(rW+3),by=y+row*(rH+3);
+    doc.setFillColor(...r.f);doc.roundedRect(bx,by,rW,rH,3,3,'F');
+    doc.setDrawColor(200,200,200);doc.setLineWidth(0.2);doc.roundedRect(bx,by,rW,rH,3,3,'S');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(120,120,120);
+    doc.text(String(r.l).toUpperCase(),bx+rW/2,by+5,{align:'center'});
+    doc.setFontSize(14);doc.setFont('helvetica','bold');doc.setTextColor(...r.c);
+    doc.text(String(r.v),bx+rW/2,by+14,{align:'center'});
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(90,90,90);
+    doc.text(String(r.s),bx+rW/2,by+19.5,{align:'center'});
+  });
+  y+=Math.ceil(rDefs.length/rC)*(rH+3)+6;
+
+  y=_secT('3. NORMATIVA APLICADA',y);
+  const normas=[
+    'Ampacidad: NEC 310.15(B)(16) / NTE INEN 2345 · Columna: '+tempColInfo.label,
+    'Caída de tensión: ρ = '+(material==='Al'?'0.0282':'0.0172')+' Ω·mm²/m ('+(material==='Al'?'Aluminio':'Cobre')+')',
+    'Método de selección: MAX(Criterio Ampacidad, Criterio Caída de Tensión)',
+    'Motores: Factor de servicio 1.25 — NEC 430.22',
+    'Protecciones: Serie IEC/NTE INEN (Ecuador): 1,2,3,4,6,10,16,20,25,32,40,50,63,80,100,125 A…',
+    'Sistema eléctrico: '+(sisInfo.label||snap.sistema)
+  ];
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(55,65,81);
+  normas.forEach(n=>{const ls=doc.splitTextToSize('• '+n,cw);doc.text(ls,mg,y);y+=ls.length*4.5+1;});
+
+  y+=4;doc.setDrawColor(220,220,220);doc.setLineWidth(0.3);doc.line(mg,y,PW-mg,y);y+=5;
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(160,160,160);
+  doc.text('Documento generado por SEST · Calibrador de Conductores AWG · '+fecha,PW/2,y,{align:'center'});
+  doc.text('Cálculo conforme a NEC y NTE INEN aplicables en Ecuador',PW/2,y+4.5,{align:'center'});
+
+  _actualizarLoadingPdf('Descargando…',90);
+  doc.save('Calculo_Cable_AWG_'+new Date().toISOString().slice(0,10)+'.pdf');
+  await delayPdf(400);_ocultarLoadingPdf();toast('PDF descargado ✓','ok');
 }
 
 // ═══ ALIASES — conectan los botones del calibrador con sus funciones ═══
@@ -4407,29 +4382,35 @@ function exportarPDFCableCalc()  { exportarPDFCable(); }
 // BALANCE DE CARGAS — HISTORIAL CON PDF (reemplaza abrirModalBalances)
 // ═══════════════════════════════════════════════════════════════
 async function exportarPDFBalanceFromRecord(id){
-  const todos = _getBalancesCache();
-  let record = todos.find(x=>String(x.id)===String(id));
+  const todos=_getBalancesCache();
+  let record=todos.find(x=>String(x.id)===String(id));
   if(!record){
     const r=await api('electrical-projects');
     if(!isErr(r)){_setBalancesCache(Array.isArray(r)?r:[]);record=_getBalancesCache().find(x=>String(x.id)===String(id));}
   }
   if(!record){toast('No se encontró el registro','err');return;}
-  const nombre   = record.nombre||'Sin nombre';
-  const cliente  = record.cliente||'—';
-  const ubicacion= record.ubicacion||'—';
-  const tipoTab  = record.tipo||'residencial';
-  const tempFactor=parseFloat(record.tempF||record.temp_f||1.0);
-  const cargasRec= JSON.parse(JSON.stringify(record.cargas||[]));
-  const sistemaRec= record.sistema||'120';
+  await _generarPDFBalance(
+    record.cargas||[],record.nombre||'Sin nombre',record.cliente||'—',
+    record.ubicacion||'—',record.sistema||'120',parseFloat(record.tempF||record.temp_f||1.0)
+  );
+}
+
+async function _generarPDFBalance(cargasInput,nombre,cliente,ubicacion,sistemaKey,tempFactor){
+  _mostrarLoadingPdf('Preparando informe…');
+  _actualizarLoadingPdf('Cargando logo…',15);
+  const logoImg=await cargarLogoBase64();
+  _actualizarLoadingPdf('Calculando cargas…',35);
+
   const fecha=new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
-  const cfg=BC_SISTEMAS[sistemaRec]||BC_SISTEMAS['120'];
+  const cargasRec=JSON.parse(JSON.stringify(cargasInput));
+  const cfg=BC_SISTEMAS[sistemaKey]||BC_SISTEMAS['120'];
   const {tension,esTri,fases,label}=cfg;
   const sqrt3=esTri?Math.sqrt(3):1;
   const TIPO_LABEL={iluminacion:'Iluminación',tomacorriente:'Tomacorriente',motor:'Motor',hvac:'HVAC/Clima',resistivo:'Resistivo',otro:'Especial'};
   const potPorFase={};fases.forEach(f=>potPorFase[f]=0);
   let totalW=0,totalWD=0;
   cargasRec.forEach(c=>{
-    const cant=c.cantidad||1;const potTotal=(c.potencia||0)*cant;const pd=potTotal*(c.fs||100)/100;
+    const cant=c.cantidad||1,potTotal=(c.potencia||0)*cant,pd=potTotal*(c.fs||100)/100;
     if(c.sistema==='mono2f'){if(potPorFase['L1']!==undefined)potPorFase['L1']+=pd/2;if(potPorFase['L2']!==undefined)potPorFase['L2']+=pd/2;}
     else{if(potPorFase[c.fase]!==undefined)potPorFase[c.fase]+=pd;}
     totalW+=potTotal;totalWD+=pd;
@@ -4437,96 +4418,134 @@ async function exportarPDFBalanceFromRecord(id){
   const ITotal=totalWD/(tension*sqrt3*0.9);
   const brkAco=BREAKERS_STD.find(b=>b>=ITotal*1.25)||2000;
   const vals=Object.values(potPorFase);
-  const maxF=Math.max(...vals);const minF=Math.min(...vals);
+  const maxF=Math.max(...(vals.length?vals:[0]))||0,minF=Math.min(...(vals.length?vals:[0]))||0;
   const desbalance=maxF>0?((maxF-minF)/maxF*100):0;
-  const filasCargas=cargasRec.map((c,i)=>{
-    const cant=c.cantidad||1;const fp=c.fp||0.9;const vC=c.voltaje||tension;
-    const esTri_c=c.sistema==='tri';const sqrt3_c=esTri_c?Math.sqrt(3):1;
-    const potTotal=(c.potencia||0)*cant;const pd=potTotal*(c.fs||100)/100;
-    const Ic=pd>0?pd/(vC*sqrt3_c*fp):0;
-    const factorM=(c.tipo==='motor'||c.tipo==='hvac')?1.25:1.0;
-    const IdD=Ic*factorM/tempFactor;
-    const awgRow=AWG_TABLE.find(r=>r[4]!=null&&r[4]>=IdD)||AWG_TABLE[AWG_TABLE.length-1];
-    const IbMin=Ic*(factorM>1?2.5:1.25);const brkRec=BREAKERS_STD.find(b=>b>=IbMin)||2000;
-    const polos=esTri_c?'3P':'2P';
-    const areaC=THHN_AREA[awgRow?awgRow[0]:'12']||THHN_AREA['12'];
-    const nCond=esTri_c?4:3;const totArea=areaC*nCond;
-    let conduitSel=CONDUIT_AREA.EMT.find(([n,a])=>a*0.40>=totArea);
-    if(!conduitSel)conduitSel=CONDUIT_AREA.EMT[CONDUIT_AREA.EMT.length-1];
-    return`<tr style="${i%2===0?'background:#fafafa':''}">
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;font-weight:600">${String(i+1).padStart(2,'0')}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee">${c.desc||'—'}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee">${TIPO_LABEL[c.tipo]||c.tipo}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${cant}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${vC}V</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${c.fase}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${c.fs||100}%</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pd/1000).toFixed(3)}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:right;color:#3b82f6;font-weight:600">${Ic.toFixed(2)}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#1d4ed8;font-weight:700">AWG #${awgRow?awgRow[0]:'—'}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#b45309;font-weight:700">${brkRec}A ${polos}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#166534;font-weight:700">EMT ${conduitSel?conduitSel[0]:'—'}</td>
-    </tr>`;
-  }).join('');
-  const filasFase=fases.map(f=>{
-    const pf=potPorFase[f]||0;const pct=totalWD>0?(pf/totalWD*100):0;const If=pf/(tension*0.9);
-    return`<tr><td style="padding:5px 8px;border-bottom:1px solid #eee;font-weight:700">${f}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pf/1000).toFixed(3)} kW</td>
-      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${If.toFixed(2)} A</td>
-      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${pct.toFixed(1)}%</td></tr>`;
-  }).join('');
-  const htmlInforme=`<div style="font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#111;line-height:1.5">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #f5c800;margin-bottom:20px">
-      <div><div style="font-size:22px;font-weight:900;color:#0c0c12">INFORME TÉCNICO ELÉCTRICO</div>
-        <div style="font-size:13px;font-weight:700;color:#555;margin-top:2px">Balance de Cargas · Dimensionamiento de Tablero</div>
-        <div style="font-size:11px;color:#888;margin-top:6px">NEC / NTE INEN 2345 / ARCONEL Ecuador</div></div>
-      <div style="text-align:right"><div style="font-size:11px;color:#888">Fecha</div>
-        <div style="font-size:14px;font-weight:700">${fecha}</div>
-        <div style="font-size:11px;color:#888">SEST · Ingeniería Eléctrica</div></div></div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #f5c800;padding-bottom:4px;margin-bottom:10px">1. DATOS DEL PROYECTO</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <div style="background:#f8f8f8;border-radius:6px;padding:9px 11px;border-left:3px solid #f5c800"><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase">Proyecto</div><div style="font-size:13px;font-weight:800">${nombre}</div></div>
-        <div style="background:#f8f8f8;border-radius:6px;padding:9px 11px;border-left:3px solid #3b82f6"><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase">Cliente</div><div style="font-size:13px;font-weight:700">${cliente}</div></div>
-        <div style="background:#f8f8f8;border-radius:6px;padding:9px 11px;border-left:3px solid #22c55e"><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase">Ubicación</div><div style="font-size:13px;font-weight:700">${ubicacion}</div></div>
-      </div></div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #f5c800;padding-bottom:4px;margin-bottom:10px">2. RESUMEN EJECUTIVO</div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
-        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Pot. Instalada</div><div style="font-size:16px;font-weight:900;color:#f5c800;font-family:monospace">${(totalW/1000).toFixed(2)}</div><div style="font-size:9px;color:#888">kW</div></div>
-        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Demanda</div><div style="font-size:16px;font-weight:900;color:#22c55e;font-family:monospace">${(totalWD/1000).toFixed(2)}</div><div style="font-size:9px;color:#888">kW</div></div>
-        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">I. Total</div><div style="font-size:16px;font-weight:900;color:#60a5fa;font-family:monospace">${ITotal.toFixed(2)}</div><div style="font-size:9px;color:#888">A</div></div>
-        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Desbalance</div><div style="font-size:16px;font-weight:900;color:${desbalance>10?'#ef4444':'#22c55e'};font-family:monospace">${desbalance.toFixed(1)}%</div><div style="font-size:9px;color:#888">${desbalance>10?'⚠️ Excede':'✅ OK'}</div></div>
-        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Breaker Ppal</div><div style="font-size:16px;font-weight:900;color:#f5c800;font-family:monospace">${brkAco}A</div><div style="font-size:9px;color:#888">${esTri?'3P':'2P'}</div></div>
-      </div></div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #f5c800;padding-bottom:4px;margin-bottom:10px">3. TABLA DE CIRCUITOS</div>
-      <table style="width:100%;border-collapse:collapse;font-size:10px">
-        <thead><tr style="background:#0c0c12;color:#fff">
-          <th style="padding:6px 5px;text-align:left">N°</th><th style="padding:6px 5px;text-align:left">Descripción</th><th style="padding:6px 5px;text-align:left">Tipo</th>
-          <th style="padding:6px 5px;text-align:center">Cant.</th><th style="padding:6px 5px;text-align:center">V</th><th style="padding:6px 5px;text-align:center">Fase</th>
-          <th style="padding:6px 5px;text-align:center">Fs%</th><th style="padding:6px 5px;text-align:right">P.Dem(kW)</th><th style="padding:6px 5px;text-align:right">I(A)</th>
-          <th style="padding:6px 5px;text-align:center">Cable</th><th style="padding:6px 5px;text-align:center">Breaker</th><th style="padding:6px 5px;text-align:center">Conduit</th>
-        </tr></thead>
-        <tbody>${filasCargas}</tbody>
-      </table></div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #f5c800;padding-bottom:4px;margin-bottom:10px">4. BALANCE DE FASES</div>
-      <table style="width:50%;border-collapse:collapse;font-size:11px">
-        <thead><tr style="background:#0c0c12;color:#fff">
-          <th style="padding:6px 8px;text-align:left">Fase</th><th style="padding:6px 8px;text-align:right">Potencia</th><th style="padding:6px 8px;text-align:right">Corriente</th><th style="padding:6px 8px;text-align:right">% Total</th>
-        </tr></thead>
-        <tbody>${filasFase}</tbody>
-      </table></div>
-    <div style="text-align:center;font-size:9px;color:#999;padding-top:10px;border-top:1px solid #eee;margin-top:14px">
-      <p>Documento generado por SEST · Sistema de Ingeniería Eléctrica · ${fecha}</p>
-      ${usuario?.nombre?`<p>Elaborado por: <strong>${usuario.nombre}</strong></p>`:''}
-    </div></div>`;
-  const cont=document.getElementById('pdf-informe');
-  if(!cont){toast('Error: contenedor PDF no encontrado','err');return;}
-  cont.innerHTML=htmlInforme;
-  await htmlAPdfDesdeNodoFuente(cont,`Informe_Balance_${nombre.replace(/[^a-zA-Z0-9]/g,'_')}.pdf`);
-  cont.innerHTML='';
+
+  _actualizarLoadingPdf('Generando PDF…',55);
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'landscape'});
+  const PW=doc.internal.pageSize.getWidth(),PH=doc.internal.pageSize.getHeight();
+  const mg=12,cw=PW-mg*2;
+
+  const _secT=(t,y,col)=>{
+    doc.setFillColor(...(col||[245,200,0]));doc.rect(mg,y,3,5,'F');
+    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(55,65,81);
+    doc.text(t,mg+5,y+4);return y+9;
+  };
+  const _footer=()=>{
+    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(160,160,160);
+    doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.line(mg,PH-10,PW-mg,PH-10);
+    doc.text('SEST · Informe Técnico Eléctrico · '+fecha,mg,PH-6);
+    if(usuario?.nombre)doc.text('Elaborado por: '+usuario.nombre,PW-mg,PH-6,{align:'right'});
+  };
+
+  let y=12;
+  if(logoImg)doc.addImage(logoImg,'JPEG',mg,y,20,20);
+  const tx=logoImg?mg+24:mg;
+  doc.setFontSize(16);doc.setFont('helvetica','bold');doc.setTextColor(0,0,0);doc.text('SEST',tx,y+7);
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+  doc.text('Servicios Eléctricos y Seguridad Tapia',tx,y+13);
+  doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(0,0,0);
+  doc.text('INFORME TÉCNICO ELÉCTRICO',PW-mg,y+7,{align:'right'});
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+  doc.text('Balance de Cargas · NEC / NTE INEN 2345 / ARCONEL',PW-mg,y+13,{align:'right'});
+  doc.text(fecha,PW-mg,y+18,{align:'right'});
+  doc.setDrawColor(245,200,0);doc.setLineWidth(0.8);doc.line(mg,y+22,PW-mg,y+22);
+  y+=27;
+
+  y=_secT('1. DATOS DEL PROYECTO',y);
+  const dC=4,dW=(cw-(dC-1)*3)/dC,dH=14;
+  [[nombre,'Proyecto',[245,200,0]],[cliente,'Cliente',[59,130,246]],[ubicacion,'Ubicación',[34,197,94]],[label,'Sistema',[168,85,247]]].forEach((d,i)=>{
+    const bx=mg+i*(dW+3);
+    doc.setFillColor(248,248,248);doc.roundedRect(bx,y,dW,dH,2,2,'F');
+    doc.setFillColor(...d[2]);doc.rect(bx,y,2.5,dH,'F');
+    doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(130,130,130);
+    doc.text(d[1].toUpperCase(),bx+4,y+4.5);
+    doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(17,24,39);
+    const vl=doc.splitTextToSize(String(d[0]),dW-6);doc.text(vl,bx+4,y+10);
+  });
+  y+=dH+8;
+
+  y=_secT('2. RESUMEN EJECUTIVO',y);
+  const sumDefs=[
+    {l:'Pot. Instalada',v:(totalW/1000).toFixed(2)+' kW',f:[12,12,18],c:[245,200,0]},
+    {l:'Demanda total',v:(totalWD/1000).toFixed(2)+' kW',f:[12,12,18],c:[34,197,94]},
+    {l:'Corriente total',v:ITotal.toFixed(2)+' A',f:[12,12,18],c:[96,165,250]},
+    {l:'Desbalance',v:desbalance.toFixed(1)+'%',f:desbalance>10?[50,10,10]:[12,12,18],c:desbalance>10?[239,68,68]:[34,197,94]},
+    {l:'Breaker principal',v:brkAco+' A',f:[12,12,18],c:[245,200,0]},
+    {l:'N° circuitos',v:String(cargasRec.length),f:[12,12,18],c:[168,85,247]}
+  ];
+  const sC=6,sW=(cw-(sC-1)*3)/sC,sH=18;
+  sumDefs.forEach((s,i)=>{
+    const bx=mg+i*(sW+3);
+    doc.setFillColor(...s.f);doc.roundedRect(bx,y,sW,sH,3,3,'F');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(170,170,170);
+    doc.text(s.l.toUpperCase(),bx+sW/2,y+5,{align:'center'});
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(...s.c);
+    doc.text(String(s.v),bx+sW/2,y+13.5,{align:'center'});
+  });
+  y+=sH+8;
+
+  y=_secT('3. TABLA DE CIRCUITOS',y);
+  const tHead=[['N°','Descripción','Tipo','Cant','V','Fase','Fs%','P.Dem kW','I (A)','Cable AWG','Breaker','Conduit']];
+  const tBody=cargasRec.map((c,i)=>{
+    const cant=c.cantidad||1,fp_c=c.fp||0.9,vC=c.voltaje||tension;
+    const esT=c.sistema==='tri',sq=esT?Math.sqrt(3):1;
+    const potTotal=(c.potencia||0)*cant,pd=potTotal*(c.fs||100)/100;
+    const Ic_c=pd>0?pd/(vC*sq*fp_c):0;
+    const fM=(c.tipo==='motor'||c.tipo==='hvac')?1.25:1.0;
+    const awgR=AWG_TABLE.find(r=>r[4]!=null&&r[4]>=(Ic_c*fM/tempFactor))||AWG_TABLE[AWG_TABLE.length-1];
+    const brkR=BREAKERS_STD.find(b=>b>=Ic_c*(fM>1?2.5:1.25))||2000;
+    const areaC=THHN_AREA[awgR?awgR[0]:'12']||THHN_AREA['12'];
+    const totA=areaC*(esT?4:3);
+    let cuitSel=CONDUIT_AREA.EMT.find(([n,a])=>a*0.40>=totA);
+    if(!cuitSel)cuitSel=CONDUIT_AREA.EMT[CONDUIT_AREA.EMT.length-1];
+    return[
+      String(i+1).padStart(2,'0'),c.desc||'—',TIPO_LABEL[c.tipo]||c.tipo,
+      String(cant),vC+'V',c.fase,String(c.fs||100)+'%',
+      (pd/1000).toFixed(3),Ic_c.toFixed(2),
+      'AWG #'+(awgR?awgR[0]:'—'),brkR+'A '+(esT?'3P':'2P'),
+      'EMT '+(cuitSel?cuitSel[0]:'—')
+    ];
+  });
+  doc.autoTable({
+    head:tHead,body:tBody,startY:y,
+    margin:{top:mg,right:mg,left:mg,bottom:16},
+    styles:{fontSize:7,cellPadding:2,valign:'middle',textColor:[30,30,30],overflow:'linebreak'},
+    headStyles:{fillColor:[12,12,18],textColor:255,fontSize:7,fontStyle:'bold',halign:'center'},
+    alternateRowStyles:{fillColor:[249,250,251]},
+    columnStyles:{
+      0:{cellWidth:8,halign:'center'},1:{cellWidth:'auto'},2:{cellWidth:20},
+      3:{cellWidth:10,halign:'center'},4:{cellWidth:12,halign:'center'},
+      5:{cellWidth:10,halign:'center'},6:{cellWidth:10,halign:'center'},
+      7:{cellWidth:18,halign:'right'},8:{cellWidth:14,halign:'right'},
+      9:{cellWidth:18,halign:'center',fontStyle:'bold',textColor:[29,78,216]},
+      10:{cellWidth:18,halign:'center',fontStyle:'bold',textColor:[180,83,9]},
+      11:{cellWidth:18,halign:'center',fontStyle:'bold',textColor:[22,101,52]}
+    },
+    didDrawPage:()=>_footer()
+  });
+  y=doc.lastAutoTable.finalY+8;
+
+  if(y>PH-50){doc.addPage();y=16;}
+  y=_secT('4. BALANCE DE FASES',y);
+  const fHead=[['Fase','Potencia (kW)','Corriente (A)','% del total']];
+  const fBody=fases.map(f=>{
+    const pf=potPorFase[f]||0,pct=totalWD>0?(pf/totalWD*100):0;
+    return[f,(pf/1000).toFixed(3),(pf/(tension*0.9)).toFixed(2),pct.toFixed(1)+'%'];
+  });
+  doc.autoTable({
+    head:fHead,body:fBody,startY:y,
+    margin:{top:mg,right:mg,left:mg,bottom:16},tableWidth:80,
+    styles:{fontSize:8,cellPadding:2.5,halign:'right'},
+    headStyles:{fillColor:[12,12,18],textColor:255,fontStyle:'bold'},
+    columnStyles:{0:{halign:'left',fontStyle:'bold'}},
+    didDrawPage:()=>_footer()
+  });
+  _footer();
+  _actualizarLoadingPdf('Descargando…',90);
+  doc.save('Informe_Balance_'+nombre.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf');
+  await delayPdf(400);_ocultarLoadingPdf();toast('PDF descargado ✓','ok');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4672,6 +4691,11 @@ async function exportarPDFProteccion(){
   await _exportarPDFProteccion(snap,'Cálculo de Protección','—','');
 }
 async function _exportarPDFProteccion(snap, nombre, cliente, notas){
+  _mostrarLoadingPdf('Preparando documento…');
+  _actualizarLoadingPdf('Cargando logo…',20);
+  const logoImg=await cargarLogoBase64();
+  _actualizarLoadingPdf('Generando PDF…',50);
+
   const fecha=new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
   const Ic=parseFloat(snap.Ic)||0;
   const tipo=snap.tipo||'gral';
@@ -4679,77 +4703,127 @@ async function _exportarPDFProteccion(snap, nombre, cliente, notas){
   const fases=parseInt(snap.fases)||1;
   const kvaCC=parseFloat(snap.kvaCC)||150;
   const Zpct=parseFloat(snap.z)||5;
-  const factores={gral:{cb:1.25,fusible:1.50,label:'Carga general — NEC 240.4',nota:'El breaker no debe superar el 125% de la corriente del conductor.'},
+  const factores={
+    gral:{cb:1.25,fusible:1.50,label:'Carga general — NEC 240.4',nota:'El breaker no debe superar el 125% de la corriente del conductor.'},
     motor:{cb:2.50,fusible:4.00,label:'Motor AC — NEC 430.52',nota:'Breaker 250% Ic. Fusible dual element 400% Ic.'},
     transformador:{cb:1.25,fusible:1.25,label:'Transformador — NEC 450.3(B)',nota:'Protección al 125% de la corriente nominal primaria.'},
-    condensador:{cb:1.35,fusible:1.65,label:'Condensadores — NEC 460.8',nota:'Breaker 135%, fusible 165% de Ic.'}};
+    condensador:{cb:1.35,fusible:1.65,label:'Condensadores — NEC 460.8',nota:'Breaker 135%, fusible 165% de Ic.'}
+  };
   const f=factores[tipo]||factores.gral;
-  const IbCB=Ic*f.cb;const IbFus=Ic*f.fusible;
-  const cbRec=BREAKERS_STD.find(b=>b>=IbCB)||2000;const fusRec=BREAKERS_STD.find(b=>b>=IbFus)||2000;
+  const IbCB=Ic*f.cb,IbFus=Ic*f.fusible;
+  const cbRec=BREAKERS_STD.find(b=>b>=IbCB)||2000;
+  const fusRec=BREAKERS_STD.find(b=>b>=IbFus)||2000;
   const sqrt3=fases===3?Math.sqrt(3):1;
-  const Sb=kvaCC*1000;const InomTx=Sb/(V*sqrt3);const Icc=InomTx/(Zpct/100);const IccKA=Icc/1000;
+  const Sb=kvaCC*1000,InomTx=Sb/(V*sqrt3),Icc=InomTx/(Zpct/100),IccKA=Icc/1000;
   let prKA=6;if(IccKA>6)prKA=10;if(IccKA>10)prKA=25;if(IccKA>25)prKA=50;
-  const html=`<div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#111;background:#fff;padding:40px;max-width:750px;margin:0 auto">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #ef4444;padding-bottom:16px;margin-bottom:20px">
-      <div><div style="font-size:22px;font-weight:900;color:#111">SEST</div>
-        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Servicios Eléctricos y Seguridad Tapia</div></div>
-      <div style="text-align:right"><div style="font-size:13px;font-weight:700">Dimensionamiento de Protecciones</div>
-        <div style="font-size:11px;color:#6b7280">NEC Art. 240 / 430 · NTE INEN</div>
-        <div style="font-size:11px;color:#6b7280">${fecha}</div>
-        ${usuario?.nombre?`<div style="font-size:11px;color:#6b7280">Por: <strong>${usuario.nombre}</strong></div>`:''}</div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-        <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Nombre del cálculo</div>
-        <div style="font-size:13px;font-weight:700">${nombre}</div></div>
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-        <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Cliente / Proyecto</div>
-        <div style="font-size:13px;font-weight:700">${cliente}</div></div>
-    </div>
-    <div style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #ef4444;padding-left:8px;margin-bottom:10px">1. PARÁMETROS DE ENTRADA</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Corriente de carga (Ic)</div><div style="font-size:16px;font-weight:800;color:#111">${Ic.toFixed(2)} A</div></div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Tipo de carga</div><div style="font-size:13px;font-weight:700">${f.label.split('—')[0]}</div></div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Sistema</div><div style="font-size:13px;font-weight:700">${V} V · ${fases===3?'Trifásico':'Monofásico'}</div></div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Transformador</div><div style="font-size:13px;font-weight:700">${kvaCC} kVA</div></div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Impedancia Z%</div><div style="font-size:13px;font-weight:700">${Zpct}%</div></div>
-      </div></div>
-    <div style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #ef4444;padding-left:8px;margin-bottom:10px">2. RESULTADOS</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-        <div style="background:#fef2f2;border:2px solid #fecaca;border-radius:10px;padding:16px;text-align:center">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:4px">Breaker recomendado</div>
-          <div style="font-size:32px;font-weight:900;color:#dc2626;font-family:monospace">${cbRec} A</div>
-          <div style="font-size:10px;color:#374151">Mín. ${IbCB.toFixed(1)} A · ${fases===3?'3 polos':'2 polos'}</div></div>
-        <div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:10px;padding:16px;text-align:center">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:4px">Fusible recomendado</div>
-          <div style="font-size:32px;font-weight:900;color:#2563eb;font-family:monospace">${fusRec} A</div>
-          <div style="font-size:10px;color:#374151">Mín. ${IbFus.toFixed(1)} A</div></div>
-        <div style="background:#fef9ec;border:2px solid #fde68a;border-radius:10px;padding:16px;text-align:center">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:4px">Icc estimada</div>
-          <div style="font-size:32px;font-weight:900;color:#d97706;font-family:monospace">${IccKA.toFixed(2)} kA</div>
-          <div style="font-size:10px;color:#374151">Poder ruptura mín: ${prKA} kA</div></div>
-      </div></div>
-    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:16px;font-size:11px">
-      <strong style="color:#dc2626">${f.label}:</strong> ${f.nota}
-    </div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #ef4444;padding-left:8px;margin-bottom:8px">3. NORMATIVA APLICADA</div>
-      <div style="font-size:11px;line-height:1.75;color:#374151">
-        <p>• <strong>NEC Art. 240:</strong> Overcurrent Protection — dimensionamiento de breakers</p>
-        <p>• <strong>NEC Art. 430.52:</strong> Protección de motores — factores 250% (CB) / 400% (fusible)</p>
-        <p>• <strong>NEC Art. 450.3(B):</strong> Transformadores — protección al 125% Ic</p>
-        <p>• <strong>IEC/NTE INEN:</strong> Serie normalizada de interruptores en Ecuador</p>
-      </div></div>
-    <div style="text-align:center;font-size:10px;color:#9ca3af;padding-top:12px;border-top:1px solid #e5e7eb;margin-top:20px">
-      <p>Documento generado por SEST · Dimensionamiento de Protecciones · ${fecha}</p>
-      <p>Cálculo conforme a NEC y NTE INEN aplicables en Ecuador 🇪🇨</p>
-    </div></div>`;
-  const cont=document.getElementById('pdf-informe');
-  if(!cont){toast('Error: contenedor PDF no encontrado','err');return;}
-  cont.innerHTML=html;
-  await htmlAPdfDesdeNodoFuente(cont,`Proteccion_${nombre.replace(/[^a-zA-Z0-9]/g,'_')}.pdf`);
-  cont.innerHTML='';
+
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+  const PW=doc.internal.pageSize.getWidth();
+  const mg=14,cw=PW-mg*2;
+
+  const _secT=(t,y,col)=>{
+    doc.setFillColor(...(col||[239,68,68]));doc.rect(mg,y,3,5.5,'F');
+    doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(55,65,81);
+    doc.text(t,mg+5,y+4.5);return y+10;
+  };
+
+  let y=14;
+  if(logoImg)doc.addImage(logoImg,'JPEG',mg,y,22,22);
+  const tx=logoImg?mg+26:mg;
+  doc.setFontSize(18);doc.setFont('helvetica','bold');doc.setTextColor(0,0,0);doc.text('SEST',tx,y+8);
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+  doc.text('Servicios Eléctricos y Seguridad Tapia',tx,y+14);
+  if(usuario?.nombre)doc.text('Elaborado por: '+usuario.nombre,tx,y+19);
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(0,0,0);
+  doc.text('DIMENSIONAMIENTO DE PROTECCIONES',PW-mg,y+8,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(100,100,100);
+  doc.text('NEC Art. 240 / 430 · NTE INEN',PW-mg,y+14,{align:'right'});
+  doc.text(fecha,PW-mg,y+20,{align:'right'});
+  doc.setDrawColor(239,68,68);doc.setLineWidth(0.8);doc.line(mg,y+25,PW-mg,y+25);
+  y+=30;
+
+  // NOMBRE / CLIENTE
+  const nc2W=(cw-3)/2;
+  [[nombre,'Nombre del cálculo'],[cliente,'Cliente / Proyecto']].forEach((d,i)=>{
+    const bx=mg+i*(nc2W+3);
+    doc.setFillColor(249,250,251);doc.roundedRect(bx,y,nc2W,13,2,2,'F');
+    doc.setDrawColor(220,220,220);doc.setLineWidth(0.15);doc.roundedRect(bx,y,nc2W,13,2,2,'S');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(120,120,120);
+    doc.text(d[1].toUpperCase(),bx+5,y+4.5);
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(17,24,39);
+    doc.text(String(d[0]),bx+5,y+10);
+  });
+  y+=17;
+
+  y=_secT('1. PARÁMETROS DE ENTRADA',y);
+  const params2=[
+    ['Corriente de carga (Ic)',Ic.toFixed(2)+' A'],
+    ['Tipo de carga',f.label.split('—')[0].trim()],
+    ['Sistema',V+' V · '+(fases===3?'Trifásico':'Monofásico')],
+    ['Transformador',kvaCC+' kVA'],
+    ['Impedancia Z%',Zpct+'%']
+  ];
+  const pC2=3,pW2=(cw-(pC2-1)*3)/pC2,pH2=15;
+  params2.forEach((p,i)=>{
+    const col=i%pC2,row=Math.floor(i/pC2),bx=mg+col*(pW2+3),by=y+row*(pH2+3);
+    doc.setFillColor(249,250,251);doc.roundedRect(bx,by,pW2,pH2,2,2,'F');
+    doc.setDrawColor(220,220,220);doc.setLineWidth(0.15);doc.roundedRect(bx,by,pW2,pH2,2,2,'S');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(120,120,120);
+    doc.text(String(p[0]).toUpperCase(),bx+pW2/2,by+4.5,{align:'center'});
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(17,24,39);
+    doc.text(String(p[1]),bx+pW2/2,by+10.5,{align:'center'});
+  });
+  y+=Math.ceil(params2.length/pC2)*(pH2+3)+6;
+
+  y=_secT('2. RESULTADOS',y);
+  const resDefs=[
+    {l:'Breaker recomendado',v:cbRec+' A',s:'Mín. '+IbCB.toFixed(1)+' A · '+(fases===3?'3 polos':'2 polos'),f:[255,242,242],c:[220,38,38]},
+    {l:'Fusible recomendado',v:fusRec+' A',s:'Mín. '+IbFus.toFixed(1)+' A',f:[239,246,255],c:[37,99,235]},
+    {l:'Icc estimada',v:IccKA.toFixed(2)+' kA',s:'Poder ruptura mín: '+prKA+' kA',f:[255,249,236],c:[217,119,6]}
+  ];
+  const rR=3,rW_r=(cw-(rR-1)*3)/rR,rH_r=24;
+  resDefs.forEach((r,i)=>{
+    const bx=mg+i*(rW_r+3);
+    doc.setFillColor(...r.f);doc.roundedRect(bx,y,rW_r,rH_r,3,3,'F');
+    doc.setDrawColor(200,200,200);doc.setLineWidth(0.2);doc.roundedRect(bx,y,rW_r,rH_r,3,3,'S');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(120,120,120);
+    doc.text(r.l.toUpperCase(),bx+rW_r/2,y+5,{align:'center'});
+    doc.setFontSize(18);doc.setFont('helvetica','bold');doc.setTextColor(...r.c);
+    doc.text(r.v,bx+rW_r/2,y+16,{align:'center'});
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(90,90,90);
+    doc.text(r.s,bx+rW_r/2,y+21,{align:'center'});
+  });
+  y+=rH_r+6;
+
+  // NOTA NORMATIVA
+  doc.setFillColor(255,242,242);doc.roundedRect(mg,y,cw,14,2,2,'F');
+  doc.setDrawColor(254,202,202);doc.setLineWidth(0.3);doc.roundedRect(mg,y,cw,14,2,2,'S');
+  doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(220,38,38);
+  doc.text(f.label+':',mg+4,y+5.5);
+  doc.setFont('helvetica','normal');doc.setTextColor(55,65,81);
+  const notaLines=doc.splitTextToSize(f.nota,cw-8);
+  doc.text(notaLines,mg+4,y+10.5);
+  y+=18+notaLines.length*1.5;
+
+  y=_secT('3. NORMATIVA APLICADA',y);
+  const normas2=[
+    'NEC Art. 240: Overcurrent Protection — dimensionamiento de breakers',
+    'NEC Art. 430.52: Protección de motores — factores 250% (CB) / 400% (fusible)',
+    'NEC Art. 450.3(B): Transformadores — protección al 125% Ic',
+    'IEC/NTE INEN: Serie normalizada de interruptores en Ecuador'
+  ];
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(55,65,81);
+  normas2.forEach(n=>{const ls=doc.splitTextToSize('• '+n,cw);doc.text(ls,mg,y);y+=ls.length*4.5+1;});
+
+  y+=4;doc.setDrawColor(220,220,220);doc.setLineWidth(0.3);doc.line(mg,y,PW-mg,y);y+=5;
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(160,160,160);
+  doc.text('Documento generado por SEST · Dimensionamiento de Protecciones · '+fecha,PW/2,y,{align:'center'});
+  doc.text('Cálculo conforme a NEC y NTE INEN aplicables en Ecuador',PW/2,y+4.5,{align:'center'});
+
+  _actualizarLoadingPdf('Descargando…',90);
+  doc.save('Proteccion_'+nombre.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf');
+  await delayPdf(400);_ocultarLoadingPdf();toast('PDF descargado ✓','ok');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4890,6 +4964,11 @@ async function exportarPDFTuberia(){
   await _exportarPDFTuberia(snap,'Cálculo de Tubería','—','');
 }
 async function _exportarPDFTuberia(snap, nombre, cliente, notas){
+  _mostrarLoadingPdf('Preparando documento…');
+  _actualizarLoadingPdf('Cargando logo…',20);
+  const logoImg=await cargarLogoBase64();
+  _actualizarLoadingPdf('Generando PDF…',50);
+
   const fecha=new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
   const tipo=snap.tipo||'EMT';
   const nCond=parseInt(snap.ncond)||3;
@@ -4904,67 +4983,110 @@ async function _exportarPDFTuberia(snap, nombre, cliente, notas){
   if(!conduitSel)conduitSel=tabla[tabla.length-1];
   const [nomSel,areaSel]=conduitSel;
   const pctLlenado=(totalArea/areaSel*100);
-  const colorFill=pctLlenado>(factor*100)?'#dc2626':'#16a34a';
-  const html=`<div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#111;background:#fff;padding:40px;max-width:750px;margin:0 auto">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #22c55e;padding-bottom:16px;margin-bottom:20px">
-      <div><div style="font-size:22px;font-weight:900">SEST</div>
-        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Servicios Eléctricos y Seguridad Tapia</div></div>
-      <div style="text-align:right"><div style="font-size:13px;font-weight:700">Cálculo de Tuberías / Conduit</div>
-        <div style="font-size:11px;color:#6b7280">NEC Chapter 9 Table 1 & 4 · NTE INEN</div>
-        <div style="font-size:11px;color:#6b7280">${fecha}</div>
-        ${usuario?.nombre?`<div style="font-size:11px;color:#6b7280">Por: <strong>${usuario.nombre}</strong></div>`:''}</div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-        <div style="font-size:9px;color:#6b7280;text-transform:uppercase">Nombre del cálculo</div>
-        <div style="font-size:13px;font-weight:700">${nombre}</div></div>
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-        <div style="font-size:9px;color:#6b7280;text-transform:uppercase">Cliente / Proyecto</div>
-        <div style="font-size:13px;font-weight:700">${cliente}</div></div>
-    </div>
-    <div style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #22c55e;padding-left:8px;margin-bottom:10px">1. PARÁMETROS DE ENTRADA</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Tipo conduit</div><div style="font-size:15px;font-weight:800;color:#111">${tipo}</div></div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">N° conductores</div><div style="font-size:15px;font-weight:800">${nCond}</div></div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Calibre AWG</div><div style="font-size:15px;font-weight:800">AWG #{awg}</div></div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Aislamiento</div><div style="font-size:15px;font-weight:800">${aisl}</div></div>
-      </div></div>
-    <div style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #22c55e;padding-left:8px;margin-bottom:10px">2. RESULTADOS</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-        <div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:10px;padding:16px;text-align:center">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:4px">Conduit recomendado</div>
-          <div style="font-size:32px;font-weight:900;color:#16a34a;font-family:monospace">${tipo} ${nomSel}</div>
-          <div style="font-size:10px;color:#374151">Área interna: ${areaSel.toFixed(1)} mm²</div></div>
-        <div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:10px;padding:16px;text-align:center">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:4px">Área conductores</div>
-          <div style="font-size:32px;font-weight:900;color:#15803d;font-family:monospace">${totalArea.toFixed(1)}</div>
-          <div style="font-size:10px;color:#374151">mm² total · ${areaCond} mm² c/u</div></div>
-        <div style="background:${pctLlenado>(factor*100)?'#fef2f2':'#f0fdf4'};border:2px solid ${pctLlenado>(factor*100)?'#fecaca':'#bbf7d0'};border-radius:10px;padding:16px;text-align:center">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:4px">% de llenado</div>
-          <div style="font-size:32px;font-weight:900;color:${colorFill};font-family:monospace">${pctLlenado.toFixed(1)}%</div>
-          <div style="font-size:10px;color:#374151">${pctLlenado>(factor*100)?'⚠️ Excede límite':'✅ Dentro del límite'} (${(factor*100).toFixed(0)}%)</div></div>
-      </div></div>
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:16px;font-size:11px">
-      <strong style="color:#15803d">NEC Chapter 9 Table 1:</strong> Con ${nCond} conductor${nCond>1?'es':''}, el llenado máximo permitido es <strong>${(factor*100).toFixed(0)}%</strong> del área interna. Área mínima requerida: <strong>${areaConduitMin.toFixed(1)} mm²</strong>
-    </div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #22c55e;padding-left:8px;margin-bottom:8px">3. NORMATIVA APLICADA</div>
-      <div style="font-size:11px;line-height:1.75;color:#374151">
-        <p>• <strong>NEC Chapter 9 Table 1:</strong> 1 cond=53%, 2 cond=31%, 3+ cond=40% de llenado</p>
-        <p>• <strong>NEC Chapter 9 Table 4:</strong> Áreas internas de conduits EMT, PVC, IMC, RMC</p>
-        <p>• <strong>Conductor THHN/THWN-2:</strong> Áreas exteriores según NEC Chapter 9 Table 5</p>
-        <p>• <strong>NTE INEN 2345 / ARCONEL:</strong> Requisitos de instalación Ecuador</p>
-      </div></div>
-    <div style="text-align:center;font-size:10px;color:#9ca3af;padding-top:12px;border-top:1px solid #e5e7eb;margin-top:20px">
-      <p>Documento generado por SEST · Cálculo de Tuberías / Conduit · ${fecha}</p>
-      <p>Cálculo conforme a NEC y NTE INEN aplicables en Ecuador 🇪🇨</p>
-    </div></div>`.replace('{awg}',awg);
-  const cont=document.getElementById('pdf-informe');
-  if(!cont){toast('Error: contenedor PDF no encontrado','err');return;}
-  cont.innerHTML=html;
-  await htmlAPdfDesdeNodoFuente(cont,`Tuberia_${nombre.replace(/[^a-zA-Z0-9]/g,'_')}.pdf`);
-  cont.innerHTML='';
+  const ok=pctLlenado<=(factor*100);
+
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+  const PW=doc.internal.pageSize.getWidth();
+  const mg=14,cw=PW-mg*2;
+
+  const _secT=(t,y,col)=>{
+    doc.setFillColor(...(col||[34,197,94]));doc.rect(mg,y,3,5.5,'F');
+    doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(55,65,81);
+    doc.text(t,mg+5,y+4.5);return y+10;
+  };
+
+  let y=14;
+  if(logoImg)doc.addImage(logoImg,'JPEG',mg,y,22,22);
+  const tx=logoImg?mg+26:mg;
+  doc.setFontSize(18);doc.setFont('helvetica','bold');doc.setTextColor(0,0,0);doc.text('SEST',tx,y+8);
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+  doc.text('Servicios Eléctricos y Seguridad Tapia',tx,y+14);
+  if(usuario?.nombre)doc.text('Elaborado por: '+usuario.nombre,tx,y+19);
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(0,0,0);
+  doc.text('CÁLCULO DE TUBERÍAS / CONDUIT',PW-mg,y+8,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(100,100,100);
+  doc.text('NEC Chapter 9 Table 1 & 4 · NTE INEN',PW-mg,y+14,{align:'right'});
+  doc.text(fecha,PW-mg,y+20,{align:'right'});
+  doc.setDrawColor(34,197,94);doc.setLineWidth(0.8);doc.line(mg,y+25,PW-mg,y+25);
+  y+=30;
+
+  const nc2W=(cw-3)/2;
+  [[nombre,'Nombre del cálculo'],[cliente,'Cliente / Proyecto']].forEach((d,i)=>{
+    const bx=mg+i*(nc2W+3);
+    doc.setFillColor(249,250,251);doc.roundedRect(bx,y,nc2W,13,2,2,'F');
+    doc.setDrawColor(220,220,220);doc.setLineWidth(0.15);doc.roundedRect(bx,y,nc2W,13,2,2,'S');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(120,120,120);
+    doc.text(d[1].toUpperCase(),bx+5,y+4.5);
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(17,24,39);
+    doc.text(String(d[0]),bx+5,y+10);
+  });
+  y+=17;
+
+  y=_secT('1. PARÁMETROS DE ENTRADA',y);
+  const params3=[
+    ['Tipo conduit',tipo],['N° conductores',String(nCond)],
+    ['Calibre AWG','AWG #'+awg],['Aislamiento',aisl]
+  ];
+  const pC3=4,pW3=(cw-(pC3-1)*3)/pC3,pH3=15;
+  params3.forEach((p,i)=>{
+    const bx=mg+i*(pW3+3);
+    doc.setFillColor(249,250,251);doc.roundedRect(bx,y,pW3,pH3,2,2,'F');
+    doc.setDrawColor(220,220,220);doc.setLineWidth(0.15);doc.roundedRect(bx,y,pW3,pH3,2,2,'S');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(120,120,120);
+    doc.text(String(p[0]).toUpperCase(),bx+pW3/2,y+4.5,{align:'center'});
+    doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(17,24,39);
+    doc.text(String(p[1]),bx+pW3/2,y+11,{align:'center'});
+  });
+  y+=pH3+10;
+
+  y=_secT('2. RESULTADOS',y);
+  const resDefs2=[
+    {l:'Conduit recomendado',v:tipo+' '+nomSel,s:'Área interna: '+areaSel.toFixed(1)+' mm²',f:[240,253,244],c:[22,163,74]},
+    {l:'Área conductores',v:totalArea.toFixed(1)+' mm²',s:areaCond+' mm² c/u × '+nCond,f:[240,253,244],c:[21,128,61]},
+    {l:'% de llenado',v:pctLlenado.toFixed(1)+'%',s:ok?'OK – dentro del límite ('+(factor*100).toFixed(0)+'%)':'Excede límite ('+(factor*100).toFixed(0)+'%)',f:ok?[240,253,244]:[255,242,242],c:ok?[22,163,74]:[220,38,38]}
+  ];
+  const rR2=3,rW_r2=(cw-(rR2-1)*3)/rR2,rH_r2=24;
+  resDefs2.forEach((r,i)=>{
+    const bx=mg+i*(rW_r2+3);
+    doc.setFillColor(...r.f);doc.roundedRect(bx,y,rW_r2,rH_r2,3,3,'F');
+    doc.setDrawColor(200,200,200);doc.setLineWidth(0.2);doc.roundedRect(bx,y,rW_r2,rH_r2,3,3,'S');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(120,120,120);
+    doc.text(r.l.toUpperCase(),bx+rW_r2/2,y+5,{align:'center'});
+    doc.setFontSize(16);doc.setFont('helvetica','bold');doc.setTextColor(...r.c);
+    doc.text(r.v,bx+rW_r2/2,y+15,{align:'center'});
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(90,90,90);
+    const sl=doc.splitTextToSize(r.s,rW_r2-4);doc.text(sl,bx+rW_r2/2,y+21,{align:'center'});
+  });
+  y+=rH_r2+6;
+
+  // NOTA NEC
+  doc.setFillColor(240,253,244);doc.roundedRect(mg,y,cw,13,2,2,'F');
+  doc.setDrawColor(187,247,208);doc.setLineWidth(0.3);doc.roundedRect(mg,y,cw,13,2,2,'S');
+  doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(21,128,61);
+  doc.text('NEC Chapter 9 Table 1:',mg+4,y+5.5);
+  doc.setFont('helvetica','normal');doc.setTextColor(55,65,81);
+  doc.text('Con '+nCond+' conductor'+(nCond>1?'es':'')+', llenado máximo: '+(factor*100).toFixed(0)+'%. Área mín. requerida: '+areaConduitMin.toFixed(1)+' mm²',mg+4,y+10);
+  y+=17;
+
+  y=_secT('3. NORMATIVA APLICADA',y);
+  const normas3=[
+    'NEC Chapter 9 Table 1: 1 cond=53%, 2 cond=31%, 3+ cond=40% de llenado',
+    'NEC Chapter 9 Table 4: Áreas internas de conduits EMT, PVC, IMC, RMC',
+    'Conductor THHN/THWN-2: Áreas exteriores según NEC Chapter 9 Table 5',
+    'NTE INEN 2345 / ARCONEL: Requisitos de instalación Ecuador'
+  ];
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(55,65,81);
+  normas3.forEach(n=>{const ls=doc.splitTextToSize('• '+n,cw);doc.text(ls,mg,y);y+=ls.length*4.5+1;});
+
+  y+=4;doc.setDrawColor(220,220,220);doc.setLineWidth(0.3);doc.line(mg,y,PW-mg,y);y+=5;
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(160,160,160);
+  doc.text('Documento generado por SEST · Cálculo de Tuberías / Conduit · '+fecha,PW/2,y,{align:'center'});
+  doc.text('Cálculo conforme a NEC y NTE INEN aplicables en Ecuador',PW/2,y+4.5,{align:'center'});
+
+  _actualizarLoadingPdf('Descargando…',90);
+  doc.save('Tuberia_'+nombre.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf');
+  await delayPdf(400);_ocultarLoadingPdf();toast('PDF descargado ✓','ok');
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -5111,262 +5233,11 @@ function eliminarBalance(id) {
 
 async function generarInformePDF() {
   if (!cargas.length) { toast('Agrega cargas antes de generar el informe', 'err'); return; }
-
   const nombre   = document.getElementById('bc-proyecto-nombre')?.value || 'Sin nombre';
   const cliente  = document.getElementById('bc-proyecto-cliente')?.value || '—';
   const ubicacion= document.getElementById('bc-proyecto-ubicacion')?.value || '—';
-  const tipoTab  = document.getElementById('bc-tipo-tablero')?.value || 'residencial';
   const tempFactor = parseFloat(document.getElementById('bc-temperatura-global')?.value || 1.0);
-  const fecha = new Date().toLocaleDateString('es-EC', {day:'2-digit',month:'long',year:'numeric'});
-
-  const cfg = BC_SISTEMAS[_bcSistema] || BC_SISTEMAS['120'];
-  const { tension, esTri, fases, label } = cfg;
-
-  // Calcular datos para el informe
-  const tempF = tempFactor;
-  const circuitos = (window._bcCircuitos || []);
-  const acometida = window._bcAcometida || {};
-
-  const potPorFase = {};
-  fases.forEach(f => potPorFase[f] = 0);
-  let totalW = 0, totalWD = 0;
-  cargas.forEach(c => {
-    const cant = c.cantidad || 1;
-    const potUnit = c.potencia || 0;
-    const potTotal = potUnit * cant;
-    const pd = potTotal * (c.fs || 100) / 100;
-    if (potPorFase[c.fase] !== undefined) potPorFase[c.fase] += pd;
-    totalW  += potTotal;
-    totalWD += pd;
-  });
-  const ITotal = acometida.ITotal || (esTri ? totalWD/(tension*Math.sqrt(3)*0.9) : totalWD/(tension*0.9));
-  const brkAco = acometida.brkAco || (BREAKERS_STD.find(b => b >= ITotal*1.25)||2000);
-  const fsPromedio = cargas.length > 0 ? cargas.reduce((a,c)=>a+(c.fs||100),0)/cargas.length : 0;
-  const vals = Object.values(potPorFase);
-  const maxF = Math.max(...vals);
-  const minF = Math.min(...vals);
-  const desbalance = maxF > 0 ? ((maxF-minF)/maxF*100) : 0;
-
-  const TIPO_LABEL = {
-    iluminacion:'Iluminación', tomacorriente:'Tomacorriente', motor:'Motor',
-    hvac:'HVAC/Clima', resistivo:'Resistivo', otro:'Especial'
-  };
-
-  const filasCargas = cargas.map((c,i) => {
-    const cant = c.cantidad || 1;
-    const fp   = c.fp || 0.9;
-    const vC   = c.voltaje || tension;
-    const esTri_c = c.sistema === 'tri';
-    const sqrt3_c = esTri_c ? Math.sqrt(3) : 1;
-    const potTotal = (c.potencia||0) * cant;
-    const pd    = potTotal * (c.fs||100) / 100;
-    const Ic    = pd > 0 ? pd / (vC * sqrt3_c * fp) : 0;
-    const factorM = (c.tipo==='motor'||c.tipo==='hvac') ? 1.25 : 1.0;
-    const IdD = Ic * factorM / tempF;
-    let awgRow = AWG_TABLE.find(r => r[4]!=null && r[4]>=IdD) || AWG_TABLE[AWG_TABLE.length-1];
-    const IbMin = Ic * (factorM>1 ? 2.5 : 1.25);
-    const brkRec = BREAKERS_STD.find(b=>b>=IbMin)||2000;
-    const polos = esTri_c ? '3P' : '2P';
-    const areaC = THHN_AREA[awgRow ? awgRow[0] : '12'] || THHN_AREA['12'];
-    const nCond = esTri_c ? 4 : 3;
-    const totArea = areaC * nCond;
-    let conduitSel = CONDUIT_AREA.EMT.find(([n,a]) => a*0.40>=totArea);
-    if (!conduitSel) conduitSel = CONDUIT_AREA.EMT[CONDUIT_AREA.EMT.length-1];
-    return `<tr style="${i%2===0?'background:#fafafa':''}">
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;font-weight:600">${String(i+1).padStart(2,'0')}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee">${c.desc||'—'}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee">${TIPO_LABEL[c.tipo]||c.tipo}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${cant}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${vC}V</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${esTri_c?'3F':'1F'}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${fp}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${c.fase}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${c.fs||100}%</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pd/1000).toFixed(3)}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:right;color:#3b82f6;font-weight:600">${Ic.toFixed(2)}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#1d4ed8;font-weight:700">AWG #${awgRow?awgRow[0]:'—'}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#b45309;font-weight:700">${brkRec}A ${polos}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#166534;font-weight:700">EMT ${conduitSel?conduitSel[0]:'—'}</td>
-    </tr>`;
-  }).join('');
-
-  const filasFase = fases.map(f => {
-    const pf = potPorFase[f] || 0;
-    const pct = totalWD > 0 ? (pf/totalWD*100) : 0;
-    const If = pf / (tension * 0.9);
-    return `<tr>
-      <td style="padding:5px 8px;border-bottom:1px solid #eee;font-weight:700">${f}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pf/1000).toFixed(3)} kW</td>
-      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${If.toFixed(2)} A</td>
-      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${pct.toFixed(1)}%</td>
-    </tr>`;
-  }).join('');
-
-  const htmlInforme = `
-    <div style="font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#111;line-height:1.5">
-      <!-- ENCABEZADO -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #f5c800;margin-bottom:20px">
-        <div>
-          <div style="font-size:22px;font-weight:900;color:#0c0c12;letter-spacing:-0.5px">INFORME TÉCNICO ELÉCTRICO</div>
-          <div style="font-size:13px;font-weight:700;color:#555;margin-top:2px">Balance de Cargas · Dimensionamiento de Tablero</div>
-          <div style="font-size:11px;color:#888;margin-top:6px">Norma: NEC / NTE INEN 2345 / ARCONEL Ecuador</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:11px;color:#888">Fecha de elaboración</div>
-          <div style="font-size:14px;font-weight:700;color:#0c0c12">${fecha}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px">SEST · Sistema de Ingeniería</div>
-        </div>
-      </div>
-
-      <!-- DATOS DEL PROYECTO -->
-      <div style="margin-bottom:20px">
-        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#0c0c12;border-bottom:2px solid #f5c800;padding-bottom:5px;margin-bottom:10px">1. DATOS DEL PROYECTO</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-          <div style="background:#f8f8f8;border-radius:8px;padding:10px 12px;border-left:3px solid #f5c800">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px">Proyecto</div>
-            <div style="font-size:14px;font-weight:800;color:#0c0c12">${nombre}</div>
-          </div>
-          <div style="background:#f8f8f8;border-radius:8px;padding:10px 12px;border-left:3px solid #3b82f6">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px">Cliente / Propietario</div>
-            <div style="font-size:13px;font-weight:700;color:#0c0c12">${cliente}</div>
-          </div>
-          <div style="background:#f8f8f8;border-radius:8px;padding:10px 12px;border-left:3px solid #22c55e">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px">Ubicación</div>
-            <div style="font-size:13px;font-weight:700;color:#0c0c12">${ubicacion}</div>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:8px">
-          <div style="background:#fef9ec;border-radius:6px;padding:8px 10px;border:1px solid #fde68a">
-            <div style="font-size:10px;color:#92400e;font-weight:700">Sistema</div>
-            <div style="font-size:12px;font-weight:700;color:#78350f">${label}</div>
-          </div>
-          <div style="background:#fef9ec;border-radius:6px;padding:8px 10px;border:1px solid #fde68a">
-            <div style="font-size:10px;color:#92400e;font-weight:700">Tipo de tablero</div>
-            <div style="font-size:12px;font-weight:700;color:#78350f;text-transform:capitalize">${tipoTab}</div>
-          </div>
-          <div style="background:#fef9ec;border-radius:6px;padding:8px 10px;border:1px solid #fde68a">
-            <div style="font-size:10px;color:#92400e;font-weight:700">Temp. ambiente</div>
-            <div style="font-size:12px;font-weight:700;color:#78350f">Factor ${tempFactor}</div>
-          </div>
-          <div style="background:#fef9ec;border-radius:6px;padding:8px 10px;border:1px solid #fde68a">
-            <div style="font-size:10px;color:#92400e;font-weight:700">Total circuitos</div>
-            <div style="font-size:12px;font-weight:700;color:#78350f">${cargas.length} circuitos</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- RESUMEN EJECUTIVO -->
-      <div style="margin-bottom:20px">
-        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#0c0c12;border-bottom:2px solid #f5c800;padding-bottom:5px;margin-bottom:10px">2. RESUMEN EJECUTIVO</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px">
-          <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px">Potencia Instalada</div>
-            <div style="font-size:18px;font-weight:900;color:#f5c800;font-family:monospace">${(totalW/1000).toFixed(2)}</div>
-            <div style="font-size:11px;color:#888">kW</div>
-          </div>
-          <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px">Potencia Demanda</div>
-            <div style="font-size:18px;font-weight:900;color:#22c55e;font-family:monospace">${(totalWD/1000).toFixed(2)}</div>
-            <div style="font-size:11px;color:#888">kW</div>
-          </div>
-          <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px">Corriente Total</div>
-            <div style="font-size:18px;font-weight:900;color:#60a5fa;font-family:monospace">${ITotal.toFixed(2)}</div>
-            <div style="font-size:11px;color:#888">A</div>
-          </div>
-          <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px">Breaker Principal</div>
-            <div style="font-size:18px;font-weight:900;color:#f5c800;font-family:monospace">${brkAco}A</div>
-            <div style="font-size:11px;color:#888">${esTri?'3 Polos':'2 Polos'}</div>
-          </div>
-          <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px">Fs Promedio</div>
-            <div style="font-size:18px;font-weight:900;color:#f5c800;font-family:monospace">${fsPromedio.toFixed(0)}</div>
-            <div style="font-size:11px;color:#888">%</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TABLA DE CARGAS -->
-      <div style="margin-bottom:20px">
-        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#0c0c12;border-bottom:2px solid #f5c800;padding-bottom:5px;margin-bottom:10px">3. TABLA DE BALANCE DE CARGAS Y DIMENSIONAMIENTO</div>
-        <table style="width:100%;border-collapse:collapse;font-size:10px">
-          <thead>
-            <tr style="background:#0c0c12;color:#fff">
-              <th style="padding:6px 7px;text-align:left">N°</th>
-              <th style="padding:6px 7px;text-align:left">Descripción</th>
-              <th style="padding:6px 7px;text-align:left">Tipo</th>
-              <th style="padding:6px 7px;text-align:center">Cant.</th>
-              <th style="padding:6px 7px;text-align:center">Voltaje</th>
-              <th style="padding:6px 7px;text-align:center">Fases</th>
-              <th style="padding:6px 7px;text-align:center">F.P.</th>
-              <th style="padding:6px 7px;text-align:center">Fase</th>
-              <th style="padding:6px 7px;text-align:center">Fs%</th>
-              <th style="padding:6px 7px;text-align:right">Dem.(kW)</th>
-              <th style="padding:6px 7px;text-align:right">I (A)</th>
-              <th style="padding:6px 7px;text-align:center">Cable</th>
-              <th style="padding:6px 7px;text-align:center">Breaker</th>
-              <th style="padding:6px 7px;text-align:center">Conduit</th>
-            </tr>
-          </thead>
-          <tbody>${filasCargas}</tbody>
-          <tfoot>
-            <tr style="background:#f5c80020;border-top:2px solid #f5c800">
-              <td colspan="9" style="padding:7px;font-weight:800;color:#0c0c12">TOTALES</td>
-              <td style="padding:7px;text-align:right;font-weight:800;color:#b45309">${(totalWD/1000).toFixed(3)}</td>
-              <td style="padding:7px;text-align:right;font-weight:800;color:#1d4ed8">${ITotal.toFixed(2)}</td>
-              <td colspan="3" style="padding:7px;text-align:center;font-weight:700;color:#166534">Breaker Ppal: ${brkAco}A</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <!-- BALANCE POR FASES -->
-      <div style="margin-bottom:20px">
-        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#0c0c12;border-bottom:2px solid #f5c800;padding-bottom:5px;margin-bottom:10px">4. BALANCE DE FASES</div>
-        <table style="width:50%;border-collapse:collapse;font-size:11px">
-          <thead><tr style="background:#0c0c12;color:#fff">
-            <th style="padding:6px 8px;text-align:left">Fase</th>
-            <th style="padding:6px 8px;text-align:right">Potencia</th>
-            <th style="padding:6px 8px;text-align:right">Corriente</th>
-            <th style="padding:6px 8px;text-align:right">% Total</th>
-          </tr></thead>
-          <tbody>${filasFase}</tbody>
-        </table>
-        <div style="margin-top:8px;padding:8px 12px;background:${desbalance>10?'#fef2f2':'#f0fdf4'};border:1px solid ${desbalance>10?'#fecaca':'#bbf7d0'};border-radius:6px;font-size:11px">
-          <strong>${desbalance>10?'⚠️ DESBALANCE EXCEDE 10%':'✅ Desbalance dentro del rango NEC'}</strong>: ${desbalance.toFixed(1)}%
-          (Máx. permitido: 10% — NEC / NTE INEN)
-        </div>
-      </div>
-
-      <!-- NOTAS TÉCNICAS -->
-      <div style="margin-bottom:16px">
-        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#0c0c12;border-bottom:2px solid #f5c800;padding-bottom:5px;margin-bottom:10px">5. NOTAS TÉCNICAS Y NORMATIVA APLICADA</div>
-        <div style="font-size:11px;line-height:1.7;color:#333">
-          <p>• <strong>Conductor:</strong> Cobre THHN/THWN-2, temperatura 90°C — NEC 310.15(B)(16) / NTE INEN 2345</p>
-          <p>• <strong>Factor de temperatura:</strong> ${tempFactor} aplicado a la capacidad de conducción</p>
-          <p>• <strong>Protecciones:</strong> Termomagnéticos dimensionados según NEC Art. 240 / 430</p>
-          <p>• <strong>Motores:</strong> Factor de servicio 1.25 aplicado — NEC 430.22</p>
-          <p>• <strong>Conduit:</strong> Llenado máximo 40% para 3+ conductores — NEC Chapter 9 Table 1</p>
-          <p>• <strong>Desbalance de fases:</strong> No debe superar el 10% según NEC y NTE INEN</p>
-          <p>• <strong>Breaker principal:</strong> Dimensionado al 125% de la corriente total de demanda</p>
-        </div>
-      </div>
-
-      <!-- PIE DE PÁGINA -->
-      <div style="text-align:center;font-size:10px;color:#999;padding-top:12px;border-top:1px solid #eee;margin-top:20px">
-        <p>Documento generado por SEST · Sistema de Ingeniería Eléctrica · ${fecha}</p>
-        <p>Este informe técnico ha sido elaborado según las normas NEC (National Electrical Code) y NTE INEN aplicables en Ecuador.</p>
-        <p style="margin-top:4px;font-weight:700;color:#666">${usuario?.nombre ? 'Elaborado por: ' + usuario.nombre : ''}</p>
-      </div>
-    </div>`;
-
-  // Usar la función unificada con overlay moderno y forzado A4 en móvil
-  const cont = document.getElementById('pdf-informe');
-  if (!cont) { toast('Error: contenedor PDF no encontrado', 'err'); return; }
-  cont.innerHTML = htmlInforme;
-  await htmlAPdfDesdeNodoFuente(cont, `Informe_${nombre.replace(/[^a-zA-Z0-9]/g,'_')}.pdf`);
-  cont.innerHTML = '';
+  await _generarPDFBalance(cargas, nombre, cliente, ubicacion, _bcSistema||'120', tempFactor);
 }
 /* ═══════════ NOTAS ═══════════ */
 // ════════════════════════════════════════════════════════════
