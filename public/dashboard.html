@@ -2134,11 +2134,13 @@
       </div>
     </div>
     <!-- NOTAS -->
+     <!-- Botón para móvil (colapsar sidebar) -->
+<button id="btn-toggle-notas-sidebar" onclick="toggleNotasSidebarMobile()" title="Mostrar/Ocultar menú">
+  <i data-lucide="panel-left" style="width:20px;height:20px"></i>
+</button>
+
     <div class="sec" id="sec-notas">
-      <!-- Botón para colapsar/mostrar sidebar (solo móvil) -->
-            <button class="notas-sidebar-toggle" onclick="toggleNotasSidebar()" title="Mostrar/Ocultar menú">
-              <i data-lucide="panel-left" style="width:18px;height:18px"></i>
-            </button>
+      
       <style>
         .nf-item {
           display: flex;

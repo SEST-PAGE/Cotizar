@@ -5751,31 +5751,78 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-//==========================================MODAL NOTA =================//
-function toggleNotasSidebar() {
-  const sidebar = document.querySelector('.notas-sidebar'); // o el ID/clase que tenga tu sidebar
-  const btn = document.querySelector('.notas-sidebar-toggle');
+// ════════════════════════════════════════════════════════════
+// TOGGLE SIDEBAR NOTAS - MÓVIL
+// ════════════════════════════════════════════════════════════
+
+function toggleNotasSidebarMobile() {
+  // Buscar el sidebar por múltiples selectores (ajusta según tu HTML)
+  let sidebar = document.getElementById('sidebar-notas') || 
+                document.querySelector('.sidebar-notas') || 
+                document.querySelector('.notas-sidebar') ||
+                document.querySelector('aside') ||
+                document.querySelector('[class*="sidebar"]');
   
-  if (sidebar) {
-    sidebar.classList.toggle('collapsed');
-    
-    // Cambiar icono (opcional)
-    const icon = btn.querySelector('i');
-    if (icon) {
-      if (sidebar.classList.contains('collapsed')) {
-        icon.setAttribute('data-lucide', 'panel-left-open');
-      } else {
-        icon.setAttribute('data-lucide', 'panel-left');
-      }
-      refreshIcons(); // Si usas lucide
+  // Si no lo encuentra, buscar el contenedor que tenga los .nf-item (carpetas)
+  if (!sidebar) {
+    const nfItem = document.querySelector('.nf-item');
+    if (nfItem) sidebar = nfItem.closest('aside') || nfItem.closest('div');
+  }
+  
+  if (!sidebar) {
+    console.error('Sidebar no encontrado');
+    return;
+  }
+
+  // Toggle clase 'collapsed' o 'hidden'
+  sidebar.classList.toggle('collapsed');
+  
+  // Actualizar el botón (cambiar icono)
+  const btn = document.getElementById('btn-toggle-notas-sidebar');
+  if (btn) {
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    btn.innerHTML = isCollapsed 
+      ? '<i data-lucide="panel-right-open" style="width:20px;height:20px"></i>' 
+      : '<i data-lucide="panel-left-close" style="width:20px;height:20px"></i>';
+    if (typeof refreshIcons === 'function') refreshIcons();
+  }
+  
+  // Opcional: Ajustar el grid de notas cuando se colapsa
+  const notasGrid = document.getElementById('tbl-notas');
+  if (notasGrid) {
+    if (sidebar.classList.contains('collapsed')) {
+      notasGrid.style.width = '100%';
+      notasGrid.style.marginLeft = '0';
+    } else {
+      notasGrid.style.width = '';
+      notasGrid.style.marginLeft = '';
     }
   }
 }
 
-// Al cargar la página en móvil, colapsar automáticamente para ver notas
-window.addEventListener('load', function() {
+// Auto-colapsar al cargar en móvil (opcional pero recomendado)
+window.addEventListener('DOMContentLoaded', function() {
   if (window.innerWidth <= 768) {
-    const sidebar = document.querySelector('.notas-sidebar');
-    if (sidebar) sidebar.classList.add('collapsed');
+    setTimeout(() => {
+      const sidebar = document.getElementById('sidebar-notas') || 
+                      document.querySelector('.sidebar-notas') || 
+                      document.querySelector('.notas-sidebar');
+      if (sidebar && !sidebar.classList.contains('collapsed')) {
+        sidebar.classList.add('collapsed');
+      }
+    }, 100);
+  }
+});
+
+// Responsive: Escuchar cambios de tamaño
+window.addEventListener('resize', function() {
+  const sidebar = document.getElementById('sidebar-notas') || 
+                  document.querySelector('.sidebar-notas');
+  if (sidebar) {
+    if (window.innerWidth > 768) {
+      sidebar.classList.remove('collapsed');
+    } else if (!sidebar.classList.contains('collapsed')) {
+      // En móvil, si no está colapsado, dejarlo abierto (no forzar cierre)
+    }
   }
 });
