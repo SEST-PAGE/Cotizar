@@ -211,6 +211,7 @@ body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-
   animation:ddFadeIn .18s ease;
 }
 .user-dropdown.open{display:block}
+
 @keyframes ddFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .dd-item{
   display:flex;align-items:center;gap:9px;

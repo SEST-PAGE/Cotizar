@@ -5582,7 +5582,7 @@ function renderNotas(lista) {
       ).join('');
       return `
         <div class="nota-card"
-          style="background:${c.bg};border:1px solid ${c.border};box-shadow:0 0 0 1px '+c.border : ''}"
+          style="background:${c.bg};border:1px solid #4a4a46;box-shadow:0 0 0 1px '+c.border : ''}"
           onclick="editarNota(${n.id})">
 
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">
