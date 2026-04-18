@@ -5752,77 +5752,72 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ════════════════════════════════════════════════════════════
-// TOGGLE SIDEBAR NOTAS - MÓVIL
+// TOGGLE SIDEBAR NOTAS - MÓVIL (VERSIÓN GLOBAL)
 // ════════════════════════════════════════════════════════════
 
-function toggleNotasSidebarMobile() {
-  // Buscar el sidebar por múltiples selectores (ajusta según tu HTML)
+// Asegurar que la función esté disponible globalmente
+window.toggleNotasSidebarMobile = function() {
+  console.log("Toggle sidebar ejecutado"); // Debug
+  
+  // Buscar el sidebar - ajusta estos selectores según tu HTML real
   let sidebar = document.getElementById('sidebar-notas') || 
-                document.querySelector('.sidebar-notas') || 
                 document.querySelector('.notas-sidebar') ||
                 document.querySelector('aside') ||
-                document.querySelector('[class*="sidebar"]');
+                document.querySelector('.nf-item')?.closest('div') ||
+                document.querySelector('[class*="notas"]');
   
-  // Si no lo encuentra, buscar el contenedor que tenga los .nf-item (carpetas)
+  // Si aún no lo encuentra, buscar cualquier aside o div que tenga carpetas
   if (!sidebar) {
-    const nfItem = document.querySelector('.nf-item');
-    if (nfItem) sidebar = nfItem.closest('aside') || nfItem.closest('div');
+    const carpetas = document.querySelector('.nf-item') || document.querySelector('#nfc-all');
+    if (carpetas) {
+      sidebar = carpetas.closest('aside') || carpetas.closest('div').parentElement;
+    }
   }
   
   if (!sidebar) {
-    console.error('Sidebar no encontrado');
+    console.error('No se encontró el sidebar de notas');
+    toast('Error: No se encuentra el menú lateral', 'err');
     return;
   }
 
-  // Toggle clase 'collapsed' o 'hidden'
+  // Toggle la clase 'collapsed'
   sidebar.classList.toggle('collapsed');
+  const estaColapsado = sidebar.classList.contains('collapsed');
   
-  // Actualizar el botón (cambiar icono)
-  const btn = document.getElementById('btn-toggle-notas-sidebar');
-  if (btn) {
-    const isCollapsed = sidebar.classList.contains('collapsed');
-    btn.innerHTML = isCollapsed 
-      ? '<i data-lucide="panel-right-open" style="width:20px;height:20px"></i>' 
-      : '<i data-lucide="panel-left-close" style="width:20px;height:20px"></i>';
+  console.log('Sidebar colapsado:', estaColapsado);
+  
+  // Cambiar icono del botón si existe
+  const btnIcon = document.querySelector('#btn-toggle-notas-sidebar i');
+  if (btnIcon) {
+    // Cambiar entre iconos usando atributo data-lucide
+    btnIcon.setAttribute('data-lucide', estaColapsado ? 'panel-right-open' : 'panel-left-close');
     if (typeof refreshIcons === 'function') refreshIcons();
   }
   
-  // Opcional: Ajustar el grid de notas cuando se colapsa
-  const notasGrid = document.getElementById('tbl-notas');
-  if (notasGrid) {
-    if (sidebar.classList.contains('collapsed')) {
-      notasGrid.style.width = '100%';
-      notasGrid.style.marginLeft = '0';
+  // Opcional: Ajustar layout del grid de notas
+  const notasContainer = document.getElementById('tbl-notas');
+  if (notasContainer && window.innerWidth <= 768) {
+    if (estaColapsado) {
+      notasContainer.style.marginLeft = '0';
+      notasContainer.style.width = '100%';
     } else {
-      notasGrid.style.width = '';
-      notasGrid.style.marginLeft = '';
+      notasContainer.style.marginLeft = '';
+      notasContainer.style.width = '';
     }
   }
-}
+};
 
-// Auto-colapsar al cargar en móvil (opcional pero recomendado)
-window.addEventListener('DOMContentLoaded', function() {
+// Auto-colapsar en móvil al cargar
+(function initNotasSidebar() {
   if (window.innerWidth <= 768) {
-    setTimeout(() => {
+    // Esperar a que el DOM esté listo
+    setTimeout(function() {
       const sidebar = document.getElementById('sidebar-notas') || 
-                      document.querySelector('.sidebar-notas') || 
                       document.querySelector('.notas-sidebar');
       if (sidebar && !sidebar.classList.contains('collapsed')) {
         sidebar.classList.add('collapsed');
+        console.log('Sidebar auto-colapsado en móvil');
       }
-    }, 100);
+    }, 500);
   }
-});
-
-// Responsive: Escuchar cambios de tamaño
-window.addEventListener('resize', function() {
-  const sidebar = document.getElementById('sidebar-notas') || 
-                  document.querySelector('.sidebar-notas');
-  if (sidebar) {
-    if (window.innerWidth > 768) {
-      sidebar.classList.remove('collapsed');
-    } else if (!sidebar.classList.contains('collapsed')) {
-      // En móvil, si no está colapsado, dejarlo abierto (no forzar cierre)
-    }
-  }
-});
+})();
