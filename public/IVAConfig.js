@@ -2,6 +2,7 @@ const API=window.location.origin;
 let token=localStorage.getItem('token'),usuario=null,isAdmin=false;
 let mats=[],cats=[],clis=[],cots=[];
 let cotItems=[],cotAdic=[],cotActual=null;
+let notas=[];
 const UNIDADES=['metro','rollo','unidad','tramo 3m','caja','hora','kg','ml','par','juego','gl'];
 const IVA_OPCIONES=[0,5,12,15];
 function normalizarIvaPct(i){
@@ -129,7 +130,7 @@ function ir(sec){
   document.querySelectorAll('.nav-item[data-nav]').forEach(n=>n.classList.toggle('on',n.dataset.nav===sec));
   const secEl=document.getElementById('sec-'+sec);
   if(secEl)secEl.classList.add('on');
-  const tit={inicio:'Inicio',cotizaciones:'Mis Cotizaciones','nueva-cot':'Nueva Cotizaci\u00f3n',materiales:'Cat\u00e1logo de Materiales',calculadora:'Calculadora El\u00e9ctrica NEC',clientes:'Mis Clientes',categorias:'Categor\u00edas',usuarios:'Gesti\u00f3n de Usuarios',equipo:'Datos del Equipo'};
+  const tit={inicio:'Inicio',notas:'Notas',cotizaciones:'Mis Cotizaciones','nueva-cot':'Nueva Cotizaci\u00f3n',materiales:'Cat\u00e1logo de Materiales',calculadora:'Calculadora El\u00e9ctrica NEC',clientes:'Mis Clientes',categorias:'Categor\u00edas',usuarios:'Gesti\u00f3n de Usuarios',equipo:'Datos del Equipo'};
   document.getElementById('page-title').textContent=tit[sec]||sec;
   closeSidebar();
   if(sec==='materiales')renderMats(mats);
@@ -139,6 +140,7 @@ function ir(sec){
   if(sec==='categorias')renderCatsAdmin();
   if(sec==='usuarios')cargarUsuarios();
   if(sec==='equipo')cargarEquipo();
+  if(sec==='notas')renderNotas(notas);
   if(sec==='nueva-cot'){
     renderNcMats();
   }
@@ -178,7 +180,8 @@ function sSet(id,v){const el=document.getElementById(id);if(el)el.value=v;}
 function sTxt(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 
 async function cargarTodo(){
-  const[dc,dm,dq]=await Promise.all([api('clients'),api('materials'),api('quotes')]);
+  const[dc,dm,dq,dn]=await Promise.all([api('clients'),api('materials'),api('quotes'),api('notes')]);
+  if(!isErr(dn))notas=Array.isArray(dn)?dn:[];
   if(!isErr(dc))clis=Array.isArray(dc)?dc:[];
   if(!isErr(dm)){mats=dm.materiales||[];cats=dm.categorias||[];poblarCats();}
   if(!isErr(dq))cots=Array.isArray(dq)?dq:[];
@@ -5230,7 +5233,6 @@ function eliminarBalance(id) {
 // ═══════════════════════════════════════════════════════════════
 // INFORME TÉCNICO PDF
 // ═══════════════════════════════════════════════════════════════
-
 async function generarInformePDF() {
   if (!cargas.length) { toast('Agrega cargas antes de generar el informe', 'err'); return; }
   const nombre   = document.getElementById('bc-proyecto-nombre')?.value || 'Sin nombre';
