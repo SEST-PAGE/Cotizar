@@ -40,7 +40,7 @@ html{scroll-behavior:smooth}
 body{
   background:var(--bg);
   color:var(--t1);
-  font-family:'Inter',sans-serif;
+  font-family:sans-serif;
   font-size:14px;
   line-height:1.5;
   min-height:100vh;
