@@ -2245,41 +2245,7 @@
           <div style="padding:2px 16px 14px;">
             <div style="font-size:17px;font-weight:700;color:var(--t1)">Notas</div>
             <div style="font-size:12px;color:var(--t3);margin-top:2px" id="notas-total-lbl"></div>
-            <!-- Overlay para cerrar al tocar fuera (móvil) -->
-            <div class="notas-sidebar-overlay" onclick="toggleNotasSidebar()"></div>
-
-            <!-- Botón hamburguesa (solo visible en móvil) -->
-            <button class="notas-mobile-toggle" onclick="toggleNotasSidebar()" aria-label="Menú notas">
-              <i data-lucide="menu" style="width:20px;height:20px"></i>
-            </button>
-
-            <!-- Sidebar existente (agrega clase notas-sidebar) -->
-            <aside class="notas-sidebar" id="notas-sidebar">
-              <!-- Botón cerrar (solo visible en móvil) -->
-              <button class="notas-sidebar-close" onclick="toggleNotasSidebar()" aria-label="Cerrar menú">
-                <i data-lucide="x" style="width:18px;height:18px"></i>
-              </button>
-
-              <!-- Tu contenido actual del sidebar aquí... -->
-              <div class="sidebar-header">
-                <h2>Notas</h2>
-                <span id="notas-total-lbl">0 notas</span>
-              </div>
-
-              <!-- Carpetas, secciones, etiquetas... -->
-            </aside>
-
-            <!-- Contenido principal (agrega clase notas-content) -->
-            <main class="notas-content">
-              <!-- Header con buscador y controles -->
-              <div class="notas-header">
-                <!-- Tu contenido actual aquí... -->
-              </div>
-
-              <!-- Grid de notas -->
-              <div id="tbl-notas"></div>
-            </main>
-
+            
           </div>
 
           <div
@@ -2360,12 +2326,12 @@
         <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg2)">
 
           <!-- Barra búsqueda -->
-          <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border)" ;
-            background: #30302e;>
+          <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border)"; background: #30302e;>
             <div
               style="flex:1;display:flex;align-items:center;gap:8px;background:#262624;border:1px solid var(--border);border-radius:8px;padding:7px 12px">
               <i data-lucide="search" style="width:14px;height:14px;color:var(--t3);flex-shrink:0"></i>
-              <input id="notas-search" placeholder="Buscar notas..." oninput="renderNotas(notas)" style="border:none;background:#30302e;outline:none;font-size:13px;color:var(--t1);width:100%;font-family:inherit;     border-radius: 3px;
+              <input id="notas-search" placeholder="Buscar notas..." oninput="renderNotas(notas)"
+                style="border:none;background:#30302e;outline:none;font-size:13px;color:var(--t1);width:100%;font-family:inherit;     border-radius: 3px;
     padding: 6px;">
             </div>
             <button type="button" id="notas-view-btn" class="btn btn-ghost" onclick="notaToggleView()"
@@ -3015,12 +2981,12 @@
         <div id="nota-err" class="alert err"></div>
 
         <div class="fld">
-
+      
           <input id="nota-titulo" placeholder="Título de la nota" style="font-weight:600" />
         </div>
 
         <div class="fld" style="margin-top:12px">
-
+          
           <textarea id="nota-contenido" rows="7" placeholder="Escribe el contenido de tu nota aquí..."
             style="resize:vertical;line-height:1.6"></textarea>
         </div>

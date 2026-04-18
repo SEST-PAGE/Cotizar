@@ -1,107 +1,107 @@
-const API = window.location.origin;
-let token = localStorage.getItem('token'), usuario = null, isAdmin = false;
-let mats = [], cats = [], clis = [], cots = [];
-let cotItems = [], cotAdic = [], cotActual = null;
-let notas = [];
-const UNIDADES = ['metro', 'rollo', 'unidad', 'tramo 3m', 'caja', 'hora', 'kg', 'ml', 'par', 'juego', 'gl'];
-const IVA_OPCIONES = [0, 5, 12, 15];
-function normalizarIvaPct(i) {
-  if (!i) return 15;
-  let p = i.iva_pct;
-  if (p !== undefined && p !== null && p !== '') {
-    p = parseFloat(p);
-    if (IVA_OPCIONES.includes(p)) return p;
+const API=window.location.origin;
+let token=localStorage.getItem('token'),usuario=null,isAdmin=false;
+let mats=[],cats=[],clis=[],cots=[];
+let cotItems=[],cotAdic=[],cotActual=null;
+let notas=[];
+const UNIDADES=['metro','rollo','unidad','tramo 3m','caja','hora','kg','ml','par','juego','gl'];
+const IVA_OPCIONES=[0,5,12,15];
+function normalizarIvaPct(i){
+  if(!i)return 15;
+  let p=i.iva_pct;
+  if(p!==undefined&&p!==null&&p!==''){
+    p=parseFloat(p);
+    if(IVA_OPCIONES.includes(p))return p;
   }
-  if (i.tiene_iva === false) return 0;
+  if(i.tiene_iva===false)return 0;
   return 15;
 }
-function ivaValorDesdeLineas(todos, descPct) {
-  const d = Math.max(0, Math.min(100, parseFloat(descPct) || 0)) / 100;
-  return todos.reduce((sum, it) => {
-    const pct = normalizarIvaPct(it);
-    if (pct <= 0) return sum;
-    const line = (parseFloat(it.cantidad) || 0) * (parseFloat(it.precio_unitario) || 0);
-    return sum + line * (1 - d) * (pct / 100);
-  }, 0);
+function ivaValorDesdeLineas(todos,descPct){
+  const d=Math.max(0,Math.min(100,parseFloat(descPct)||0))/100;
+  return todos.reduce((sum,it)=>{
+    const pct=normalizarIvaPct(it);
+    if(pct<=0)return sum;
+    const line=(parseFloat(it.cantidad)||0)*(parseFloat(it.precio_unitario)||0);
+    return sum+line*(1-d)*(pct/100);
+  },0);
 }
-function textoResumenIva(todos, descPct, ivaVal, net) {
-  const rates = [...new Set(todos.map(normalizarIvaPct).filter(p => p > 0))];
-  if (!rates.length) return 'IVA';
-  if (rates.length === 1) return `IVA (${rates[0]}% aplicado)`;
-  if (net > 0.009) {
-    const eff = Math.round((ivaVal / net) * 1000) / 10;
+function textoResumenIva(todos,descPct,ivaVal,net){
+  const rates=[...new Set(todos.map(normalizarIvaPct).filter(p=>p>0))];
+  if(!rates.length)return 'IVA';
+  if(rates.length===1)return `IVA (${rates[0]}% aplicado)`;
+  if(net>0.009){
+    const eff=Math.round((ivaVal/net)*1000)/10;
     return `IVA (${eff}% efectivo)`;
   }
   return 'IVA aplicado';
 }
 
-(function init() {
-  if (!token) { location.href = '/'; return; }
-  try { usuario = JSON.parse(localStorage.getItem('usuario')); } catch { }
-  if (!usuario) { location.href = '/'; return; }
-  isAdmin = usuario.rol === 'admin' || usuario.permisos === 'admin';
-  const isPrincipalAdmin = usuario.rol === 'admin';
+(function init(){
+  if(!token){location.href='/';return;}
+  try{usuario=JSON.parse(localStorage.getItem('usuario'));}catch{}
+  if(!usuario){location.href='/';return;}
+  isAdmin=usuario.rol==='admin'||usuario.permisos==='admin';
+  const isPrincipalAdmin=usuario.rol==='admin';
   _actualizarUiUsuario();
-  const rb = document.getElementById('role-badge');
-  if (usuario.rol === 'admin') {
-    rb.innerHTML = `<span class="role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 7.5L12 4l-4 7.5z"/></svg> Admin Principal</span>`;
-    rb.className = 'role-badge r-admin';
-  } else if (usuario.permisos === 'admin') {
-    rb.innerHTML = `<span class="role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Acceso Admin</span>`;
-    rb.className = 'role-badge r-admin-delegado';
+  const rb=document.getElementById('role-badge');
+  if(usuario.rol==='admin'){
+    rb.innerHTML=`<span class="role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 7.5L12 4l-4 7.5z"/></svg> Admin Principal</span>`;
+    rb.className='role-badge r-admin';
+  } else if(usuario.permisos==='admin'){
+    rb.innerHTML=`<span class="role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Acceso Admin</span>`;
+    rb.className='role-badge r-admin-delegado';
   } else {
-    rb.innerHTML = `<span class="role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Vendedor</span>`;
-    rb.className = 'role-badge r-vendedor';
+    rb.innerHTML=`<span class="role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Vendedor</span>`;
+    rb.className='role-badge r-vendedor';
   }
-  if (isAdmin) { document.querySelectorAll('.admin-only[data-nav="categorias"]').forEach(el => el.style.display = 'flex'); }
-  if (isPrincipalAdmin) { document.querySelectorAll('.admin-only[data-nav="usuarios"]').forEach(el => el.style.display = 'flex'); }
+  if(isAdmin){document.querySelectorAll('.admin-only[data-nav="categorias"]').forEach(el=>el.style.display='flex');}
+  if(isPrincipalAdmin){document.querySelectorAll('.admin-only[data-nav="usuarios"]').forEach(el=>el.style.display='flex');}
   cargarTodo();
   refreshIcons();
   // Recargar datos frescos del usuario desde la BD (para obtener apellido, cedula, etc.)
   _recargarUsuarioDesdeDB();
 })();
 
-async function _recargarUsuarioDesdeDB() {
-  try {
-    const rows = await api('users?todos=1');
-    if (!isErr(rows) && Array.isArray(rows)) {
-      const yo = rows.find(u => u.id === usuario?.id);
-      if (yo) {
-        usuario = { ...usuario, ...yo };
+async function _recargarUsuarioDesdeDB(){
+  try{
+    const rows=await api('users?todos=1');
+    if(!isErr(rows)&&Array.isArray(rows)){
+      const yo=rows.find(u=>u.id===usuario?.id);
+      if(yo){
+        usuario={...usuario,...yo};
         _actualizarUiUsuario();
       }
     }
-  } catch (e) { }
+  }catch(e){}
 }
 
-function toggleSidebar() {
-  const sb = document.getElementById('sidebar');
-  const hb = document.getElementById('hamburger');
+function toggleSidebar(){
+  const sb=document.getElementById('sidebar');
+  const hb=document.getElementById('hamburger');
   sb.classList.toggle('open');
-  const isOpen = sb.classList.contains('open');
-  if (hb) hb.classList.toggle('open', isOpen);
-  document.getElementById('overlay').style.display = isOpen ? 'block' : 'none';
+  const isOpen=sb.classList.contains('open');
+  if(hb)hb.classList.toggle('open',isOpen);
+  document.getElementById('overlay').style.display=isOpen?'block':'none';
 }
-function closeSidebar() {
+function closeSidebar(){
   document.getElementById('sidebar').classList.remove('open');
-  const hb = document.getElementById('hamburger');
-  if (hb) hb.classList.remove('open');
-  document.getElementById('overlay').style.display = 'none';
+  const hb=document.getElementById('hamburger');
+  if(hb)hb.classList.remove('open');
+  document.getElementById('overlay').style.display='none';
 }
-function toggleCollapse() {
+function toggleCollapse(){
   // No colapsar en dispositivos móviles
-  if (window.innerWidth <= 768) { return; }
-  const sb = document.getElementById('sidebar');
-  const main = document.getElementById('main-content');
-  const collapsed = sb.classList.toggle('collapsed');
-  if (main) main.classList.toggle('sb-collapsed', collapsed);
-  try { localStorage.setItem('sb_collapsed', collapsed ? '1' : '0'); } catch (e) { }
+  if(window.innerWidth<=768){return;}
+  const sb=document.getElementById('sidebar');
+  const main=document.getElementById('main-content');
+  const collapsed=sb.classList.toggle('collapsed');
+  if(main)main.classList.toggle('sb-collapsed',collapsed);
+  try{localStorage.setItem('sb_collapsed',collapsed?'1':'0');}catch(e){}
 }
 // restore collapse state
-(function () { try { if (localStorage.getItem('sb_collapsed') === '1') { document.getElementById('sidebar').classList.add('collapsed'); const m = document.getElementById('main-content'); if (m) m.classList.add('sb-collapsed'); } } catch (e) { } })();
+(function(){try{if(localStorage.getItem('sb_collapsed')==='1'){document.getElementById('sidebar').classList.add('collapsed');const m=document.getElementById('main-content');if(m)m.classList.add('sb-collapsed');}}catch(e){}})();
 
-function refreshIcons() {
-  if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+function refreshIcons(){
+  if(typeof lucide!=='undefined'&&lucide.createIcons)lucide.createIcons();
 }
 //=====================================================================================================================
 // Mejoras táctiles para móvil en cotización
@@ -111,186 +111,178 @@ if (window.matchMedia('(pointer: coarse)').matches) {
     sel.style.minHeight = '44px';
     sel.style.fontSize = '16px'; // Prevenir zoom en iOS
   });
-
+  
   // Focus visible más claro en móvil
   document.querySelectorAll('.item-row input, .adic-row input').forEach(inp => {
-    inp.addEventListener('focus', function () {
+    inp.addEventListener('focus', function() {
       this.closest('.item-row, .adic-row').style.borderColor = 'var(--acc)';
       this.closest('.item-row, .adic-row').style.boxShadow = '0 0 0 2px rgba(245,200,0,.2)';
     });
-    inp.addEventListener('blur', function () {
+    inp.addEventListener('blur', function() {
       this.closest('.item-row, .adic-row').style.borderColor = '';
       this.closest('.item-row, .adic-row').style.boxShadow = '';
     });
   });
 }
 //==================================================================================================================================
-function ir(sec) {
-  // Cerrar sidebar de notas si está abierto (móvil)
-  const notasSidebar = document.getElementById('notas-sidebar');
-  const notasOverlay = document.querySelector('.notas-sidebar-overlay');
-  if (notasSidebar && notasSidebar.classList.contains('open')) {
-    notasSidebar.classList.remove('open');
-    notasOverlay.classList.remove('open');
-    document.body.style.overflow = '';
-  }
-  document.querySelectorAll('.sec').forEach(s => s.classList.remove('on'));
-  document.querySelectorAll('.nav-item[data-nav]').forEach(n => n.classList.toggle('on', n.dataset.nav === sec));
-  const secEl = document.getElementById('sec-' + sec);
-  if (secEl) secEl.classList.add('on');
-  const tit = { inicio: 'Inicio', notas: 'Notas', cotizaciones: 'Mis Cotizaciones', 'nueva-cot': 'Nueva Cotizaci\u00f3n', materiales: 'Cat\u00e1logo de Materiales', calculadora: 'Calculadora El\u00e9ctrica NEC', clientes: 'Mis Clientes', categorias: 'Categor\u00edas', usuarios: 'Gesti\u00f3n de Usuarios', equipo: 'Datos del Equipo' };
-  document.getElementById('page-title').textContent = tit[sec] || sec;
+function ir(sec){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.nav-item[data-nav]').forEach(n=>n.classList.toggle('on',n.dataset.nav===sec));
+  const secEl=document.getElementById('sec-'+sec);
+  if(secEl)secEl.classList.add('on');
+  const tit={inicio:'Inicio',notas:'Notas',cotizaciones:'Mis Cotizaciones','nueva-cot':'Nueva Cotizaci\u00f3n',materiales:'Cat\u00e1logo de Materiales',calculadora:'Calculadora El\u00e9ctrica NEC',clientes:'Mis Clientes',categorias:'Categor\u00edas',usuarios:'Gesti\u00f3n de Usuarios',equipo:'Datos del Equipo'};
+  document.getElementById('page-title').textContent=tit[sec]||sec;
   closeSidebar();
-  if (sec === 'materiales') renderMats(mats);
-  if (sec === 'calculadora') initCalculadora();
-  if (sec === 'clientes') renderClis(clis);
-  if (sec === 'cotizaciones') renderCots(cots);
-  if (sec === 'categorias') renderCatsAdmin();
-  if (sec === 'usuarios') cargarUsuarios();
-  if (sec === 'equipo') cargarEquipo();
-  if (sec === 'notas') renderNotas(notas);
-  if (sec === 'nueva-cot') {
+  if(sec==='materiales')renderMats(mats);
+  if(sec==='calculadora')initCalculadora();
+  if(sec==='clientes')renderClis(clis);
+  if(sec==='cotizaciones')renderCots(cots);
+  if(sec==='categorias')renderCatsAdmin();
+  if(sec==='usuarios')cargarUsuarios();
+  if(sec==='equipo')cargarEquipo();
+  if(sec==='notas')renderNotas(notas);
+  if(sec==='nueva-cot'){
     renderNcMats();
   }
   refreshIcons();
 }
 
-function irSubTab(tab) {
-  document.querySelectorAll('[data-subpanel]').forEach(p => {
-    p.style.display = p.dataset.subpanel === tab ? 'block' : 'none';
+function irSubTab(tab){
+  document.querySelectorAll('[data-subpanel]').forEach(p=>{
+    p.style.display=p.dataset.subpanel===tab?'block':'none';
   });
-  document.querySelectorAll('.cot-tab[data-subtab]').forEach(btn => {
-    const on = btn.dataset.subtab === tab;
-    btn.classList.toggle('on', on);
-    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  document.querySelectorAll('.cot-tab[data-subtab]').forEach(btn=>{
+    const on=btn.dataset.subtab===tab;
+    btn.classList.toggle('on',on);
+    btn.setAttribute('aria-selected',on?'true':'false');
   });
-  if (tab === 'base-mat') renderNcMats();
+  if(tab==='base-mat')renderNcMats();
   refreshIcons();
 }
 
-async function api(ep, opts = {}) {
-  try {
-    const r = await fetch(`${API}/api/${ep}`, { ...opts, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers || {}) } });
-    if (r.status === 401) { logout(); return null; }
-    const d = await r.json();
-    if (!r.ok) return { _err: true, msg: d.error || 'Error del servidor' };
+async function api(ep,opts={}){
+  try{
+    const r=await fetch(`${API}/api/${ep}`,{...opts,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,...(opts.headers||{})}});
+    if(r.status===401){logout();return null;}
+    const d=await r.json();
+    if(!r.ok)return{_err:true,msg:d.error||'Error del servidor'};
     return d;
-  } catch (e) { return { _err: true, msg: 'Sin conexi\u00f3n con el servidor' }; }
+  }catch(e){return{_err:true,msg:'Sin conexi\u00f3n con el servidor'};}
 }
-const isErr = d => !d || d._err === true;
-function match(h, q) { if (!q.trim()) return true; const hl = h.toLowerCase(); return q.trim().toLowerCase().split(/\s+/).every(t => hl.includes(t)); }
-function resaltar(text, q) { let r = text; q.trim().toLowerCase().split(/\s+/).filter(Boolean).forEach(t => { r = r.replace(new RegExp('(' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<mark>$1</mark>'); }); return r; }
-function esc(s) { return (s || '').replace(/"/g, '&quot;'); }
-function escPdf(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-function escPdfBr(s) { return escPdf(s).replace(/\r\n/g, '\n').replace(/\n/g, '<br/>'); }
-function sGet(id) { const el = document.getElementById(id); return el ? el.value : ''; }
-function sSet(id, v) { const el = document.getElementById(id); if (el) el.value = v; }
-function sTxt(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+const isErr=d=>!d||d._err===true;
+function match(h,q){if(!q.trim())return true;const hl=h.toLowerCase();return q.trim().toLowerCase().split(/\s+/).every(t=>hl.includes(t));}
+function resaltar(text,q){let r=text;q.trim().toLowerCase().split(/\s+/).filter(Boolean).forEach(t=>{r=r.replace(new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<mark>$1</mark>');});return r;}
+function esc(s){return(s||'').replace(/"/g,'&quot;');}
+function escPdf(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escPdfBr(s){return escPdf(s).replace(/\r\n/g,'\n').replace(/\n/g,'<br/>');}
+function sGet(id){const el=document.getElementById(id);return el?el.value:'';}
+function sSet(id,v){const el=document.getElementById(id);if(el)el.value=v;}
+function sTxt(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 
-async function cargarTodo() {
-  const [dc, dm, dq, dn] = await Promise.all([api('clients'), api('materials'), api('quotes'), api('notes')]);
-  if (!isErr(dn)) notas = Array.isArray(dn) ? dn : [];
-  if (!isErr(dc)) clis = Array.isArray(dc) ? dc : [];
-  if (!isErr(dm)) { mats = dm.materiales || []; cats = dm.categorias || []; poblarCats(); }
-  if (!isErr(dq)) cots = Array.isArray(dq) ? dq : [];
-  sTxt('s-cots', cots.length); sTxt('s-clis', clis.length); sTxt('s-mats', mats.length);
+async function cargarTodo(){
+  const[dc,dm,dq,dn]=await Promise.all([api('clients'),api('materials'),api('quotes'),api('notes')]);
+  if(!isErr(dn))notas=Array.isArray(dn)?dn:[];
+  if(!isErr(dc))clis=Array.isArray(dc)?dc:[];
+  if(!isErr(dm)){mats=dm.materiales||[];cats=dm.categorias||[];poblarCats();}
+  if(!isErr(dq))cots=Array.isArray(dq)?dq:[];
+  sTxt('s-cots',cots.length);sTxt('s-clis',clis.length);sTxt('s-mats',mats.length);
   actualizarContadores();
   renderRecientes();
   // Cargar también los clientes compartidos para que aparezcan en el buscador
-  const dc2 = await api('clients?equipo=1');
-  if (!isErr(dc2) && Array.isArray(dc2) && dc2.length) _mergeClientesCompartidos(dc2);
+  const dc2=await api('clients?equipo=1');
+  if(!isErr(dc2)&&Array.isArray(dc2)&&dc2.length) _mergeClientesCompartidos(dc2);
 }
-function poblarCats() {
-  ['bm-cat', 'mat-cat', 'nc-bm-cat'].forEach(id => {
-    const sel = document.getElementById(id); if (!sel) return;
-    const v = sel.value;
-    const def = (id === 'bm-cat' || id === 'nc-bm-cat') ? '<option value="">Todas las categor\u00edas</option>' : '<option value="">Sin categor\u00eda</option>';
-    sel.innerHTML = def + cats.map(c => `<option value="${c.id}"${c.id == v ? ' selected' : ''}>${c.nombre}</option>`).join('');
+function poblarCats(){
+  ['bm-cat','mat-cat','nc-bm-cat'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const v=sel.value;
+    const def=(id==='bm-cat'||id==='nc-bm-cat')?'<option value="">Todas las categor\u00edas</option>':'<option value="">Sin categor\u00eda</option>';
+    sel.innerHTML=def+cats.map(c=>`<option value="${c.id}"${c.id==v?' selected':''}>${c.nombre}</option>`).join('');
   });
 }
 
-function actualizarContadores() {
-  const apro = cots.filter(c => c.estado === 'aprobada').length;
-  sTxt('s-apro', apro);
-  sTxt('s-borrador', cots.filter(c => c.estado === 'borrador').length);
-  sTxt('s-enviada', cots.filter(c => c.estado === 'enviada').length);
-  sTxt('s-aprobada2', apro);
-  sTxt('s-rechazada', cots.filter(c => c.estado === 'rechazada').length);
-  sTxt('s-facturada', cots.filter(c => c.estado === 'facturada').length);
+function actualizarContadores(){
+  const apro=cots.filter(c=>c.estado==='aprobada').length;
+  sTxt('s-apro',apro);
+  sTxt('s-borrador',cots.filter(c=>c.estado==='borrador').length);
+  sTxt('s-enviada',cots.filter(c=>c.estado==='enviada').length);
+  sTxt('s-aprobada2',apro);
+  sTxt('s-rechazada',cots.filter(c=>c.estado==='rechazada').length);
+  sTxt('s-facturada',cots.filter(c=>c.estado==='facturada').length);
 }
-function renderRecientes() {
-  const el = document.getElementById('tbl-recientes'), top = cots.slice(0, 8);
-  if (!top.length) { el.innerHTML = '<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="file-text" style="width:36px;height:36px"></i></div><p>Sin cotizaciones a\u00fan</p></div>'; refreshIcons(); return; }
-  el.innerHTML = tablaCotsHTML(top, false); refreshIcons();
+function renderRecientes(){
+  const el=document.getElementById('tbl-recientes'),top=cots.slice(0,8);
+  if(!top.length){el.innerHTML='<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="file-text" style="width:36px;height:36px"></i></div><p>Sin cotizaciones a\u00fan</p></div>';refreshIcons();return;}
+  el.innerHTML=tablaCotsHTML(top,false);refreshIcons();
 }
-function filtrarCots() { const q = sGet('bq'); renderCots(q ? cots.filter(c => match(`${c.numero} ${c.titulo || ''} ${c.cliente_nombre || ''} ${c.estado}`, q)) : cots); }
-function renderCots(lista) {
-  const el = document.getElementById('tbl-cots');
-  if (!lista.length) { el.innerHTML = '<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="file-text" style="width:36px;height:36px"></i></div><p>Sin cotizaciones</p></div>'; refreshIcons(); return; }
-  el.innerHTML = tablaCotsHTML(lista, true); refreshIcons();
+function filtrarCots(){const q=sGet('bq');renderCots(q?cots.filter(c=>match(`${c.numero} ${c.titulo||''} ${c.cliente_nombre||''} ${c.estado}`,q)):cots);}
+function renderCots(lista){
+  const el=document.getElementById('tbl-cots');
+  if(!lista.length){el.innerHTML='<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="file-text" style="width:36px;height:36px"></i></div><p>Sin cotizaciones</p></div>';refreshIcons();return;}
+  el.innerHTML=tablaCotsHTML(lista,true);refreshIcons();
 }
-function tablaCotsHTML(lista, acc) {
-  return `<table><thead><tr><th>N\u00famero</th><th>Cliente</th><th>T\u00edtulo</th><th>Estado</th><th>Total</th><th>Fecha</th>${acc ? '<th></th>' : ''}</tr></thead><tbody>${lista.map(c => `
+function tablaCotsHTML(lista,acc){
+  return`<table><thead><tr><th>N\u00famero</th><th>Cliente</th><th>T\u00edtulo</th><th>Estado</th><th>Total</th><th>Fecha</th>${acc?'<th></th>':''}</tr></thead><tbody>${lista.map(c=>`
   <tr>
     <td><span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--acc)">${c.numero}</span></td>
-    <td><div style="font-weight:500">${c.cliente_nombre || '\u2014'}</div>${c.cliente_empresa ? `<div style="font-size:11px;color:var(--t3)">${c.cliente_empresa}</div>` : ''}</td>
-    <td>${c.titulo || '\u2014'}</td>
+    <td><div style="font-weight:500">${c.cliente_nombre||'\u2014'}</div>${c.cliente_empresa?`<div style="font-size:11px;color:var(--t3)">${c.cliente_empresa}</div>`:''}</td>
+    <td>${c.titulo||'\u2014'}</td>
     <td><select style="background:transparent;border:none;cursor:pointer;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--t2)" onchange="cambiarEstado(${c.id},this.value)">
-      ${['borrador', 'enviada', 'aprobada', 'rechazada', 'facturada'].map(e => `<option value="${e}"${e === c.estado ? ' selected' : ''}>${e}</option>`).join('')}
+      ${['borrador','enviada','aprobada','rechazada','facturada'].map(e=>`<option value="${e}"${e===c.estado?' selected':''}>${e}</option>`).join('')}
     </select></td>
-    <td style="font-family:'DM Mono',monospace;font-weight:700">$${parseFloat(c.total || 0).toFixed(2)}</td>
+    <td style="font-family:'DM Mono',monospace;font-weight:700">$${parseFloat(c.total||0).toFixed(2)}</td>
     <td style="font-size:12px;color:var(--t3)">${new Date(c.creado_en).toLocaleDateString('es-EC')}</td>
-    ${acc ? `<td><div style="display:flex;gap:5px;align-items:center">
+    ${acc?`<td><div style="display:flex;gap:5px;align-items:center">
       <button type="button" class="btn btn-ghost btn-sm" onclick="verCot(${c.id})"><i data-lucide="eye" style="width:14px;height:14px"></i> Ver</button>
       <button type="button" class="btn btn-info btn-sm" onclick="exportarPDFDirecto(${c.id})" title="Exportar PDF"><i data-lucide="file-down" style="width:14px;height:14px"></i></button>
       <button type="button" class="btn btn-ok btn-sm" onclick="prepEditarCot(${c.id})" title="Editar"><i data-lucide="pencil" style="width:14px;height:14px"></i></button>
       <button type="button" class="btn btn-danger btn-sm" onclick="eliminarCot(${c.id},'${c.numero}')" title="Eliminar cotización"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
-    </div></td>`: ''}
+    </div></td>`:''}
   </tr>`).join('')}</tbody></table>`;
 }
-async function cambiarEstado(id, estado) {
-  const r = await api(`quotes?id=${id}`, { method: 'PUT', body: JSON.stringify({ estado }) });
-  if (!isErr(r)) { const i = cots.findIndex(c => c.id === id); if (i >= 0) cots[i].estado = estado; actualizarContadores(); toast('Estado actualizado', 'ok'); } else toast(r.msg, 'err');
+async function cambiarEstado(id,estado){
+  const r=await api(`quotes?id=${id}`,{method:'PUT',body:JSON.stringify({estado})});
+  if(!isErr(r)){const i=cots.findIndex(c=>c.id===id);if(i>=0)cots[i].estado=estado;actualizarContadores();toast('Estado actualizado','ok');}else toast(r.msg,'err');
 }
-async function eliminarCot(id, numero) {
-  if (!confirm(`¿Eliminar la cotización ${numero}?\nEsta acción no se puede deshacer.`)) return;
-  const r = await api(`quotes?id=${id}`, { method: 'DELETE' });
-  if (isErr(r)) { toast(r.msg || 'Error al eliminar', 'err'); return; }
-  cots = cots.filter(c => c.id !== id);
-  sTxt('s-cots', cots.length);
+async function eliminarCot(id,numero){
+  if(!confirm(`¿Eliminar la cotización ${numero}?\nEsta acción no se puede deshacer.`))return;
+  const r=await api(`quotes?id=${id}`,{method:'DELETE'});
+  if(isErr(r)){toast(r.msg||'Error al eliminar','err');return;}
+  cots=cots.filter(c=>c.id!==id);
+  sTxt('s-cots',cots.length);
   actualizarContadores();
-  renderCots(cots); renderRecientes();
-  toast(`Cotización ${numero} eliminada`, 'ok');
+  renderCots(cots);renderRecientes();
+  toast(`Cotización ${numero} eliminada`,'ok');
 }
-async function exportarPDFDirecto(id) {
-  const r = await api(`quotes?id=${id}`);
-  if (isErr(r)) { toast(r.msg || 'Error al cargar cotización', 'err'); return; }
-  cotActual = r;
+async function exportarPDFDirecto(id){
+  const r=await api(`quotes?id=${id}`);
+  if(isErr(r)){toast(r.msg||'Error al cargar cotización','err');return;}
+  cotActual=r;
   await exportarPDF();
 }
-async function eliminarCotDesdeModal() {
-  if (!cotActual) return;
-  const { id, numero } = cotActual;
+async function eliminarCotDesdeModal(){
+  if(!cotActual)return;
+  const {id,numero}=cotActual;
   closeModal('m-ver');
-  await eliminarCot(id, numero);
+  await eliminarCot(id,numero);
 }
-async function verCot(id) {
+async function verCot(id){
   openModal('m-ver');
-  document.getElementById('ver-body').innerHTML = '<div class="loading"><div class="spin"></div><p>Cargando\u2026</p></div>';
-  const r = await api(`quotes?id=${id}`);
-  if (isErr(r)) { document.getElementById('ver-body').innerHTML = `<div class="empty"><p>${r.msg}</p></div>`; return; }
-  cotActual = r; document.getElementById('ver-title').textContent = r.numero;
-  document.getElementById('ver-body').innerHTML = cotDetailHTML(r);
+  document.getElementById('ver-body').innerHTML='<div class="loading"><div class="spin"></div><p>Cargando\u2026</p></div>';
+  const r=await api(`quotes?id=${id}`);
+  if(isErr(r)){document.getElementById('ver-body').innerHTML=`<div class="empty"><p>${r.msg}</p></div>`;return;}
+  cotActual=r;document.getElementById('ver-title').textContent=r.numero;
+  document.getElementById('ver-body').innerHTML=cotDetailHTML(r);
   refreshIcons();
 }
-function cotDetailHTML(c) {
-  const items = c.items || [], fecha = new Date(c.creado_en).toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
-  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+function cotDetailHTML(c){
+  const items=c.items||[],fecha=new Date(c.creado_en).toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
+  return`<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
     <div><div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">DATOS DEL CLIENTE</div>
-      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${c.cliente_nombre || 'Sin cliente'}</div>
-      ${c.cliente_ruc ? `<div style="color:var(--t3);font-size:12px">RUC/C.I.: ${c.cliente_ruc}</div>` : ''}
-      ${c.cliente_telefono ? `<div style="color:var(--t3);font-size:12px">Tel: ${c.cliente_telefono}</div>` : ''}
-      ${c.cliente_email ? `<div style="color:var(--t3);font-size:12px">${c.cliente_email}</div>` : ''}
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${c.cliente_nombre||'Sin cliente'}</div>
+      ${c.cliente_ruc?`<div style="color:var(--t3);font-size:12px">RUC/C.I.: ${c.cliente_ruc}</div>`:''}
+      ${c.cliente_telefono?`<div style="color:var(--t3);font-size:12px">Tel: ${c.cliente_telefono}</div>`:''}
+      ${c.cliente_email?`<div style="color:var(--t3);font-size:12px">${c.cliente_email}</div>`:''}
     </div>
     <div><div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">COTIZACI\u00d3N</div>
       <div style="font-size:14px;font-weight:600;font-family:'DM Mono',monospace;color:var(--acc)">${c.numero}</div>
@@ -300,256 +292,254 @@ function cotDetailHTML(c) {
     </div>
   </div>
   <div style="overflow-x:auto;margin-bottom:16px"><table><thead><tr><th>#</th><th>Descripci\u00f3n</th><th>Cant.</th><th>Unidad</th><th>P. Unit.</th><th>Subtotal</th></tr></thead>
-  <tbody>${items.map((it, i) => `<tr><td style="color:var(--t3);font-size:12px">${i + 1}</td><td>${it.descripcion || it.material_nombre || '\u2014'}</td>
+  <tbody>${items.map((it,i)=>`<tr><td style="color:var(--t3);font-size:12px">${i+1}</td><td>${it.descripcion||it.material_nombre||'\u2014'}</td>
     <td style="text-align:center;font-family:'DM Mono',monospace">${parseFloat(it.cantidad).toFixed(2)}</td>
-    <td style="color:var(--t3)">${it.unidad || it.material_unidad || '\u2014'}</td>
+    <td style="color:var(--t3)">${it.unidad||it.material_unidad||'\u2014'}</td>
     <td style="font-family:'DM Mono',monospace">$${parseFloat(it.precio_unitario).toFixed(2)}</td>
     <td style="font-family:'DM Mono',monospace;font-weight:700">$${parseFloat(it.subtotal).toFixed(2)}</td></tr>`).join('')}</tbody></table></div>
   <div style="display:flex;justify-content:flex-end"><div style="min-width:240px">
-    <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--t2)"><span>Subtotal</span><span style="font-family:'DM Mono',monospace">$${parseFloat(c.subtotal || 0).toFixed(2)}</span></div>
-    ${parseFloat(c.descuento_valor || 0) > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--ok)"><span>Descuento (${c.descuento_pct}%)</span><span>-$${parseFloat(c.descuento_valor).toFixed(2)}</span></div>` : ''}
-    <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--t2)"><span>IVA (${c.iva_pct}%)</span><span style="font-family:'DM Mono',monospace">$${parseFloat(c.iva_valor || 0).toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:10px 0 4px;border-top:1px solid var(--bd);margin-top:6px;font-size:17px;font-weight:700;color:var(--acc)"><span>TOTAL</span><span style="font-family:'DM Mono',monospace">$${parseFloat(c.total || 0).toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--t2)"><span>Subtotal</span><span style="font-family:'DM Mono',monospace">$${parseFloat(c.subtotal||0).toFixed(2)}</span></div>
+    ${parseFloat(c.descuento_valor||0)>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--ok)"><span>Descuento (${c.descuento_pct}%)</span><span>-$${parseFloat(c.descuento_valor).toFixed(2)}</span></div>`:''}
+    <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--t2)"><span>IVA (${c.iva_pct}%)</span><span style="font-family:'DM Mono',monospace">$${parseFloat(c.iva_valor||0).toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:10px 0 4px;border-top:1px solid var(--bd);margin-top:6px;font-size:17px;font-weight:700;color:var(--acc)"><span>TOTAL</span><span style="font-family:'DM Mono',monospace">$${parseFloat(c.total||0).toFixed(2)}</span></div>
   </div></div>
-  ${c.notas ? `<div style="margin-top:14px;padding:12px;background:var(--s2);border-radius:8px;font-size:12px;color:var(--t2)"><strong>Notas:</strong> ${c.notas}</div>` : ''}`;
+  ${c.notas?`<div style="margin-top:14px;padding:12px;background:var(--s2);border-radius:8px;font-size:12px;color:var(--t2)"><strong>Notas:</strong> ${c.notas}</div>`:''}`;
 }
 
 /* MATERIALES GESTIÓN */
-function filtrarMats() { const q = sGet('bm'), cat = sGet('bm-cat'); let l = mats; if (cat) l = l.filter(m => String(m.categoria_id) === cat); if (q) l = l.filter(m => match(`${m.nombre} ${m.codigo} ${m.categoria_nombre || ''}`, q)); renderMats(l); }
-function renderMats(lista) {
-  const el = document.getElementById('tbl-mats');
-  if (!lista.length) { el.innerHTML = '<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="package" style="width:36px;height:36px"></i></div><p>Sin materiales que coincidan</p></div>'; refreshIcons(); return; }
-  const adminCols = isAdmin ? `<th>P. Costo</th><th>P. Venta</th><th>Margen</th><th>Stock</th>` : '';
-  el.innerHTML = `<table><thead><tr><th>C\u00f3digo</th><th>Nombre</th><th>Categor\u00eda</th><th>Unidad</th>${adminCols}<th></th></tr></thead>
-  <tbody>${lista.map(m => {
-    const margen = parseFloat(m.margen_ganancia || 0).toFixed(1);
-    const margenColor = parseFloat(margen) >= 20 ? 'var(--ok)' : parseFloat(margen) >= 10 ? 'var(--acc)' : 'var(--err)';
-    const adminTds = isAdmin ? `
-      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--t2)">$${parseFloat(m.precio_costo || 0).toFixed(2)}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--acc)">$${parseFloat(m.precio_venta || 0).toFixed(2)}</td>
+function filtrarMats(){const q=sGet('bm'),cat=sGet('bm-cat');let l=mats;if(cat)l=l.filter(m=>String(m.categoria_id)===cat);if(q)l=l.filter(m=>match(`${m.nombre} ${m.codigo} ${m.categoria_nombre||''}`,q));renderMats(l);}
+function renderMats(lista){
+  const el=document.getElementById('tbl-mats');
+  if(!lista.length){el.innerHTML='<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="package" style="width:36px;height:36px"></i></div><p>Sin materiales que coincidan</p></div>';refreshIcons();return;}
+  const adminCols=isAdmin?`<th>P. Costo</th><th>P. Venta</th><th>Margen</th><th>Stock</th>`:'';
+  el.innerHTML=`<table><thead><tr><th>C\u00f3digo</th><th>Nombre</th><th>Categor\u00eda</th><th>Unidad</th>${adminCols}<th></th></tr></thead>
+  <tbody>${lista.map(m=>{
+    const margen=parseFloat(m.margen_ganancia||0).toFixed(1);
+    const margenColor=parseFloat(margen)>=20?'var(--ok)':parseFloat(margen)>=10?'var(--acc)':'var(--err)';
+    const adminTds=isAdmin?`
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--t2)">$${parseFloat(m.precio_costo||0).toFixed(2)}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--acc)">$${parseFloat(m.precio_venta||0).toFixed(2)}</td>
       <td><span style="font-size:12px;font-weight:700;color:${margenColor}">${margen}%</span></td>
-      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--t3)">${m.stock || 0}</td>` : '';
-    return `<tr>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--t3)">${m.stock||0}</td>`:'';
+    return`<tr>
     <td><span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--acc)">${m.codigo}</span></td>
     <td style="font-weight:500">${m.nombre}</td>
-    <td><span style="font-size:12px;color:var(--t3)">${m.categoria_nombre || '\u2014'}</span></td>
+    <td><span style="font-size:12px;color:var(--t3)">${m.categoria_nombre||'\u2014'}</span></td>
     <td style="color:var(--t3);font-size:12px">${m.unidad}</td>
     ${adminTds}
     <td><div style="display:flex;gap:5px;align-items:center;flex-wrap:nowrap">
       <button type="button" class="btn btn-ok btn-sm" onclick="addItem(${m.id});ir('nueva-cot');irSubTab('cotizacion');toast('Agregado \u2713','ok')"><i data-lucide="plus" style="width:14px;height:14px"></i> Cot.</button>
       <button type="button" class="btn btn-ghost btn-sm" onclick="editarMat(${m.id})" title="Editar"><i data-lucide="pencil" style="width:14px;height:14px"></i></button>
-      ${isAdmin ? `<button type="button" class="btn btn-danger btn-sm" onclick="eliminarMat(${m.id})" title="Eliminar"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>` : ''}
+      ${isAdmin?`<button type="button" class="btn btn-danger btn-sm" onclick="eliminarMat(${m.id})" title="Eliminar"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>`:''}
     </div></td>
-  </tr>`;
-  }).join('')}</tbody></table>`;
+  </tr>`;}).join('')}</tbody></table>`;
   refreshIcons();
 }
-function abrirModalMat(mat = null) {
-  poblarCats(); sSet('mat-id', mat?.id || ''); sSet('mat-codigo', mat?.codigo || ''); sSet('mat-nombre', mat?.nombre || '');
-  sSet('mat-desc', mat?.descripcion || ''); sSet('mat-stock', mat?.stock || 0); sSet('mat-costo', mat?.precio_costo || ''); sSet('mat-venta', mat?.precio_venta || '');
-  document.getElementById('mat-err').className = 'alert err';
-  document.getElementById('m-mat-title').textContent = mat ? 'Editar material' : 'Nuevo material';
-  if (mat?.categoria_id) sSet('mat-cat', mat.categoria_id); if (mat?.unidad) sSet('mat-unidad', mat.unidad);
+function abrirModalMat(mat=null){
+  poblarCats();sSet('mat-id',mat?.id||'');sSet('mat-codigo',mat?.codigo||'');sSet('mat-nombre',mat?.nombre||'');
+  sSet('mat-desc',mat?.descripcion||'');sSet('mat-stock',mat?.stock||0);sSet('mat-costo',mat?.precio_costo||'');sSet('mat-venta',mat?.precio_venta||'');
+  document.getElementById('mat-err').className='alert err';
+  document.getElementById('m-mat-title').textContent=mat?'Editar material':'Nuevo material';
+  if(mat?.categoria_id)sSet('mat-cat',mat.categoria_id);if(mat?.unidad)sSet('mat-unidad',mat.unidad);
   openModal('m-mat');
 }
-function editarMat(id) { const m = mats.find(x => x.id === id); if (m) abrirModalMat(m); }
-async function guardarMat() {
-  const id = sGet('mat-id');
-  const body = { codigo: sGet('mat-codigo').trim(), nombre: sGet('mat-nombre').trim(), descripcion: sGet('mat-desc').trim(), categoria_id: sGet('mat-cat') || null, unidad: sGet('mat-unidad'), precio_costo: parseFloat(sGet('mat-costo')) || 0, precio_venta: parseFloat(sGet('mat-venta')) || 0, stock: parseInt(sGet('mat-stock')) || 0 };
-  const errEl = document.getElementById('mat-err');
-  if (!body.codigo || !body.nombre || !body.precio_venta) { errEl.textContent = 'C\u00f3digo, nombre y precio de venta son requeridos'; errEl.classList.add('show'); return; }
-  errEl.classList.remove('show'); setBL('btn-save-mat', true);
-  const r = await api(id ? `materials?id=${id}` : 'materials', { method: id ? 'PUT' : 'POST', body: JSON.stringify(body) });
-  setBL('btn-save-mat', false, 'Guardar');
-  if (isErr(r)) { errEl.textContent = r.msg; errEl.classList.add('show'); return; }
-  if (id) { const i = mats.findIndex(m => m.id === parseInt(id)); if (i >= 0) mats[i] = { ...mats[i], ...r, categoria_nombre: cats.find(c => c.id == r.categoria_id)?.nombre }; }
-  else mats.push({ ...r, categoria_nombre: cats.find(c => c.id == r.categoria_id)?.nombre });
-  sTxt('s-mats', mats.length); closeModal('m-mat'); filtrarMats(); toast(id ? 'Material actualizado \u2713' : 'Material creado \u2713', 'ok');
+function editarMat(id){const m=mats.find(x=>x.id===id);if(m)abrirModalMat(m);}
+async function guardarMat(){
+  const id=sGet('mat-id');
+  const body={codigo:sGet('mat-codigo').trim(),nombre:sGet('mat-nombre').trim(),descripcion:sGet('mat-desc').trim(),categoria_id:sGet('mat-cat')||null,unidad:sGet('mat-unidad'),precio_costo:parseFloat(sGet('mat-costo'))||0,precio_venta:parseFloat(sGet('mat-venta'))||0,stock:parseInt(sGet('mat-stock'))||0};
+  const errEl=document.getElementById('mat-err');
+  if(!body.codigo||!body.nombre||!body.precio_venta){errEl.textContent='C\u00f3digo, nombre y precio de venta son requeridos';errEl.classList.add('show');return;}
+  errEl.classList.remove('show');setBL('btn-save-mat',true);
+  const r=await api(id?`materials?id=${id}`:'materials',{method:id?'PUT':'POST',body:JSON.stringify(body)});
+  setBL('btn-save-mat',false,'Guardar');
+  if(isErr(r)){errEl.textContent=r.msg;errEl.classList.add('show');return;}
+  if(id){const i=mats.findIndex(m=>m.id===parseInt(id));if(i>=0)mats[i]={...mats[i],...r,categoria_nombre:cats.find(c=>c.id==r.categoria_id)?.nombre};}
+  else mats.push({...r,categoria_nombre:cats.find(c=>c.id==r.categoria_id)?.nombre});
+  sTxt('s-mats',mats.length);closeModal('m-mat');filtrarMats();toast(id?'Material actualizado \u2713':'Material creado \u2713','ok');
 }
-async function eliminarMat(id) {
-  if (!isAdmin) { toast('Solo administradores pueden eliminar', 'err'); return; }
-  if (!confirm('\u00bfEliminar este material?')) return;
-  const r = await api(`materials?id=${id}`, { method: 'DELETE' });
-  if (isErr(r)) { toast(r.msg, 'err'); return; }
-  mats = mats.filter(m => m.id !== id); sTxt('s-mats', mats.length); filtrarMats(); toast('Material eliminado', 'ok');
+async function eliminarMat(id){
+  if(!isAdmin){toast('Solo administradores pueden eliminar','err');return;}
+  if(!confirm('\u00bfEliminar este material?'))return;
+  const r=await api(`materials?id=${id}`,{method:'DELETE'});
+  if(isErr(r)){toast(r.msg,'err');return;}
+  mats=mats.filter(m=>m.id!==id);sTxt('s-mats',mats.length);filtrarMats();toast('Material eliminado','ok');
 }
 
 /* CLIENTES */
-function filtrarClis() { const q = sGet('bc'); renderClis(q ? clis.filter(c => match(`${c.nombre} ${c.empresa || ''} ${c.ruc_cedula || ''} ${c.email || ''}`, q)) : clis); }
-function renderClis(lista) {
-  const el = document.getElementById('tbl-clis');
-  if (!lista.length) { el.innerHTML = '<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="users" style="width:36px;height:36px"></i></div><p>Sin clientes</p></div>'; refreshIcons(); return; }
-  el.innerHTML = `<table><thead><tr><th>Nombre</th><th>Empresa</th><th>RUC/C\u00e9dula</th><th>Tel\u00e9fono</th><th>Email</th><th></th></tr></thead>
-  <tbody>${lista.map(c => `<tr>
-    <td style="font-weight:500">${c.nombre}</td><td style="color:var(--t2)">${c.empresa || '\u2014'}</td>
-    <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--t3)">${c.ruc_cedula || '\u2014'}</td>
-    <td style="color:var(--t3);font-size:13px">${c.telefono || '\u2014'}</td>
-    <td style="color:var(--t3);font-size:13px">${c.email || '\u2014'}</td>
+function filtrarClis(){const q=sGet('bc');renderClis(q?clis.filter(c=>match(`${c.nombre} ${c.empresa||''} ${c.ruc_cedula||''} ${c.email||''}`,q)):clis);}
+function renderClis(lista){
+  const el=document.getElementById('tbl-clis');
+  if(!lista.length){el.innerHTML='<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="users" style="width:36px;height:36px"></i></div><p>Sin clientes</p></div>';refreshIcons();return;}
+  el.innerHTML=`<table><thead><tr><th>Nombre</th><th>Empresa</th><th>RUC/C\u00e9dula</th><th>Tel\u00e9fono</th><th>Email</th><th></th></tr></thead>
+  <tbody>${lista.map(c=>`<tr>
+    <td style="font-weight:500">${c.nombre}</td><td style="color:var(--t2)">${c.empresa||'\u2014'}</td>
+    <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--t3)">${c.ruc_cedula||'\u2014'}</td>
+    <td style="color:var(--t3);font-size:13px">${c.telefono||'\u2014'}</td>
+    <td style="color:var(--t3);font-size:13px">${c.email||'\u2014'}</td>
     <td><div style="display:flex;gap:5px;align-items:center"><button type="button" class="btn btn-ghost btn-sm" onclick="editarCli(${c.id})" title="Editar"><i data-lucide="pencil" style="width:14px;height:14px"></i></button><button type="button" class="btn btn-danger btn-sm" onclick="eliminarCli(${c.id})" title="Eliminar"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button></div></td>
   </tr>`).join('')}</tbody></table>`;
   refreshIcons();
 }
-function abrirModalCli(cli = null) {
-  sSet('cli-id', cli?.id || ''); sSet('cli-nombre', cli?.nombre || ''); sSet('cli-empresa', cli?.empresa || '');
-  sSet('cli-ruc', cli?.ruc_cedula || ''); sSet('cli-tel', cli?.telefono || ''); sSet('cli-email', cli?.email || '');
-  sSet('cli-dir', cli?.direccion || ''); sSet('cli-notas', cli?.notas || '');
-  document.getElementById('cli-err').className = 'alert err';
-  document.getElementById('m-cli-title').textContent = cli ? 'Editar cliente' : 'Nuevo cliente';
+function abrirModalCli(cli=null){
+  sSet('cli-id',cli?.id||'');sSet('cli-nombre',cli?.nombre||'');sSet('cli-empresa',cli?.empresa||'');
+  sSet('cli-ruc',cli?.ruc_cedula||'');sSet('cli-tel',cli?.telefono||'');sSet('cli-email',cli?.email||'');
+  sSet('cli-dir',cli?.direccion||'');sSet('cli-notas',cli?.notas||'');
+  document.getElementById('cli-err').className='alert err';
+  document.getElementById('m-cli-title').textContent=cli?'Editar cliente':'Nuevo cliente';
   openModal('m-cli');
 }
-function editarCli(id) { const c = clis.find(x => x.id === id); if (c) abrirModalCli(c); }
-async function guardarCli() {
-  const id = sGet('cli-id');
-  const body = { nombre: sGet('cli-nombre').trim(), empresa: sGet('cli-empresa').trim(), ruc_cedula: sGet('cli-ruc').trim(), telefono: sGet('cli-tel').trim(), email: sGet('cli-email').trim(), direccion: sGet('cli-dir').trim(), notas: sGet('cli-notas').trim() };
-  const errEl = document.getElementById('cli-err');
-  if (!body.nombre) { errEl.textContent = 'El nombre es requerido'; errEl.classList.add('show'); return; }
-  errEl.classList.remove('show'); setBL('btn-save-cli', true);
-  const r = await api(id ? `clients?id=${id}` : 'clients', { method: id ? 'PUT' : 'POST', body: JSON.stringify(body) });
-  setBL('btn-save-cli', false, 'Guardar');
-  if (isErr(r)) { errEl.textContent = r.msg; errEl.classList.add('show'); return; }
-  if (id) { const i = clis.findIndex(c => c.id === parseInt(id)); if (i >= 0) clis[i] = r; } else clis.push(r);
-  sTxt('s-clis', clis.length); closeModal('m-cli'); filtrarClis(); toast(id ? 'Cliente actualizado \u2713' : 'Cliente creado \u2713', 'ok');
+function editarCli(id){const c=clis.find(x=>x.id===id);if(c)abrirModalCli(c);}
+async function guardarCli(){
+  const id=sGet('cli-id');
+  const body={nombre:sGet('cli-nombre').trim(),empresa:sGet('cli-empresa').trim(),ruc_cedula:sGet('cli-ruc').trim(),telefono:sGet('cli-tel').trim(),email:sGet('cli-email').trim(),direccion:sGet('cli-dir').trim(),notas:sGet('cli-notas').trim()};
+  const errEl=document.getElementById('cli-err');
+  if(!body.nombre){errEl.textContent='El nombre es requerido';errEl.classList.add('show');return;}
+  errEl.classList.remove('show');setBL('btn-save-cli',true);
+  const r=await api(id?`clients?id=${id}`:'clients',{method:id?'PUT':'POST',body:JSON.stringify(body)});
+  setBL('btn-save-cli',false,'Guardar');
+  if(isErr(r)){errEl.textContent=r.msg;errEl.classList.add('show');return;}
+  if(id){const i=clis.findIndex(c=>c.id===parseInt(id));if(i>=0)clis[i]=r;}else clis.push(r);
+  sTxt('s-clis',clis.length);closeModal('m-cli');filtrarClis();toast(id?'Cliente actualizado \u2713':'Cliente creado \u2713','ok');
 }
-async function eliminarCli(id) {
-  if (!confirm('\u00bfEliminar este cliente?')) return;
-  const r = await api(`clients?id=${id}`, { method: 'DELETE' });
-  if (isErr(r)) { toast(r.msg, 'err'); return; }
-  clis = clis.filter(c => c.id !== id); sTxt('s-clis', clis.length); filtrarClis(); toast('Cliente eliminado', 'ok');
+async function eliminarCli(id){
+  if(!confirm('\u00bfEliminar este cliente?'))return;
+  const r=await api(`clients?id=${id}`,{method:'DELETE'});
+  if(isErr(r)){toast(r.msg,'err');return;}
+  clis=clis.filter(c=>c.id!==id);sTxt('s-clis',clis.length);filtrarClis();toast('Cliente eliminado','ok');
 }
 
 /* ═══════════ COTIZACION BUILDER ═══════════ */
-function genNum() { const d = new Date(); return `SEST-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 9000) + 1000}`; }
+function genNum(){const d=new Date();return`SEST-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}-${Math.floor(Math.random()*9000)+1000}`;}
 
-function abrirNuevaCot(matId = null) {
+function abrirNuevaCot(matId=null){
   ir('nueva-cot');
   irSubTab('base-mat');
-  if (cotItems.length === 0 && cotAdic.length === 0) limpiarCot(false);
-  if (matId) { addItem(matId); irSubTab('cotizacion'); }
+  if(cotItems.length===0&&cotAdic.length===0)limpiarCot(false);
+  if(matId){addItem(matId);irSubTab('cotizacion');}
 }
 
-function limpiarCot(mostrarAviso) {
-  cotItems = []; cotAdic = []; cotEditandoId = null;
-  sSet('nc-numero', genNum()); sSet('nc-fecha', new Date().toISOString().split('T')[0]);
-  sSet('nc-validez', '30'); sSet('nc-cliente', ''); sSet('nc-ruc', ''); sSet('nc-telefono', '');
-  sSet('nc-email', ''); sSet('nc-direccion', ''); sSet('nc-descripcion', '');
-  sSet('nc-descuento', '0'); sSet('nc-notas', ''); sSet('nc-bi', '');
-  sSet('nc-cliente-id', '');
-  const d = document.getElementById('nc-results-drop'); if (d) d.style.display = 'none';
+function limpiarCot(mostrarAviso){
+  cotItems=[];cotAdic=[];cotEditandoId=null;
+  sSet('nc-numero',genNum());sSet('nc-fecha',new Date().toISOString().split('T')[0]);
+  sSet('nc-validez','30');sSet('nc-cliente','');sSet('nc-ruc','');sSet('nc-telefono','');
+  sSet('nc-email','');sSet('nc-direccion','');sSet('nc-descripcion','');
+  sSet('nc-descuento','0');sSet('nc-notas','');sSet('nc-bi','');
+  sSet('nc-cliente-id','');
+  const d=document.getElementById('nc-results-drop');if(d)d.style.display='none';
   // Reset button state
-  ['btn-guardar-top', 'btn-guardar-cot'].forEach(id => {
-    const b = document.getElementById(id); if (!b) return;
-    b.disabled = false; b.style.background = '';
-    const lbl = b.querySelector('.btn-lbl');
-    if (lbl) lbl.textContent = id === 'btn-guardar-cot' ? 'Guardar Cotizaci\u00f3n' : 'Guardar';
+  ['btn-guardar-top','btn-guardar-cot'].forEach(id=>{
+    const b=document.getElementById(id);if(!b)return;
+    b.disabled=false;b.style.background='';
+    const lbl=b.querySelector('.btn-lbl');
+    if(lbl)lbl.textContent=id==='btn-guardar-cot'?'Guardar Cotizaci\u00f3n':'Guardar';
   });
-  const eyebrow = document.querySelector('.nc-eyebrow');
-  const title = document.querySelector('.nc-title');
-  if (eyebrow) eyebrow.textContent = 'Crear cotizaci\u00f3n';
-  if (title) title.innerHTML = `<i data-lucide="banknote" style="width:26px;height:26px;stroke-width:2;color:var(--acc)"></i> NUEVA COTIZACI\u00d3N`;
-  renderItems(); renderAdic(); calcTotals();
-  if (mostrarAviso) toast('Cotizaci\u00f3n limpiada: se quitaron \u00edtems, datos del cliente y totales.', 'info');
+  const eyebrow=document.querySelector('.nc-eyebrow');
+  const title=document.querySelector('.nc-title');
+  if(eyebrow)eyebrow.textContent='Crear cotizaci\u00f3n';
+  if(title)title.innerHTML=`<i data-lucide="banknote" style="width:26px;height:26px;stroke-width:2;color:var(--acc)"></i> NUEVA COTIZACI\u00d3N`;
+  renderItems();renderAdic();calcTotals();
+  if(mostrarAviso)toast('Cotizaci\u00f3n limpiada: se quitaron \u00edtems, datos del cliente y totales.','info');
   refreshIcons();
 }
 
 /* Base de materiales */
-function filtrarNcMats() {
-  const q = sGet('nc-bm'), cat = sGet('nc-bm-cat');
-  let l = mats; if (cat) l = l.filter(m => String(m.categoria_id) === cat); if (q) l = l.filter(m => match(`${m.nombre} ${m.codigo} ${m.categoria_nombre || ''}`, q));
+function filtrarNcMats(){
+  const q=sGet('nc-bm'),cat=sGet('nc-bm-cat');
+  let l=mats;if(cat)l=l.filter(m=>String(m.categoria_id)===cat);if(q)l=l.filter(m=>match(`${m.nombre} ${m.codigo} ${m.categoria_nombre||''}`,q));
   renderNcMats(l);
 }
-function renderNcMats(lista) {
-  if (!lista) { filtrarNcMats(); return; }
-  const el = document.getElementById('nc-tbl-mats'); if (!el) return;
-  if (!lista.length) { el.innerHTML = '<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="package" style="width:36px;height:36px"></i></div><p>Sin resultados</p></div>'; refreshIcons(); return; }
-  const q = sGet('nc-bm');
-  const addedIds = new Set(cotItems.map(i => i.material_id));
-  const adminCols = isAdmin ? `<th>P. Costo</th><th>Margen</th>` : '';
-  el.innerHTML = `<table><thead><tr><th>C\u00f3digo</th><th>Nombre</th><th>Categor\u00eda</th><th>Unidad</th>${adminCols}<th>P. Venta</th><th></th></tr></thead>
-  <tbody>${lista.map(m => {
-    const added = addedIds.has(m.id);
-    const margen = parseFloat(m.margen_ganancia || 0).toFixed(1);
-    const margenColor = parseFloat(margen) >= 20 ? 'var(--ok)' : parseFloat(margen) >= 10 ? 'var(--acc)' : 'var(--err)';
-    const adminTds = isAdmin ? `
-      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--t2)">$${parseFloat(m.precio_costo || 0).toFixed(2)}</td>
-      <td><span style="font-size:12px;font-weight:700;color:${margenColor}">${margen}%</span></td>` : '';
-    return `<tr style="${added ? 'background:rgba(34,197,94,.06);' : ''}">
+function renderNcMats(lista){
+  if(!lista){filtrarNcMats();return;}
+  const el=document.getElementById('nc-tbl-mats');if(!el)return;
+  if(!lista.length){el.innerHTML='<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="package" style="width:36px;height:36px"></i></div><p>Sin resultados</p></div>';refreshIcons();return;}
+  const q=sGet('nc-bm');
+  const addedIds=new Set(cotItems.map(i=>i.material_id));
+  const adminCols=isAdmin?`<th>P. Costo</th><th>Margen</th>`:'';
+  el.innerHTML=`<table><thead><tr><th>C\u00f3digo</th><th>Nombre</th><th>Categor\u00eda</th><th>Unidad</th>${adminCols}<th>P. Venta</th><th></th></tr></thead>
+  <tbody>${lista.map(m=>{
+    const added=addedIds.has(m.id);
+    const margen=parseFloat(m.margen_ganancia||0).toFixed(1);
+    const margenColor=parseFloat(margen)>=20?'var(--ok)':parseFloat(margen)>=10?'var(--acc)':'var(--err)';
+    const adminTds=isAdmin?`
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--t2)">$${parseFloat(m.precio_costo||0).toFixed(2)}</td>
+      <td><span style="font-size:12px;font-weight:700;color:${margenColor}">${margen}%</span></td>`:'';
+    return`<tr style="${added?'background:rgba(34,197,94,.06);':''}">
     <td><span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--acc)">${m.codigo}</span></td>
-    <td style="font-weight:500">${q ? resaltar(m.nombre, q) : m.nombre}${added ? ` <span style="display:inline-flex;align-items:center;gap:3px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:var(--ok);font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;vertical-align:middle;margin-left:4px"><i data-lucide="check" style="width:10px;height:10px;stroke-width:3"></i> EN COT.</span>` : ''}</td>
-    <td><span style="font-size:12px;color:var(--t3)">${m.categoria_nombre || '\u2014'}</span></td>
+    <td style="font-weight:500">${q?resaltar(m.nombre,q):m.nombre}${added?` <span style="display:inline-flex;align-items:center;gap:3px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:var(--ok);font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;vertical-align:middle;margin-left:4px"><i data-lucide="check" style="width:10px;height:10px;stroke-width:3"></i> EN COT.</span>`:''}</td>
+    <td><span style="font-size:12px;color:var(--t3)">${m.categoria_nombre||'\u2014'}</span></td>
     <td style="color:var(--t3);font-size:12px">${m.unidad}</td>
     ${adminTds}
     <td style="font-family:'DM Mono',monospace;font-weight:700;color:var(--acc)">$${parseFloat(m.precio_venta).toFixed(2)}</td>
     <td>${added
-        ? `<div style="display:flex;gap:5px"><button type="button" class="btn btn-ok btn-sm" onclick="addItem(${m.id});toast('+1 unidad \u2713','ok')"><i data-lucide="plus" style="width:14px;height:14px"></i> +1</button><button type="button" class="btn btn-danger btn-sm" onclick="quitarItemPorMatId(${m.id});toast('Quitado','ok')" title="Quitar"><i data-lucide="x" style="width:13px;height:13px"></i></button></div>`
-        : `<button type="button" class="btn btn-ok btn-sm" onclick="addItem(${m.id});toast('Agregado \u2713','ok')"><i data-lucide="plus" style="width:14px;height:14px"></i> Agregar</button>`
-      }</td>
-  </tr>`;
-  }).join('')}</tbody></table>`;
+      ?`<div style="display:flex;gap:5px"><button type="button" class="btn btn-ok btn-sm" onclick="addItem(${m.id});toast('+1 unidad \u2713','ok')"><i data-lucide="plus" style="width:14px;height:14px"></i> +1</button><button type="button" class="btn btn-danger btn-sm" onclick="quitarItemPorMatId(${m.id});toast('Quitado','ok')" title="Quitar"><i data-lucide="x" style="width:13px;height:13px"></i></button></div>`
+      :`<button type="button" class="btn btn-ok btn-sm" onclick="addItem(${m.id});toast('Agregado \u2713','ok')"><i data-lucide="plus" style="width:14px;height:14px"></i> Agregar</button>`
+    }</td>
+  </tr>`;}).join('')}</tbody></table>`;
   refreshIcons();
 }
 
 /* Items del catálogo */
-function addItem(matId) {
-  const mat = mats.find(m => m.id === matId); if (!mat) return;
-  const ex = cotItems.find(i => i.material_id === mat.id);
-  if (ex) { ex.cantidad = Math.max(1, (parseInt(ex.cantidad, 10) || 1) + 1); renderItems(); calcTotals(); renderNcMats(); return; }
-  cotItems.push({ material_id: mat.id, descripcion: mat.nombre, cantidad: 1, unidad: mat.unidad || 'unidad', precio_unitario: parseFloat(mat.precio_venta) || 0, iva_pct: 15, tiene_iva: true });
-  renderItems(); calcTotals(); renderNcMats();
+function addItem(matId){
+  const mat=mats.find(m=>m.id===matId);if(!mat)return;
+  const ex=cotItems.find(i=>i.material_id===mat.id);
+  if(ex){ex.cantidad=Math.max(1,(parseInt(ex.cantidad,10)||1)+1);renderItems();calcTotals();renderNcMats();return;}
+  cotItems.push({material_id:mat.id,descripcion:mat.nombre,cantidad:1,unidad:mat.unidad||'unidad',precio_unitario:parseFloat(mat.precio_venta)||0,iva_pct:15,tiene_iva:true});
+  renderItems();calcTotals();renderNcMats();
 }
-function quitarItemPorMatId(matId) {
-  cotItems = cotItems.filter(i => i.material_id !== matId);
-  renderItems(); calcTotals(); renderNcMats();
+function quitarItemPorMatId(matId){
+  cotItems=cotItems.filter(i=>i.material_id!==matId);
+  renderItems();calcTotals();renderNcMats();
 }
-function renderItems() {
-  const cont = document.getElementById('nc-items-list'); if (!cont) return;
-  if (!cotItems.length) {
-    cont.innerHTML = `<div style="text-align:center;padding:20px;color:var(--t3);font-size:13px;background:var(--s2);border-radius:8px;border:1px dashed var(--bd2)">
+function renderItems(){
+  const cont=document.getElementById('nc-items-list');if(!cont)return;
+  if(!cotItems.length){
+    cont.innerHTML=`<div style="text-align:center;padding:20px;color:var(--t3);font-size:13px;background:var(--s2);border-radius:8px;border:1px dashed var(--bd2)">
       <div style="display:flex;justify-content:center;margin-bottom:8px;color:var(--t3)"><i data-lucide="shopping-cart" style="width:28px;height:28px"></i></div>
       Sin materiales \u2014 ve a <strong style="color:var(--acc);cursor:pointer" onclick="irSubTab('base-mat')">Base de Materiales</strong> y presiona <strong>+ Agregar</strong>
-    </div>`; refreshIcons(); return;
+    </div>`;refreshIcons();return;
   }
-  cont.innerHTML = cotItems.map((it, i) => `
+  cont.innerHTML=cotItems.map((it,i)=>`
     <div class="item-row">
       <input class="item-inp" value="${esc(it.descripcion)}" placeholder="Descripción" onchange="cotItems[${i}].descripcion=this.value"/>
       <input class="item-inp num-plain" type="number" value="${it.cantidad}" min="1" step="1" style="text-align:center" placeholder="Cant."
         onchange="cotItems[${i}].cantidad=Math.max(1,parseInt(this.value,10)||1);renderItems();calcTotals()"/>
       <select class="item-inp" onchange="cotItems[${i}].unidad=this.value">
-        ${UNIDADES.map(u => `<option${u === it.unidad ? ' selected' : ''}>${u}</option>`).join('')}
+        ${UNIDADES.map(u=>`<option${u===it.unidad?' selected':''}>${u}</option>`).join('')}
       </select>
       <input class="item-inp num-plain" type="number" value="${it.precio_unitario}" min="0" step="0.01" style="text-align:right" placeholder="Precio"
         onchange="cotItems[${i}].precio_unitario=Math.max(0,parseFloat(this.value)||0);renderItems();calcTotals()"/>
       <select class="item-inp iva-sel" title="IVA"
         onchange="var v=parseInt(this.value,10);cotItems[${i}].iva_pct=v;cotItems[${i}].tiene_iva=v>0;calcTotals()">
-        ${IVA_OPCIONES.map(o => `<option value="${o}"${normalizarIvaPct(it) === o ? ' selected' : ''}>${o === 0 ? 'No' : o + '%'}</option>`).join('')}
+        ${IVA_OPCIONES.map(o=>`<option value="${o}"${normalizarIvaPct(it)===o?' selected':''}>${o===0?'No':o+'%'}</option>`).join('')}
       </select>
-      <div class="item-total">$${(it.cantidad * it.precio_unitario).toFixed(2)}</div>
+      <div class="item-total">$${(it.cantidad*it.precio_unitario).toFixed(2)}</div>
       <button type="button" class="del-item" title="Quitar" onclick="cotItems.splice(${i},1);renderItems();calcTotals()"><i data-lucide="x" style="width:15px;height:15px"></i></button>
     </div>`).join('');
   refreshIcons();
 }
 
 /* Items adicionales */
-function agregarAdicional() {
-  cotAdic.push({ descripcion: '', cantidad: 1, unidad: 'unidad', precio_unitario: 0, iva_pct: 15, tiene_iva: true });
-  renderAdic(); calcTotals();
+function agregarAdicional(){
+  cotAdic.push({descripcion:'',cantidad:1,unidad:'unidad',precio_unitario:0,iva_pct:15,tiene_iva:true});
+  renderAdic();calcTotals();
 }
-function renderAdic() {
-  const cont = document.getElementById('nc-adic-list'); if (!cont) return;
-  cont.innerHTML = cotAdic.map((it, i) => `
+function renderAdic(){
+  const cont=document.getElementById('nc-adic-list');if(!cont)return;
+  cont.innerHTML=cotAdic.map((it,i)=>`
     <div class="adic-row">
       <input class="item-inp" value="${esc(it.descripcion)}" placeholder="Material o servicio adicional" onchange="cotAdic[${i}].descripcion=this.value"/>
       <input class="item-inp num-plain" type="number" value="${it.cantidad}" min="1" step="1" style="text-align:center"
         onchange="cotAdic[${i}].cantidad=Math.max(1,parseInt(this.value,10)||1);renderAdic();calcTotals()"/>
       <select class="item-inp" onchange="cotAdic[${i}].unidad=this.value">
-        ${UNIDADES.map(u => `<option${u === it.unidad ? ' selected' : ''}>${u}</option>`).join('')}
+        ${UNIDADES.map(u=>`<option${u===it.unidad?' selected':''}>${u}</option>`).join('')}
       </select>
       <input class="item-inp num-plain" type="number" value="${it.precio_unitario}" min="0" step="0.01" style="text-align:right" placeholder="0"
         onchange="cotAdic[${i}].precio_unitario=Math.max(0,parseFloat(this.value)||0);renderAdic();calcTotals()"/>
       <select class="item-inp iva-sel" title="IVA"
         onchange="var v=parseInt(this.value,10);cotAdic[${i}].iva_pct=v;cotAdic[${i}].tiene_iva=v>0;calcTotals()">
-        ${IVA_OPCIONES.map(o => `<option value="${o}"${normalizarIvaPct(it) === o ? ' selected' : ''}>${o === 0 ? 'No' : o + '%'}</option>`).join('')}
+        ${IVA_OPCIONES.map(o=>`<option value="${o}"${normalizarIvaPct(it)===o?' selected':''}>${o===0?'No':o+'%'}</option>`).join('')}
       </select>
-      <div class="item-total">$${(it.cantidad * it.precio_unitario).toFixed(2)}</div>
+      <div class="item-total">$${(it.cantidad*it.precio_unitario).toFixed(2)}</div>
       <button type="button" class="del-item" title="Quitar" onclick="cotAdic.splice(${i},1);renderAdic();calcTotals()"><i data-lucide="x" style="width:15px;height:15px"></i></button>
     </div>`).join('');
   refreshIcons();
@@ -557,161 +547,161 @@ function renderAdic() {
 
 /* Buscador rápido dentro del tab cotización */
 let biT;
-function buscarNcItems() {
+function buscarNcItems(){
   clearTimeout(biT);
-  const q = sGet('nc-bi'), drop = document.getElementById('nc-results-drop');
-  if (!q) { drop.style.display = 'none'; return; }
-  biT = setTimeout(() => {
-    const res = mats.filter(m => match(`${m.nombre} ${m.codigo} ${m.categoria_nombre || ''}`, q)).slice(0, 10);
-    if (!res.length) { drop.innerHTML = `<div style="padding:12px 14px;color:var(--t3);font-size:13px">Sin resultados para "${q}"</div>`; drop.style.display = 'block'; return; }
-    drop.innerHTML = res.map(m => `<div class="ri" onclick="addItem(${m.id});sSet('nc-bi','');document.getElementById('nc-results-drop').style.display='none';toast('Agregado \u2713','ok')">
-      <div><div class="ri-name">${resaltar(m.nombre, q)}</div><div class="ri-meta">${m.codigo} \u00b7 ${m.unidad} \u00b7 ${m.categoria_nombre || 'Sin cat.'}</div></div>
+  const q=sGet('nc-bi'),drop=document.getElementById('nc-results-drop');
+  if(!q){drop.style.display='none';return;}
+  biT=setTimeout(()=>{
+    const res=mats.filter(m=>match(`${m.nombre} ${m.codigo} ${m.categoria_nombre||''}`,q)).slice(0,10);
+    if(!res.length){drop.innerHTML=`<div style="padding:12px 14px;color:var(--t3);font-size:13px">Sin resultados para "${q}"</div>`;drop.style.display='block';return;}
+    drop.innerHTML=res.map(m=>`<div class="ri" onclick="addItem(${m.id});sSet('nc-bi','');document.getElementById('nc-results-drop').style.display='none';toast('Agregado \u2713','ok')">
+      <div><div class="ri-name">${resaltar(m.nombre,q)}</div><div class="ri-meta">${m.codigo} \u00b7 ${m.unidad} \u00b7 ${m.categoria_nombre||'Sin cat.'}</div></div>
       <div class="ri-price">$${parseFloat(m.precio_venta).toFixed(2)}</div>
     </div>`).join('');
-    drop.style.display = 'block';
-  }, 120);
+    drop.style.display='block';
+  },120);
 }
 
 /* IVA Global Toggle */
-let ivaGlobalOn = true;
-function toggleIvaGlobal() {
-  ivaGlobalOn = !ivaGlobalOn;
-  const pct = ivaGlobalOn ? 15 : 0;
-  cotItems.forEach(i => { i.iva_pct = pct; i.tiene_iva = ivaGlobalOn; });
-  cotAdic.forEach(i => { i.iva_pct = pct; i.tiene_iva = ivaGlobalOn; });
-  renderItems(); renderAdic(); calcTotals();
-  const dot = document.getElementById('iva-toggle-dot');
-  const knob = document.getElementById('iva-toggle-knob');
-  const lbl = document.getElementById('iva-toggle-lbl');
-  if (dot) dot.style.background = ivaGlobalOn ? 'var(--acc)' : 'var(--s4)';
-  if (knob) knob.style.left = ivaGlobalOn ? '14px' : '2px';
-  if (lbl) { lbl.textContent = ivaGlobalOn ? 'IVA 15%' : 'Sin IVA'; lbl.style.color = ivaGlobalOn ? 'var(--acc)' : 'var(--t3)'; }
-  toast(ivaGlobalOn ? 'IVA 15% aplicado a todos los \u00edtems' : 'IVA quitado de todos los \u00edtems', 'info');
+let ivaGlobalOn=true;
+function toggleIvaGlobal(){
+  ivaGlobalOn=!ivaGlobalOn;
+  const pct=ivaGlobalOn?15:0;
+  cotItems.forEach(i=>{i.iva_pct=pct;i.tiene_iva=ivaGlobalOn;});
+  cotAdic.forEach(i=>{i.iva_pct=pct;i.tiene_iva=ivaGlobalOn;});
+  renderItems();renderAdic();calcTotals();
+  const dot=document.getElementById('iva-toggle-dot');
+  const knob=document.getElementById('iva-toggle-knob');
+  const lbl=document.getElementById('iva-toggle-lbl');
+  if(dot)dot.style.background=ivaGlobalOn?'var(--acc)':'var(--s4)';
+  if(knob)knob.style.left=ivaGlobalOn?'14px':'2px';
+  if(lbl){lbl.textContent=ivaGlobalOn?'IVA 15%':'Sin IVA';lbl.style.color=ivaGlobalOn?'var(--acc)':'var(--t3)';}
+  toast(ivaGlobalOn?'IVA 15% aplicado a todos los \u00edtems':'IVA quitado de todos los \u00edtems','info');
 }
 
 /* Búsqueda de cliente registrado en cotización */
 let cliDropT;
-function buscarClienteNc() {
+function buscarClienteNc(){
   clearTimeout(cliDropT);
-  const q = sGet('nc-cli-buscar').trim();
-  const drop = document.getElementById('nc-cli-drop');
-  if (!q) { drop.style.display = 'none'; return; }
-  cliDropT = setTimeout(() => {
-    const res = clis.filter(c => match(`${c.nombre} ${c.empresa || ''} ${c.ruc_cedula || ''} ${c.email || ''}`, q)).slice(0, 8);
-    if (!res.length) { drop.innerHTML = `<div style="padding:12px 14px;color:var(--t3);font-size:13px">Sin resultados</div>`; drop.style.display = 'block'; return; }
-    drop.innerHTML = res.map(c => `<div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--bd);transition:background .1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''" onclick="seleccionarClienteNc(${c.id})">
-      <div style="font-size:13px;font-weight:600;color:var(--t1)">${c.nombre}${c.empresa ? ` <span style="font-weight:400;color:var(--t3);font-size:12px">/ ${c.empresa}</span>` : ''}${c._compartido ? ` <span style="font-size:10px;background:rgba(200,160,0,.18);color:var(--acc);border-radius:4px;padding:1px 5px;vertical-align:middle">compartido</span>` : ''}</div>
-      ${c.ruc_cedula ? `<div style="font-size:11px;color:var(--t3)">RUC: ${c.ruc_cedula}${c.telefono ? ` · ${c.telefono}` : ''}</div>` : ''}
-      ${c._compartidoPor ? `<div style="font-size:10px;color:var(--t3)">Por: ${c._compartidoPor}</div>` : ''}
+  const q=sGet('nc-cli-buscar').trim();
+  const drop=document.getElementById('nc-cli-drop');
+  if(!q){drop.style.display='none';return;}
+  cliDropT=setTimeout(()=>{
+    const res=clis.filter(c=>match(`${c.nombre} ${c.empresa||''} ${c.ruc_cedula||''} ${c.email||''}`,q)).slice(0,8);
+    if(!res.length){drop.innerHTML=`<div style="padding:12px 14px;color:var(--t3);font-size:13px">Sin resultados</div>`;drop.style.display='block';return;}
+    drop.innerHTML=res.map(c=>`<div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--bd);transition:background .1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''" onclick="seleccionarClienteNc(${c.id})">
+      <div style="font-size:13px;font-weight:600;color:var(--t1)">${c.nombre}${c.empresa?` <span style="font-weight:400;color:var(--t3);font-size:12px">/ ${c.empresa}</span>`:''}${c._compartido?` <span style="font-size:10px;background:rgba(200,160,0,.18);color:var(--acc);border-radius:4px;padding:1px 5px;vertical-align:middle">compartido</span>`:''}</div>
+      ${c.ruc_cedula?`<div style="font-size:11px;color:var(--t3)">RUC: ${c.ruc_cedula}${c.telefono?` · ${c.telefono}`:''}</div>`:''}
+      ${c._compartidoPor?`<div style="font-size:10px;color:var(--t3)">Por: ${c._compartidoPor}</div>`:''}
     </div>`).join('');
-    drop.style.display = 'block';
-  }, 120);
+    drop.style.display='block';
+  },120);
 }
-function seleccionarClienteNc(id) {
-  const c = clis.find(x => x.id === id); if (!c) return;
-  sSet('nc-cliente-id', c.id);
-  sSet('nc-cliente', c.nombre + (c.empresa ? ` / ${c.empresa}` : ''));
-  sSet('nc-ruc', c.ruc_cedula || '');
-  sSet('nc-telefono', c.telefono || '');
-  sSet('nc-email', c.email || '');
-  sSet('nc-direccion', c.direccion || '');
-  sSet('nc-cli-buscar', '');
-  document.getElementById('nc-cli-drop').style.display = 'none';
-  toast(`Cliente "${c.nombre}" seleccionado \u2713`, 'ok');
+function seleccionarClienteNc(id){
+  const c=clis.find(x=>x.id===id);if(!c)return;
+  sSet('nc-cliente-id',c.id);
+  sSet('nc-cliente',c.nombre+(c.empresa?` / ${c.empresa}`:''));
+  sSet('nc-ruc',c.ruc_cedula||'');
+  sSet('nc-telefono',c.telefono||'');
+  sSet('nc-email',c.email||'');
+  sSet('nc-direccion',c.direccion||'');
+  sSet('nc-cli-buscar','');
+  document.getElementById('nc-cli-drop').style.display='none';
+  toast(`Cliente "${c.nombre}" seleccionado \u2713`,'ok');
 }
-function limpiarClienteNc() {
-  sSet('nc-cliente', ''); sSet('nc-ruc', ''); sSet('nc-telefono', ''); sSet('nc-email', ''); sSet('nc-direccion', ''); sSet('nc-cli-buscar', ''); sSet('nc-cliente-id', '');
-  document.getElementById('nc-cli-drop').style.display = 'none';
+function limpiarClienteNc(){
+  sSet('nc-cliente','');sSet('nc-ruc','');sSet('nc-telefono','');sSet('nc-email','');sSet('nc-direccion','');sSet('nc-cli-buscar','');sSet('nc-cliente-id','');
+  document.getElementById('nc-cli-drop').style.display='none';
 }
-document.addEventListener('click', e => {
-  const drop = document.getElementById('nc-cli-drop');
-  if (drop && !drop.contains(e.target) && e.target.id !== 'nc-cli-buscar') drop.style.display = 'none';
+document.addEventListener('click',e=>{
+  const drop=document.getElementById('nc-cli-drop');
+  if(drop&&!drop.contains(e.target)&&e.target.id!=='nc-cli-buscar')drop.style.display='none';
 });
 
 /* Editar cotización guardada — carga todos los datos al builder */
-let cotEditandoId = null;
-async function prepEditarCot(id) {
-  const r = await api(`quotes?id=${id}`);
-  if (isErr(r)) { toast(r.msg, 'err'); return; }
-  cotEditandoId = id;
+let cotEditandoId=null;
+async function prepEditarCot(id){
+  const r=await api(`quotes?id=${id}`);
+  if(isErr(r)){toast(r.msg,'err');return;}
+  cotEditandoId=id;
   limpiarCot(false);
-  sSet('nc-numero', r.numero);
-  sSet('nc-fecha', (r.creado_en || new Date().toISOString()).split('T')[0]);
-  sSet('nc-validez', r.validez_dias || 30);
-  sSet('nc-cliente-id', r.cliente_id || '');
-  sSet('nc-cliente', r.cliente_nombre || r.titulo || '');
-  sSet('nc-ruc', r.cliente_ruc || '');
-  sSet('nc-telefono', r.cliente_telefono || '');
-  sSet('nc-email', r.cliente_email || '');
-  sSet('nc-direccion', r.cliente_direccion || '');
+  sSet('nc-numero',r.numero);
+  sSet('nc-fecha',(r.creado_en||new Date().toISOString()).split('T')[0]);
+  sSet('nc-validez',r.validez_dias||30);
+  sSet('nc-cliente-id',r.cliente_id||'');
+  sSet('nc-cliente',r.cliente_nombre||r.titulo||'');
+  sSet('nc-ruc',r.cliente_ruc||'');
+  sSet('nc-telefono',r.cliente_telefono||'');
+  sSet('nc-email',r.cliente_email||'');
+  sSet('nc-direccion',r.cliente_direccion||'');
   // Extraer forma de pago y notas de notas guardadas
-  const notasRaw = r.notas || '';
-  const fpl = notasRaw.split('\n').find(l => l.startsWith('Forma de pago:'));
-  if (fpl) { const fpv = fpl.replace('Forma de pago:', '').trim(); const sel = document.getElementById('nc-forma-pago'); if (sel) { [...sel.options].forEach(o => { if (o.value === fpv) o.selected = true; }); } }
-  sSet('nc-notas', notasRaw.split('\n').filter(l => !l.startsWith('Forma de pago:')).join('\n').trim());
-  sSet('nc-descripcion', r.descripcion || '');
-  sSet('nc-descuento', r.descuento_pct || 0);
-  cotItems = (r.items || []).map(it => ({ material_id: it.material_id || null, descripcion: it.descripcion || it.material_nombre || '', cantidad: parseFloat(it.cantidad) || 1, unidad: it.unidad || it.material_unidad || 'unidad', precio_unitario: parseFloat(it.precio_unitario) || 0, iva_pct: 15, tiene_iva: true }));
-  cotAdic = [];
-  renderItems(); renderAdic(); calcTotals();
-  ir('nueva-cot'); irSubTab('cotizacion');
+  const notasRaw=r.notas||'';
+  const fpl=notasRaw.split('\n').find(l=>l.startsWith('Forma de pago:'));
+  if(fpl){const fpv=fpl.replace('Forma de pago:','').trim();const sel=document.getElementById('nc-forma-pago');if(sel){[...sel.options].forEach(o=>{if(o.value===fpv)o.selected=true;});}}
+  sSet('nc-notas',notasRaw.split('\n').filter(l=>!l.startsWith('Forma de pago:')).join('\n').trim());
+  sSet('nc-descripcion',r.descripcion||'');
+  sSet('nc-descuento',r.descuento_pct||0);
+  cotItems=(r.items||[]).map(it=>({material_id:it.material_id||null,descripcion:it.descripcion||it.material_nombre||'',cantidad:parseFloat(it.cantidad)||1,unidad:it.unidad||it.material_unidad||'unidad',precio_unitario:parseFloat(it.precio_unitario)||0,iva_pct:15,tiene_iva:true}));
+  cotAdic=[];
+  renderItems();renderAdic();calcTotals();
+  ir('nueva-cot');irSubTab('cotizacion');
   // Update header title to indicate editing
-  const eyebrow = document.querySelector('.nc-eyebrow');
-  const title = document.querySelector('.nc-title');
-  if (eyebrow) eyebrow.textContent = `Editando cotizaci\u00f3n`;
-  if (title) title.innerHTML = `<i data-lucide="pencil" style="width:26px;height:26px;stroke-width:2;color:var(--acc)"></i> ${r.numero}`;
+  const eyebrow=document.querySelector('.nc-eyebrow');
+  const title=document.querySelector('.nc-title');
+  if(eyebrow)eyebrow.textContent=`Editando cotizaci\u00f3n`;
+  if(title)title.innerHTML=`<i data-lucide="pencil" style="width:26px;height:26px;stroke-width:2;color:var(--acc)"></i> ${r.numero}`;
   refreshIcons();
-  toast(`Editando ${r.numero} \u2014 guarda para actualizar`, 'info');
+  toast(`Editando ${r.numero} \u2014 guarda para actualizar`,'info');
 }
-function prepEditarCotDesdeModal() {
-  if (!cotActual) return;
+function prepEditarCotDesdeModal(){
+  if(!cotActual)return;
   closeModal('m-ver');
   prepEditarCot(cotActual.id);
 }
 
 /* Totales */
-function calcTotals() {
-  const desc = parseFloat(sGet('nc-descuento')) || 0;
-  const todos = [...cotItems, ...cotAdic];
-  const sub = todos.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
-  const dv = sub * (desc / 100);
-  const net = sub - dv;
-  const ivaVal = ivaValorDesdeLineas(todos, desc);
-  const total = sub - dv + ivaVal;
-  sTxt('nc-t-sub', `$${sub.toFixed(2)}`); sTxt('nc-t-desc', `-$${dv.toFixed(2)}`);
-  sTxt('nc-t-iva', `$${ivaVal.toFixed(2)}`); sTxt('nc-t-total', `$${total.toFixed(2)}`);
-  const dl = document.getElementById('nc-t-desc-lbl'); if (dl) dl.textContent = `Descuento (${desc}%)`;
-  const il = document.getElementById('nc-t-iva-lbl'); if (il) il.textContent = textoResumenIva(todos, desc, ivaVal, net);
+function calcTotals(){
+  const desc=parseFloat(sGet('nc-descuento'))||0;
+  const todos=[...cotItems,...cotAdic];
+  const sub=todos.reduce((s,i)=>s+i.cantidad*i.precio_unitario,0);
+  const dv=sub*(desc/100);
+  const net=sub-dv;
+  const ivaVal=ivaValorDesdeLineas(todos,desc);
+  const total=sub-dv+ivaVal;
+  sTxt('nc-t-sub',`$${sub.toFixed(2)}`);sTxt('nc-t-desc',`-$${dv.toFixed(2)}`);
+  sTxt('nc-t-iva',`$${ivaVal.toFixed(2)}`);sTxt('nc-t-total',`$${total.toFixed(2)}`);
+  const dl=document.getElementById('nc-t-desc-lbl');if(dl)dl.textContent=`Descuento (${desc}%)`;
+  const il=document.getElementById('nc-t-iva-lbl');if(il)il.textContent=textoResumenIva(todos,desc,ivaVal,net);
 }
 
 /* Vista previa */
-function generarVP() {
-  const cont = document.getElementById('nc-preview-content'); if (!cont) return;
-  const todos = [...cotItems, ...cotAdic];
-  if (!todos.length) { cont.innerHTML = '<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="eye" style="width:36px;height:36px"></i></div><p>Agrega materiales para ver la vista previa</p></div>'; refreshIcons(); return; }
-  const num = sGet('nc-numero') || genNum();
-  const fecha = sGet('nc-fecha') || new Date().toISOString().split('T')[0];
-  const validez = sGet('nc-validez') || '30';
-  const cliente = sGet('nc-cliente') || 'Sin cliente';
-  const ruc = sGet('nc-ruc'), tel = sGet('nc-telefono'), eml = sGet('nc-email'), dir = sGet('nc-direccion');
-  const desc_txt = sGet('nc-descripcion');
-  const descPct = parseFloat(sGet('nc-descuento')) || 0;
-  const notas = sGet('nc-notas'), forma = sGet('nc-forma-pago');
-  const sub = todos.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
-  const dv = sub * (descPct / 100);
-  const net = sub - dv;
-  const ivaVal = ivaValorDesdeLineas(todos, descPct);
-  const total = sub - dv + ivaVal;
-  const ivaLbl = textoResumenIva(todos, descPct, ivaVal, net);
-  const fechaFmt = new Date(fecha + 'T00:00:00').toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
-  cont.innerHTML = `
+function generarVP(){
+  const cont=document.getElementById('nc-preview-content');if(!cont)return;
+  const todos=[...cotItems,...cotAdic];
+  if(!todos.length){cont.innerHTML='<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="eye" style="width:36px;height:36px"></i></div><p>Agrega materiales para ver la vista previa</p></div>';refreshIcons();return;}
+  const num=sGet('nc-numero')||genNum();
+  const fecha=sGet('nc-fecha')||new Date().toISOString().split('T')[0];
+  const validez=sGet('nc-validez')||'30';
+  const cliente=sGet('nc-cliente')||'Sin cliente';
+  const ruc=sGet('nc-ruc'),tel=sGet('nc-telefono'),eml=sGet('nc-email'),dir=sGet('nc-direccion');
+  const desc_txt=sGet('nc-descripcion');
+  const descPct=parseFloat(sGet('nc-descuento'))||0;
+  const notas=sGet('nc-notas'),forma=sGet('nc-forma-pago');
+  const sub=todos.reduce((s,i)=>s+i.cantidad*i.precio_unitario,0);
+  const dv=sub*(descPct/100);
+  const net=sub-dv;
+  const ivaVal=ivaValorDesdeLineas(todos,descPct);
+  const total=sub-dv+ivaVal;
+  const ivaLbl=textoResumenIva(todos,descPct,ivaVal,net);
+  const fechaFmt=new Date(fecha+'T00:00:00').toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
+  cont.innerHTML=`
     <div style="background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);padding:24px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;flex-wrap:wrap;gap:14px">
         <div style="display:flex;align-items:center;gap:14px">
           <img src="logo.jpg" alt="SEST" style="width:60px;height:60px;border-radius:10px;object-fit:cover;box-shadow:var(--acc-g)"/>
           <div>
             <div style="font-size:12px;color:var(--t3);text-transform:uppercase;letter-spacing:2px">Servicios El\u00e9ctricos y Seguridad Tapia</div>
-            <div style="font-size:11px;color:var(--t3);margin-top:2px">${escPdf((() => { const n = usuario?.nombre || ''; const a = usuario?.apellido || ''; return a ? `${n} ${a}` : n; })())}</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:2px">${escPdf((()=>{const n=usuario?.nombre||'';const a=usuario?.apellido||'';return a?`${n} ${a}`:n;})())}</div>
           </div>
         </div>
         <div style="text-align:right">
@@ -730,190 +720,188 @@ function generarVP() {
         <div>
           <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">CLIENTE</div>
           <div style="font-weight:600;font-size:14px">${cliente}</div>
-          ${ruc ? `<div style="color:var(--t2);font-size:12px">RUC/C.I.: ${ruc}</div>` : ''}
-          ${tel ? `<div style="color:var(--t2);font-size:12px">Tel: ${tel}</div>` : ''}
-          ${eml ? `<div style="color:var(--t2);font-size:12px">${eml}</div>` : ''}
-          ${dir ? `<div style="color:var(--t2);font-size:12px">${dir}</div>` : ''}
+          ${ruc?`<div style="color:var(--t2);font-size:12px">RUC/C.I.: ${ruc}</div>`:''}
+          ${tel?`<div style="color:var(--t2);font-size:12px">Tel: ${tel}</div>`:''}
+          ${eml?`<div style="color:var(--t2);font-size:12px">${eml}</div>`:''}
+          ${dir?`<div style="color:var(--t2);font-size:12px">${dir}</div>`:''}
         </div>
       </div>
-      ${desc_txt ? `<div style="margin-bottom:16px;padding:10px 14px;background:var(--s2);border-radius:8px;border-left:3px solid var(--acc);font-size:13px;color:var(--t2)">${desc_txt}</div>` : ''}
+      ${desc_txt?`<div style="margin-bottom:16px;padding:10px 14px;background:var(--s2);border-radius:8px;border-left:3px solid var(--acc);font-size:13px;color:var(--t2)">${desc_txt}</div>`:''}
       <div style="overflow-x:auto;margin-bottom:18px">
         <table><thead><tr><th>#</th><th>Descripci\u00f3n</th><th>Cant.</th><th>Unidad</th><th>P. Unit.</th><th style="text-align:center">IVA</th><th style="text-align:right">Subtotal</th></tr></thead>
-        <tbody>${todos.map((it, i) => {
-    const ivp = normalizarIvaPct(it); return `<tr>
-          <td style="color:var(--t3);font-size:12px">${i + 1}</td>
-          <td style="font-weight:500">${it.descripcion || '\u2014'}</td>
+        <tbody>${todos.map((it,i)=>{const ivp=normalizarIvaPct(it);return`<tr>
+          <td style="color:var(--t3);font-size:12px">${i+1}</td>
+          <td style="font-weight:500">${it.descripcion||'\u2014'}</td>
           <td style="text-align:center;font-family:'DM Mono',monospace">${it.cantidad}</td>
           <td style="color:var(--t3)">${it.unidad}</td>
           <td style="font-family:'DM Mono',monospace">$${it.precio_unitario.toFixed(2)}</td>
-          <td style="text-align:center;font-size:11px;font-weight:600;color:var(--t2)">${ivp <= 0 ? 'No' : ivp + '%'}</td>
-          <td style="font-family:'DM Mono',monospace;font-weight:700;text-align:right">$${(it.cantidad * it.precio_unitario).toFixed(2)}</td>
-        </tr>`;
-  }).join('')}</tbody></table>
+          <td style="text-align:center;font-size:11px;font-weight:600;color:var(--t2)">${ivp<=0?'No':ivp+'%'}</td>
+          <td style="font-family:'DM Mono',monospace;font-weight:700;text-align:right">$${(it.cantidad*it.precio_unitario).toFixed(2)}</td>
+        </tr>`;}).join('')}</tbody></table>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-bottom:18px">
         <div style="min-width:260px">
           <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--t2);font-size:13.5px"><span>Subtotal sin IVA</span><span style="font-family:'DM Mono',monospace">$${sub.toFixed(2)}</span></div>
-          ${dv > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--ok);font-size:13.5px"><span>Descuento (${descPct}%)</span><span>-$${dv.toFixed(2)}</span></div>` : ''}
+          ${dv>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--ok);font-size:13.5px"><span>Descuento (${descPct}%)</span><span>-$${dv.toFixed(2)}</span></div>`:''}
           <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--t2);font-size:13.5px"><span>${ivaLbl}</span><span style="font-family:'DM Mono',monospace">$${ivaVal.toFixed(2)}</span></div>
           <div style="display:flex;justify-content:space-between;padding:12px 0 4px;border-top:2px solid rgba(245,200,0,.3);margin-top:6px;font-size:18px;font-weight:800;color:var(--acc)">
             <span>TOTAL</span><span style="font-family:'DM Mono',monospace">$${total.toFixed(2)}</span>
           </div>
         </div>
       </div>
-      ${forma ? `<div style="font-size:13px;color:var(--t2);margin-bottom:10px"><strong style="color:var(--t1)">Forma de pago:</strong> ${forma}</div>` : ''}
-      ${notas ? `<div style="padding:12px 14px;background:var(--s2);border-radius:8px;font-size:13px;color:var(--t2)"><strong style="color:var(--t1)">Notas y condiciones:</strong><br/>${notas}</div>` : ''}
+      ${forma?`<div style="font-size:13px;color:var(--t2);margin-bottom:10px"><strong style="color:var(--t1)">Forma de pago:</strong> ${forma}</div>`:''}
+      ${notas?`<div style="padding:12px 14px;background:var(--s2);border-radius:8px;font-size:13px;color:var(--t2)"><strong style="color:var(--t1)">Notas y condiciones:</strong><br/>${notas}</div>`:''}
     </div>`;
   refreshIcons();
 }
 
 /* Guardar cotización */
-async function guardarCot() {
-  const todos = [...cotItems.map(i => ({ ...i })), ...cotAdic.map(i => ({ ...i, material_id: null }))];
-  if (!todos.length) { toast('Agrega al menos un material', 'err'); return; }
-  const titulo = sGet('nc-cliente').trim() || sGet('nc-descripcion').trim().slice(0, 80) || 'Nueva cotizaci\u00f3n';
-  const descPct = parseFloat(sGet('nc-descuento')) || 0;
-  const sub = todos.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
-  const dv = sub * (descPct / 100);
-  const net = sub - dv;
-  const ivaVal = ivaValorDesdeLineas(todos, descPct);
-  const ivaPct = net > 0.001 ? Math.round((ivaVal / net) * 1000) / 10 : 0;
-  const notas = [sGet('nc-forma-pago') ? `Forma de pago: ${sGet('nc-forma-pago')}` : '', sGet('nc-notas').trim()].filter(Boolean).join('\n');
-  const clienteIdRaw = sGet('nc-cliente-id');
-  const clienteId = clienteIdRaw ? parseInt(clienteIdRaw) : null;
-  const body = { titulo, descripcion: sGet('nc-descripcion').trim(), notas, descuento_pct: descPct, iva_pct: ivaPct, validez_dias: parseInt(sGet('nc-validez')) || 30, items: todos, cliente_id: clienteId };
-  ['btn-guardar-top', 'btn-guardar-cot'].forEach(id => setBL(id, true));
+async function guardarCot(){
+  const todos=[...cotItems.map(i=>({...i})),...cotAdic.map(i=>({...i,material_id:null}))];
+  if(!todos.length){toast('Agrega al menos un material','err');return;}
+  const titulo=sGet('nc-cliente').trim()||sGet('nc-descripcion').trim().slice(0,80)||'Nueva cotizaci\u00f3n';
+  const descPct=parseFloat(sGet('nc-descuento'))||0;
+  const sub=todos.reduce((s,i)=>s+i.cantidad*i.precio_unitario,0);
+  const dv=sub*(descPct/100);
+  const net=sub-dv;
+  const ivaVal=ivaValorDesdeLineas(todos,descPct);
+  const ivaPct=net>0.001?Math.round((ivaVal/net)*1000)/10:0;
+  const notas=[sGet('nc-forma-pago')?`Forma de pago: ${sGet('nc-forma-pago')}`:'',sGet('nc-notas').trim()].filter(Boolean).join('\n');
+  const clienteIdRaw=sGet('nc-cliente-id');
+  const clienteId=clienteIdRaw?parseInt(clienteIdRaw):null;
+  const body={titulo,descripcion:sGet('nc-descripcion').trim(),notas,descuento_pct:descPct,iva_pct:ivaPct,validez_dias:parseInt(sGet('nc-validez'))||30,items:todos,cliente_id:clienteId};
+  ['btn-guardar-top','btn-guardar-cot'].forEach(id=>setBL(id,true));
   let r;
-  if (cotEditandoId) {
-    r = await api(`quotes?id=${cotEditandoId}`, { method: 'PUT', body: JSON.stringify({ ...body, _fullEdit: true }) });
+  if(cotEditandoId){
+    r=await api(`quotes?id=${cotEditandoId}`,{method:'PUT',body:JSON.stringify({...body,_fullEdit:true})});
   } else {
-    r = await api('quotes', { method: 'POST', body: JSON.stringify(body) });
+    r=await api('quotes',{method:'POST',body:JSON.stringify(body)});
   }
-  setBL('btn-guardar-top', false, 'Guardar');
-  setBL('btn-guardar-cot', false, 'Guardar Cotizaci\u00f3n');
-  if (isErr(r)) { toast(r.msg, 'err'); return; }
-  if (cotEditandoId) {
-    const i = cots.findIndex(c => c.id === cotEditandoId);
-    if (i >= 0) cots[i] = { ...cots[i], ...r, cliente_nombre: titulo };
-    toast(`Cotizaci\u00f3n ${r.numero || sGet('nc-numero')} actualizada \u2713`, 'ok');
+  setBL('btn-guardar-top',false,'Guardar');
+  setBL('btn-guardar-cot',false,'Guardar Cotizaci\u00f3n');
+  if(isErr(r)){toast(r.msg,'err');return;}
+  if(cotEditandoId){
+    const i=cots.findIndex(c=>c.id===cotEditandoId);
+    if(i>=0)cots[i]={...cots[i],...r,cliente_nombre:titulo};
+    toast(`Cotizaci\u00f3n ${r.numero||sGet('nc-numero')} actualizada \u2713`,'ok');
     // Keep editing same quote — show updated state
-    _marcarCotGuardada(r.numero || sGet('nc-numero'));
+    _marcarCotGuardada(r.numero||sGet('nc-numero'));
   } else {
     // NEW save: lock in as editing this quote to prevent re-creation
-    cotEditandoId = r.id;
-    cots.unshift({ ...r, cliente_nombre: titulo });
-    sTxt('s-cots', cots.length);
-    toast(`Cotizaci\u00f3n ${r.numero} guardada \u2713 — puedes seguir editando y actualizar`, 'ok');
+    cotEditandoId=r.id;
+    cots.unshift({...r,cliente_nombre:titulo});
+    sTxt('s-cots',cots.length);
+    toast(`Cotizaci\u00f3n ${r.numero} guardada \u2713 — puedes seguir editando y actualizar`,'ok');
     _marcarCotGuardada(r.numero);
-    const eyebrow = document.querySelector('.nc-eyebrow');
-    const title = document.querySelector('.nc-title');
-    if (eyebrow) eyebrow.textContent = 'Editando cotizaci\u00f3n';
-    if (title) title.innerHTML = `<i data-lucide="pencil" style="width:26px;height:26px;stroke-width:2;color:var(--acc)"></i> ${r.numero}`;
+    const eyebrow=document.querySelector('.nc-eyebrow');
+    const title=document.querySelector('.nc-title');
+    if(eyebrow)eyebrow.textContent='Editando cotizaci\u00f3n';
+    if(title)title.innerHTML=`<i data-lucide="pencil" style="width:26px;height:26px;stroke-width:2;color:var(--acc)"></i> ${r.numero}`;
     refreshIcons();
   }
   actualizarContadores();
   renderRecientes();
 }
-function _marcarCotGuardada(numero) {
-  ['btn-guardar-top', 'btn-guardar-cot'].forEach(id => {
-    const b = document.getElementById(id); if (!b) return;
-    const lbl = b.querySelector('.btn-lbl');
-    const txt = `\u2713 Actualizar ${numero}`;
-    if (lbl) lbl.textContent = txt; else b.textContent = txt;
+function _marcarCotGuardada(numero){
+  ['btn-guardar-top','btn-guardar-cot'].forEach(id=>{
+    const b=document.getElementById(id);if(!b)return;
+    const lbl=b.querySelector('.btn-lbl');
+    const txt=`\u2713 Actualizar ${numero}`;
+    if(lbl)lbl.textContent=txt;else b.textContent=txt;
   });
 }
 
-function esperarImagenesEn(root) {
-  if (!root) return Promise.resolve();
-  const imgs = [...root.querySelectorAll('img')];
-  return Promise.all(imgs.map(img => {
-    if (img.complete && img.naturalHeight > 0) return Promise.resolve();
-    return new Promise(res => {
-      img.addEventListener('load', res, { once: true });
-      img.addEventListener('error', res, { once: true });
+function esperarImagenesEn(root){
+  if(!root)return Promise.resolve();
+  const imgs=[...root.querySelectorAll('img')];
+  return Promise.all(imgs.map(img=>{
+    if(img.complete&&img.naturalHeight>0)return Promise.resolve();
+    return new Promise(res=>{
+      img.addEventListener('load',res,{once:true});
+      img.addEventListener('error',res,{once:true});
     });
   }));
 }
-function delayPdf(ms) { return new Promise(r => setTimeout(r, ms)); }
+function delayPdf(ms){return new Promise(r=>setTimeout(r,ms));}
 
 /** Datos normalizados para PDF (misma forma en nueva cotización y guardada). */
-function construirModeloPdfNuevaCot() {
-  const todos = [...cotItems, ...cotAdic];
-  const num = sGet('nc-numero') || genNum();
-  const fecha = sGet('nc-fecha') || new Date().toISOString().split('T')[0];
-  const validez = parseInt(sGet('nc-validez'), 10) || 30;
-  const descPct = parseFloat(sGet('nc-descuento')) || 0;
-  const sub = todos.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
-  const dv = sub * (descPct / 100);
-  const net = sub - dv;
-  const ivaVal = ivaValorDesdeLineas(todos, descPct);
-  const total = sub - dv + ivaVal;
-  const ivaSumarioText = textoResumenIva(todos, descPct, ivaVal, net);
-  const fechaFmt = new Date(fecha + 'T00:00:00').toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
-  const items = todos.map(it => {
-    const iv = normalizarIvaPct(it);
-    return {
-      desc: it.descripcion || '',
-      cant: it.cantidad,
-      unidad: it.unidad || '',
-      pUnit: parseFloat(it.precio_unitario) || 0,
-      ivaPct: iv,
-      ivaSi: iv > 0,
-      sub: it.cantidad * (parseFloat(it.precio_unitario) || 0)
+function construirModeloPdfNuevaCot(){
+  const todos=[...cotItems,...cotAdic];
+  const num=sGet('nc-numero')||genNum();
+  const fecha=sGet('nc-fecha')||new Date().toISOString().split('T')[0];
+  const validez=parseInt(sGet('nc-validez'),10)||30;
+  const descPct=parseFloat(sGet('nc-descuento'))||0;
+  const sub=todos.reduce((s,i)=>s+i.cantidad*i.precio_unitario,0);
+  const dv=sub*(descPct/100);
+  const net=sub-dv;
+  const ivaVal=ivaValorDesdeLineas(todos,descPct);
+  const total=sub-dv+ivaVal;
+  const ivaSumarioText=textoResumenIva(todos,descPct,ivaVal,net);
+  const fechaFmt=new Date(fecha+'T00:00:00').toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
+  const items=todos.map(it=>{
+    const iv=normalizarIvaPct(it);
+    return{
+      desc:it.descripcion||'',
+      cant:it.cantidad,
+      unidad:it.unidad||'',
+      pUnit:parseFloat(it.precio_unitario)||0,
+      ivaPct:iv,
+      ivaSi:iv>0,
+      sub:it.cantidad*(parseFloat(it.precio_unitario)||0)
     };
   });
-  return {
-    numero: num, fechaFmt, validez,
-    elaborador: (() => { const n = usuario?.nombre || ''; const a = usuario?.apellido || ''; return a ? `${n} ${a}` : n; })(),
+  return{
+    numero:num,fechaFmt,validez,
+    elaborador:(()=>{const n=usuario?.nombre||'';const a=usuario?.apellido||'';return a?`${n} ${a}`:n;})(),
     ingenieroRuc: usuario?.cedula || '',
-    cliente: {
-      nombre: sGet('nc-cliente').trim() || 'Sin cliente',
-      empresa: '',
-      ruc: sGet('nc-ruc').trim(),
-      tel: sGet('nc-telefono').trim(),
-      email: sGet('nc-email').trim(),
-      dir: sGet('nc-direccion').trim()
+    cliente:{
+      nombre:sGet('nc-cliente').trim()||'Sin cliente',
+      empresa:'',
+      ruc:sGet('nc-ruc').trim(),
+      tel:sGet('nc-telefono').trim(),
+      email:sGet('nc-email').trim(),
+      dir:sGet('nc-direccion').trim()
     },
-    descripcionTrabajo: sGet('nc-descripcion').trim(),
+    descripcionTrabajo:sGet('nc-descripcion').trim(),
     items,
-    subtotal: sub, descuentoPct: descPct, descuentoValor: dv, ivaValor: ivaVal, ivaSumarioText, total,
-    formaPago: sGet('nc-forma-pago') || '',
-    notas: sGet('nc-notas').trim()
+    subtotal:sub,descuentoPct:descPct,descuentoValor:dv,ivaValor:ivaVal,ivaSumarioText,total,
+    formaPago:sGet('nc-forma-pago')||'',
+    notas:sGet('nc-notas').trim()
   };
 }
-function construirModeloPdfGuardada(c) {
-  const items = (c.items || []).map(it => ({
-    desc: it.descripcion || it.material_nombre || '',
-    cant: parseFloat(it.cantidad) || 0,
-    unidad: it.unidad || it.material_unidad || '\u2014',
-    pUnit: parseFloat(it.precio_unitario) || 0,
-    ivaSi: null,
-    sub: parseFloat(it.subtotal) || 0
+function construirModeloPdfGuardada(c){
+  const items=(c.items||[]).map(it=>({
+    desc:it.descripcion||it.material_nombre||'',
+    cant:parseFloat(it.cantidad)||0,
+    unidad:it.unidad||it.material_unidad||'\u2014',
+    pUnit:parseFloat(it.precio_unitario)||0,
+    ivaSi:null,
+    sub:parseFloat(it.subtotal)||0
   }));
-  const fechaFmt = new Date(c.creado_en).toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
-  return {
-    numero: c.numero || '', fechaFmt,
-    validez: parseInt(c.validez_dias, 10) || 30,
-    elaborador: (() => { const n = usuario?.nombre || ''; const a = usuario?.apellido || ''; return a ? `${n} ${a}` : (n || c.usuario_nombre || ''); })(),
+  const fechaFmt=new Date(c.creado_en).toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
+  return{
+    numero:c.numero||'',fechaFmt,
+    validez:parseInt(c.validez_dias,10)||30,
+    elaborador:(()=>{const n=usuario?.nombre||'';const a=usuario?.apellido||'';return a?`${n} ${a}`:(n||c.usuario_nombre||'');})(),
     ingenieroRuc: usuario?.cedula || '',
-    cliente: {
-      nombre: c.cliente_nombre || 'Sin cliente',
-      empresa: (c.cliente_empresa || '').trim(),
-      ruc: (c.cliente_ruc || '').trim(),
-      tel: (c.cliente_telefono || '').trim(),
-      email: (c.cliente_email || '').trim(),
-      dir: (c.cliente_direccion || '').trim()
+    cliente:{
+      nombre:c.cliente_nombre||'Sin cliente',
+      empresa:(c.cliente_empresa||'').trim(),
+      ruc:(c.cliente_ruc||'').trim(),
+      tel:(c.cliente_telefono||'').trim(),
+      email:(c.cliente_email||'').trim(),
+      dir:(c.cliente_direccion||'').trim()
     },
-    descripcionTrabajo: (c.descripcion || c.titulo || '').trim(),
+    descripcionTrabajo:(c.descripcion||c.titulo||'').trim(),
     items,
-    subtotal: parseFloat(c.subtotal) || 0,
-    descuentoPct: parseFloat(c.descuento_pct) || 0,
-    descuentoValor: parseFloat(c.descuento_valor) || 0,
-    ivaValor: parseFloat(c.iva_valor) || 0,
-    ivaSumarioText: `IVA (${Number(c.iva_pct || 0)}% aplicado)`,
-    total: parseFloat(c.total) || 0,
-    formaPago: '',
-    notas: (c.notas || '').trim()
+    subtotal:parseFloat(c.subtotal)||0,
+    descuentoPct:parseFloat(c.descuento_pct)||0,
+    descuentoValor:parseFloat(c.descuento_valor)||0,
+    ivaValor:parseFloat(c.iva_valor)||0,
+    ivaSumarioText:`IVA (${Number(c.iva_pct||0)}% aplicado)`,
+    total:parseFloat(c.total)||0,
+    formaPago:'',
+    notas:(c.notas||'').trim()
   };
 }
 
@@ -921,44 +909,44 @@ function construirModeloPdfGuardada(c) {
  * HTML solo para PDF: fondo blanco, tipografía clara, tabla tipo factura.
  * No depende del tema oscuro del dashboard (.pdf-doc-prof aísla estilos).
  */
-function htmlDocumentoCotizacionPdfProfesional(m) {
-  const ivaTxt = it => {
-    if (it.ivaPct != null && it.ivaPct !== '') {
-      const p = Number(it.ivaPct);
-      if (!isFinite(p)) return '\u2014';
-      return p <= 0 ? 'No' : p + '%';
+function htmlDocumentoCotizacionPdfProfesional(m){
+  const ivaTxt=it=>{
+    if(it.ivaPct!=null&&it.ivaPct!==''){
+      const p=Number(it.ivaPct);
+      if(!isFinite(p))return '\u2014';
+      return p<=0?'No':p+'%';
     }
-    if (it.ivaSi === true) return '15%';
-    if (it.ivaSi === false) return 'No';
+    if(it.ivaSi===true)return '15%';
+    if(it.ivaSi===false)return 'No';
     return '\u2014';
   };
-  const filas = m.items.map((it, i) => `
+  const filas=m.items.map((it,i)=>`
     <tr class="pdf-prof-tr">
-      <td class="pdf-prof-td pdf-prof-td-c">${i + 1}</td>
-      <td class="pdf-prof-td pdf-prof-td-desc">${escPdf(it.desc || '\u2014')}</td>
+      <td class="pdf-prof-td pdf-prof-td-c">${i+1}</td>
+      <td class="pdf-prof-td pdf-prof-td-desc">${escPdf(it.desc||'\u2014')}</td>
       <td class="pdf-prof-td pdf-prof-td-c pdf-prof-mono">${escPdf(String(it.cant))}</td>
       <td class="pdf-prof-td">${escPdf(it.unidad)}</td>
       <td class="pdf-prof-td pdf-prof-td-r pdf-prof-mono">$${Number(it.pUnit).toFixed(2)}</td>
       <td class="pdf-prof-td pdf-prof-td-c pdf-prof-td-iva">${ivaTxt(it)}</td>
       <td class="pdf-prof-td pdf-prof-td-r pdf-prof-mono pdf-prof-td-strong">$${Number(it.sub).toFixed(2)}</td>
     </tr>`).join('');
-  const filaDesc = m.descuentoValor > 0.009 ? `
-    <div class="pdf-prof-sum-row"><span>Descuento (${Number(m.descuentoPct).toFixed(0)}%)</span><span class="pdf-prof-mono pdf-prof-sum-ok">-$${Number(m.descuentoValor).toFixed(2)}</span></div>` : '';
-  const bloqueDesc = m.descripcionTrabajo ? `
+  const filaDesc=m.descuentoValor>0.009?`
+    <div class="pdf-prof-sum-row"><span>Descuento (${Number(m.descuentoPct).toFixed(0)}%)</span><span class="pdf-prof-mono pdf-prof-sum-ok">-$${Number(m.descuentoValor).toFixed(2)}</span></div>`:'';
+  const bloqueDesc=m.descripcionTrabajo?`
     <div class="pdf-prof-desc-box">
       <div class="pdf-prof-desc-lbl">Descripci\u00f3n del trabajo</div>
       <div class="pdf-prof-desc-txt">${escPdfBr(m.descripcionTrabajo)}</div>
-    </div>`: '';
-  const bloqueForma = m.formaPago ? `
-    <div class="pdf-prof-foot-block"><strong>Forma de pago:</strong> ${escPdf(m.formaPago)}</div>` : '';
-  const bloqueNotas = m.notas ? `
-    <div class="pdf-prof-foot-block pdf-prof-notas"><strong>Notas y condiciones</strong><div class="pdf-prof-notas-body">${escPdfBr(m.notas)}</div></div>` : '';
-  const cliEmp = m.cliente.empresa ? `<div class="pdf-prof-cli-line">${escPdf(m.cliente.empresa)}</div>` : '';
-  const cliRuc = m.cliente.ruc ? `<div class="pdf-prof-cli-line">RUC / C.I.: ${escPdf(m.cliente.ruc)}</div>` : '';
-  const cliTel = m.cliente.tel ? `<div class="pdf-prof-cli-line">Tel: ${escPdf(m.cliente.tel)}</div>` : '';
-  const cliEm = m.cliente.email ? `<div class="pdf-prof-cli-line">${escPdf(m.cliente.email)}</div>` : '';
-  const cliDir = m.cliente.dir ? `<div class="pdf-prof-cli-line">${escPdf(m.cliente.dir)}</div>` : '';
-  return `<div class="pdf-doc-prof">
+    </div>`:'';
+  const bloqueForma=m.formaPago?`
+    <div class="pdf-prof-foot-block"><strong>Forma de pago:</strong> ${escPdf(m.formaPago)}</div>`:'';
+  const bloqueNotas=m.notas?`
+    <div class="pdf-prof-foot-block pdf-prof-notas"><strong>Notas y condiciones</strong><div class="pdf-prof-notas-body">${escPdfBr(m.notas)}</div></div>`:'';
+  const cliEmp=m.cliente.empresa?`<div class="pdf-prof-cli-line">${escPdf(m.cliente.empresa)}</div>`:'';
+  const cliRuc=m.cliente.ruc?`<div class="pdf-prof-cli-line">RUC / C.I.: ${escPdf(m.cliente.ruc)}</div>`:'';
+  const cliTel=m.cliente.tel?`<div class="pdf-prof-cli-line">Tel: ${escPdf(m.cliente.tel)}</div>`:'';
+  const cliEm=m.cliente.email?`<div class="pdf-prof-cli-line">${escPdf(m.cliente.email)}</div>`:'';
+  const cliDir=m.cliente.dir?`<div class="pdf-prof-cli-line">${escPdf(m.cliente.dir)}</div>`:'';
+  return`<div class="pdf-doc-prof">
 <style type="text/css">
 .pdf-doc-prof{font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.5;color:#0a0a0a;background:#fff;width:100%;max-width:720px;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:geometricPrecision;}
 .pdf-doc-prof *{box-sizing:border-box;}
@@ -1010,7 +998,7 @@ function htmlDocumentoCotizacionPdfProfesional(m) {
       <div class="pdf-prof-co-name">Servicios El\u00e9ctricos y Seguridad Tapia</div>
       <div class="pdf-prof-co-brand">SEST</div>
       <div class="pdf-prof-co-sub">Cotizaci\u00f3n formal para su proyecto. Valide plazos y especificaciones t\u00e9cnicas con nuestro equipo.</div>
-      <div class="pdf-prof-co-elab">Documento elaborado por: <strong>${escPdf(m.elaborador) || '\u2014'}</strong></div>
+      <div class="pdf-prof-co-elab">Documento elaborado por: <strong>${escPdf(m.elaborador)||'\u2014'}</strong></div>
     </div>
     <div class="pdf-prof-meta">
       <div class="pdf-prof-meta-tit">Cotizaci\u00f3n</div>
@@ -1053,7 +1041,7 @@ function htmlDocumentoCotizacionPdfProfesional(m) {
   <div class="pdf-prof-sums">
     <div class="pdf-prof-sum-row"><span>Subtotal sin IVA</span><span class="pdf-prof-mono">$${Number(m.subtotal).toFixed(2)}</span></div>
     ${filaDesc}
-    <div class="pdf-prof-sum-row"><span>${escPdf(m.ivaSumarioText || 'IVA')}</span><span class="pdf-prof-mono">$${Number(m.ivaValor).toFixed(2)}</span></div>
+    <div class="pdf-prof-sum-row"><span>${escPdf(m.ivaSumarioText||'IVA')}</span><span class="pdf-prof-mono">$${Number(m.ivaValor).toFixed(2)}</span></div>
     <div class="pdf-prof-total-row"><span>TOTAL</span><span>$${Number(m.total).toFixed(2)}</span></div>
   </div>
   ${bloqueForma}${bloqueNotas}
@@ -1062,37 +1050,37 @@ function htmlDocumentoCotizacionPdfProfesional(m) {
 }
 
 // ── Escala fija para html2canvas — siempre alta resolución ──────
-function escalaCanvasPdf() { return 3; }
+function escalaCanvasPdf(){ return 3; }
 
 // ── Opciones base de html2pdf (A4, retina, sin compresión) ───────
 const PDF_WIDTH_PX = 794; // ancho A4 a 96 dpi — tamaño constante en móvil y desktop
-const html2pdfOptsPdf = {
-  margin: [8, 8, 8, 8],
-  image: { type: 'png', quality: 1 },
-  html2canvas: {
-    scale: 3,
-    useCORS: true,
-    allowTaint: true,
-    logging: false,
-    backgroundColor: '#ffffff',
-    scrollX: 0,
-    scrollY: 0,
-    letterRendering: true,
-    imageTimeout: 15000,
-    windowWidth: PDF_WIDTH_PX,   // 🔑 fuerza ancho A4 aunque la pantalla sea pequeña
-    windowHeight: 1123            // A4 altura
+const html2pdfOptsPdf={
+  margin:[8,8,8,8],
+  image:{type:'png',quality:1},
+  html2canvas:{
+    scale:3,
+    useCORS:true,
+    allowTaint:true,
+    logging:false,
+    backgroundColor:'#ffffff',
+    scrollX:0,
+    scrollY:0,
+    letterRendering:true,
+    imageTimeout:15000,
+    windowWidth:PDF_WIDTH_PX,   // 🔑 fuerza ancho A4 aunque la pantalla sea pequeña
+    windowHeight:1123            // A4 altura
   },
-  jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: false },
-  pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+  jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:false},
+  pagebreak:{mode:['avoid-all','css','legacy']}
 };
 
 // ── Overlay moderno de carga PDF ─────────────────────────────────
-function _mostrarLoadingPdf(msg) {
+function _mostrarLoadingPdf(msg){
   const existing = document.getElementById('pdf-loading-overlay');
-  if (existing) existing.remove();
+  if(existing) existing.remove();
   const ov = document.createElement('div');
   ov.id = 'pdf-loading-overlay';
-  ov.setAttribute('aria-live', 'polite');
+  ov.setAttribute('aria-live','polite');
   ov.style.cssText = 'position:fixed;inset:0;z-index:9999999;background:rgba(10,10,18,.82);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;';
   ov.innerHTML = `
     <div style="background:#13131c;border:1px solid rgba(245,200,0,.22);border-radius:22px;padding:38px 44px 32px;text-align:center;max-width:300px;width:88%;box-shadow:0 32px 80px rgba(0,0,0,.8),0 0 0 1px rgba(245,200,0,.06);">
@@ -1116,7 +1104,7 @@ function _mostrarLoadingPdf(msg) {
       <!-- Título -->
       <div style="font-size:16px;font-weight:800;color:#e2e2ec;letter-spacing:-.3px;margin-bottom:7px">Generando PDF</div>
       <!-- Mensaje de paso actual -->
-      <div id="pdf-loading-msg" style="font-size:12px;color:#9090aa;line-height:1.5;min-height:18px">${msg || 'Preparando documento…'}</div>
+      <div id="pdf-loading-msg" style="font-size:12px;color:#9090aa;line-height:1.5;min-height:18px">${msg||'Preparando documento…'}</div>
       <!-- Barra de progreso -->
       <div style="margin-top:20px;height:3px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden">
         <div id="pdf-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#f5c800,#ffd93d);border-radius:99px;transition:width .55s cubic-bezier(.4,0,.2,1)"></div>
@@ -1131,46 +1119,46 @@ function _mostrarLoadingPdf(msg) {
     </div>`;
   document.body.appendChild(ov);
   // Animar barra de progreso y arco
-  requestAnimationFrame(() => {
+  requestAnimationFrame(()=>{
     const bar = document.getElementById('pdf-progress-bar');
     const arc = document.getElementById('pdf-arc');
-    if (bar) bar.style.width = '15%';
-    if (arc) arc.style.strokeDashoffset = '122';
+    if(bar) bar.style.width='15%';
+    if(arc) arc.style.strokeDashoffset='122';
   });
   return ov;
 }
 
-function _actualizarLoadingPdf(msg, pct) {
+function _actualizarLoadingPdf(msg, pct){
   const msgEl = document.getElementById('pdf-loading-msg');
-  const bar = document.getElementById('pdf-progress-bar');
-  if (msgEl) msgEl.textContent = msg;
-  if (bar && pct != null) bar.style.width = pct + '%';
+  const bar   = document.getElementById('pdf-progress-bar');
+  if(msgEl) msgEl.textContent = msg;
+  if(bar && pct!=null) bar.style.width = pct + '%';
   // Animar dots según progreso
-  if (pct != null) {
+  if(pct!=null){
     const dotActivo = pct <= 25 ? 1 : pct <= 55 ? 2 : pct <= 78 ? 3 : 4;
-    for (let i = 1; i <= 4; i++) {
-      const d = document.getElementById('pdf-dot-' + i);
-      if (d) d.style.background = i <= dotActivo ? '#f5c800' : 'rgba(245,200,0,.25)';
+    for(let i=1;i<=4;i++){
+      const d = document.getElementById('pdf-dot-'+i);
+      if(d) d.style.background = i<=dotActivo ? '#f5c800' : 'rgba(245,200,0,.25)';
     }
   }
 }
 
-function _ocultarLoadingPdf() {
+function _ocultarLoadingPdf(){
   const ov = document.getElementById('pdf-loading-overlay');
-  if (!ov) return;
+  if(!ov) return;
   const bar = document.getElementById('pdf-progress-bar');
-  if (bar) bar.style.width = '100%';
+  if(bar) bar.style.width='100%';
   // Completar todos los dots
-  for (let i = 1; i <= 4; i++) {
-    const d = document.getElementById('pdf-dot-' + i);
-    if (d) d.style.background = '#f5c800';
+  for(let i=1;i<=4;i++){
+    const d = document.getElementById('pdf-dot-'+i);
+    if(d) d.style.background='#f5c800';
   }
   const msgEl = document.getElementById('pdf-loading-msg');
-  if (msgEl) { msgEl.textContent = '¡Listo! Descargando…'; msgEl.style.color = '#22c55e'; }
-  setTimeout(() => {
-    ov.style.opacity = '0';
-    ov.style.transition = 'opacity .38s ease';
-    setTimeout(() => ov.remove(), 400);
+  if(msgEl){ msgEl.textContent='¡Listo! Descargando…'; msgEl.style.color='#22c55e'; }
+  setTimeout(()=>{
+    ov.style.opacity='0';
+    ov.style.transition='opacity .38s ease';
+    setTimeout(()=>ov.remove(), 400);
   }, 320);
 }
 
@@ -1179,9 +1167,9 @@ function _ocultarLoadingPdf() {
  * El truco clave: el clon siempre tiene width=794px fijo y el canvas
  * usa windowWidth=794 para simular pantalla A4 independientemente del viewport.
  */
-async function htmlAPdfDesdeNodoFuente(sourceEl, filename) {
-  if (!sourceEl) { toast('No hay contenido para el PDF.', 'err'); return; }
-  if (!sourceEl.textContent || !sourceEl.textContent.trim()) { toast('Contenido vacío para exportar.', 'err'); return; }
+async function htmlAPdfDesdeNodoFuente(sourceEl,filename){
+  if(!sourceEl){toast('No hay contenido para el PDF.','err');return;}
+  if(!sourceEl.textContent||!sourceEl.textContent.trim()){toast('Contenido vacío para exportar.','err');return;}
 
   _mostrarLoadingPdf('Preparando documento…');
 
@@ -1195,12 +1183,12 @@ async function htmlAPdfDesdeNodoFuente(sourceEl, filename) {
   host.appendChild(clone);
   document.body.appendChild(host);
 
-  try {
+  try{
     _actualizarLoadingPdf('Cargando fuentes e imágenes…', 25);
-    if (document.fonts && document.fonts.ready) await document.fonts.ready.catch(() => { });
+    if(document.fonts&&document.fonts.ready) await document.fonts.ready.catch(()=>{});
     await esperarImagenesEn(clone);
     await delayPdf(80);
-    for (let i = 0; i < 6; i++) await new Promise(r => requestAnimationFrame(r));
+    for(let i=0;i<6;i++) await new Promise(r=>requestAnimationFrame(r));
 
     _actualizarLoadingPdf('Renderizando páginas…', 55);
     await delayPdf(60);
@@ -1209,23 +1197,23 @@ async function htmlAPdfDesdeNodoFuente(sourceEl, filename) {
     await html2pdf().set({
       ...html2pdfOptsPdf,
       filename,
-      html2canvas: {
+      html2canvas:{
         ...html2pdfOptsPdf.html2canvas,
-        scale: 3,
-        windowWidth: PDF_WIDTH_PX,
-        windowHeight: 1123
+        scale:3,
+        windowWidth:PDF_WIDTH_PX,
+        windowHeight:1123
       }
     }).from(clone).save();
 
     _actualizarLoadingPdf('¡Listo! Descargando…', 100);
     await delayPdf(500);
     _ocultarLoadingPdf();
-    toast('PDF descargado ✓', 'ok');
-  } catch (err) {
+    toast('PDF descargado ✓','ok');
+  }catch(err){
     console.error(err);
     _ocultarLoadingPdf();
-    toast('Error al generar PDF', 'err');
-  } finally {
+    toast('Error al generar PDF','err');
+  }finally{
     host.remove();
   }
 }
@@ -1302,7 +1290,7 @@ async function exportarPDFNc() {
     doc.text('Servicios Eléctricos y Seguridad Tapia', margin + (logoImg ? 30 : 0), y + 14);
     doc.text('Cotización formal para su proyecto. Valide plazos y especificaciones técnicas.', margin + (logoImg ? 30 : 0), y + 20);
     doc.text(`Documento elaborado por: ${modelo.elaborador || usuario?.nombre || ''}`, margin + (logoImg ? 30 : 0), y + 26);
-
+    
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
@@ -1313,11 +1301,11 @@ async function exportarPDFNc() {
     doc.setFontSize(8);
     doc.setTextColor(80, 80, 80);
     doc.text(`${modelo.fechaFmt} · Válida ${modelo.validez} días`, pageWidth - margin, y + 24, { align: 'right' });
-
+    
     doc.setDrawColor(200, 160, 0);
     doc.setLineWidth(0.5);
     doc.line(margin, y + 34, pageWidth - margin, y + 34);
-
+    
     y += 44;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -1334,7 +1322,7 @@ async function exportarPDFNc() {
     if (modelo.cliente.email) doc.text(modelo.cliente.email, margin, yLine);
     yLine += 5;
     if (modelo.cliente.dir) doc.text(modelo.cliente.dir, margin, yLine);
-
+    
     yLine += 8;
     if (modelo.descripcionTrabajo) {
       doc.setFont('helvetica', 'bold');
@@ -1397,7 +1385,7 @@ async function exportarPDFNc() {
       5: { cellWidth: 12, halign: 'center' },
       6: { cellWidth: 22, halign: 'right' }
     },
-    didDrawPage: function (data) {
+    didDrawPage: function(data) {
       if (data.pageNumber === 1) {
         if (data.startY !== firstHeaderY + 2) {
           data.startY = firstHeaderY + 2;
@@ -1419,7 +1407,7 @@ async function exportarPDFNc() {
   let yAfterTable = doc.lastAutoTable.finalY + 4;
   const leftColWidth = 80;
   const rightColWidth = 70;
-
+  
   let formaPagoLines = [];
   let leftHeight = 0;
   if (modelo.formaPago) {
@@ -1428,11 +1416,11 @@ async function exportarPDFNc() {
     formaPagoLines = doc.splitTextToSize(modelo.formaPago, leftColWidth - 10);
     leftHeight = 20 + (formaPagoLines.length * 5);
   }
-
+  
   const rightHeight = 42;
   const maxHeight = Math.max(leftHeight, rightHeight);
   let columnY = yAfterTable;
-
+  
   const pageHeight = doc.internal.pageSize.getHeight();
   if (columnY + maxHeight + 55 > pageHeight - 15) {
     doc.addPage();
@@ -1440,26 +1428,26 @@ async function exportarPDFNc() {
     const compactY = addCompactHeader(doc, modelo, doc.internal.getNumberOfPages());
     columnY = compactY + 6;
   }
-
+  
   // COLUMNA IZQUIERDA: FORMA DE PAGO
   if (modelo.formaPago) {
     const leftX = margin;
     const leftWidth = leftColWidth;
-
+    
     doc.setFillColor(248, 248, 248);
     doc.setDrawColor(200, 160, 0);
     doc.setLineWidth(0.3);
     doc.roundedRect(leftX, columnY, leftWidth, maxHeight, 3, 3, 'FD');
-
+    
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(100, 100, 100);
-    doc.text('FORMA DE PAGO', leftX + leftWidth / 2, columnY + 5, { align: 'center' });
-
+    doc.text('FORMA DE PAGO', leftX + leftWidth/2, columnY + 5, { align: 'center' });
+    
     doc.setDrawColor(200, 160, 0);
     doc.setLineWidth(0.2);
     doc.line(leftX + 5, columnY + 8, leftX + leftWidth - 5, columnY + 8);
-
+    
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(60, 60, 60);
@@ -1469,34 +1457,34 @@ async function exportarPDFNc() {
       textY += 5;
     }
   }
-
+  
   // COLUMNA DERECHA: TARJETA DE TOTALES
   const cardWidth = rightColWidth;
   const cardX = pageWidth - margin - cardWidth;
-
+  
   doc.setFillColor(248, 248, 248);
   doc.setDrawColor(200, 160, 0);
   doc.setLineWidth(0.3);
   doc.roundedRect(cardX, columnY, cardWidth, maxHeight, 3, 3, 'FD');
-
+  
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 100, 100);
-  doc.text('RESUMEN DE LA COTIZACIÓN', cardX + cardWidth / 2, columnY + 5, { align: 'center' });
-
+  doc.text('RESUMEN DE LA COTIZACIÓN', cardX + cardWidth/2, columnY + 5, { align: 'center' });
+  
   doc.setDrawColor(200, 160, 0);
   doc.setLineWidth(0.2);
   doc.line(cardX + 5, columnY + 8, cardX + cardWidth - 5, columnY + 8);
-
+  
   let y = columnY + 12;
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(60, 60, 60);
-
+  
   doc.text('Subtotal sin IVA:', cardX + 5, y);
   doc.text(formatMoney(subtotal), cardX + cardWidth - 5, y, { align: 'right' });
   y += 5;
-
+  
   if (descuento > 0) {
     doc.setTextColor(200, 100, 100);
     doc.text(`Descuento (${descuentoPorcentaje}%):`, cardX + 5, y);
@@ -1504,20 +1492,20 @@ async function exportarPDFNc() {
     y += 5;
     doc.setTextColor(60, 60, 60);
   }
-
+  
   doc.text(`${modelo.ivaSumarioText || 'IVA'}:`, cardX + 5, y);
   doc.text(formatMoney(iva), cardX + cardWidth - 5, y, { align: 'right' });
   y += 6;
-
+  
   doc.setDrawColor(200, 160, 0);
   doc.line(cardX + 5, y - 2, cardX + cardWidth - 5, y - 2);
-
+  
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(200, 160, 0);
   doc.text('TOTAL:', cardX + 5, y + 2);
   doc.text(formatMoney(total), cardX + cardWidth - 5, y + 2, { align: 'right' });
-
+  
   // NOTAS Y CONDICIONES
   let notasY = columnY + maxHeight + 8;
   if (modelo.notas) {
@@ -1525,7 +1513,7 @@ async function exportarPDFNc() {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('NOTAS Y CONDICIONES', margin, notasY);
-
+    
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(60, 60, 60);
     const notasLines = doc.splitTextToSize(modelo.notas, contentWidth);
@@ -1534,20 +1522,20 @@ async function exportarPDFNc() {
   } else {
     notasY += 5;
   }
-
+  
   // ============================================================
   // SECCIÓN DE FIRMAS (simplificada: solo Nombre y Cédula)
   // ============================================================
   let firmaY = notasY + 15;
-
+  
   if (firmaY + 35 > pageHeight - 20) {
     doc.addPage();
     firmaY = 30;
     const compactY = addCompactHeader(doc, modelo, doc.internal.getNumberOfPages());
     firmaY = compactY + 10;
   }
-
-
+  
+  
   // Variables de layout para la sección de firmas
   const firmaClienteX = margin;
   const firmaClienteWidth = (pageWidth - margin * 3) / 2;
@@ -1564,18 +1552,18 @@ async function exportarPDFNc() {
   doc.text('Firma del Cliente', firmaClienteX + firmaClienteWidth / 2, firmaY + 20, { align: 'center' });
   doc.text('Nombre completo:', firmaClienteX + 10, firmaY + 28);
   doc.text('Cédula / RUC:', firmaClienteX + 10, firmaY + 35);
-
+  
   doc.setDrawColor(200, 200, 200);
   doc.line(firmaClienteX + 55, firmaY + 26, firmaClienteX + firmaClienteWidth - 10, firmaY + 26);
   doc.line(firmaClienteX + 55, firmaY + 33, firmaClienteX + firmaClienteWidth - 10, firmaY + 33);
-
+  
   // Pre-llenar nombre y cédula del cliente
   const nombreCliente = modelo.cliente.nombre || '';
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(80, 80, 80);
   doc.text(nombreCliente, firmaClienteX + 58, firmaY + 28);
   doc.text(modelo.cliente.ruc || '', firmaClienteX + 58, firmaY + 35);
-
+  
   // Firma del ingeniero
   doc.line(firmaIngenieroX + 10, firmaY + 15, firmaIngenieroX + firmaClienteWidth - 10, firmaY + 15);
   doc.setFontSize(8);
@@ -1584,19 +1572,19 @@ async function exportarPDFNc() {
   doc.text('Firma del Ingeniero', firmaIngenieroX + firmaClienteWidth / 2, firmaY + 20, { align: 'center' });
   doc.text('Nombre completo:', firmaIngenieroX + 10, firmaY + 28);
   doc.text('Cédula / RUC:', firmaIngenieroX + 10, firmaY + 35);
-
+  
   // Pre-llenar nombre y cédula del ingeniero
   const nombreIngeniero = modelo.elaborador || usuario?.nombre || '';
   const rucIngeniero = modelo.ingenieroRuc || '';
   doc.text(nombreIngeniero, firmaIngenieroX + 58, firmaY + 28);
   doc.text(rucIngeniero, firmaIngenieroX + 58, firmaY + 35);
-
+  
   doc.line(firmaIngenieroX + 58, firmaY + 26, firmaIngenieroX + firmaClienteWidth - 10, firmaY + 26);
   doc.line(firmaIngenieroX + 58, firmaY + 33, firmaIngenieroX + firmaClienteWidth - 10, firmaY + 33);
-
+  
   _actualizarLoadingPdf('Finalizando documento...', 90);
   await new Promise(r => setTimeout(r, 200));
-
+  
   // Pie de página
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
@@ -1613,7 +1601,7 @@ async function exportarPDFNc() {
   }
 
   doc.save(`${modelo.numero}.pdf`);
-
+  
   _actualizarLoadingPdf('¡Listo! Descargando…', 100);
   await new Promise(r => setTimeout(r, 400));
   _ocultarLoadingPdf();
@@ -1630,7 +1618,7 @@ async function exportarPDF() {
 
   const modelo = construirModeloPdfGuardada(cotActual);
   // Elaborador e ingenieroRuc se toman siempre del perfil del usuario
-  modelo.elaborador = (() => { const n = usuario?.nombre || ''; const a = usuario?.apellido || ''; return a ? `${n} ${a}` : n; })();
+  modelo.elaborador = (()=>{const n=usuario?.nombre||'';const a=usuario?.apellido||'';return a?`${n} ${a}`:n;})();
   modelo.ingenieroRuc = usuario?.cedula || '';
 
   _actualizarLoadingPdf('Generando PDF...', 35);
@@ -1665,7 +1653,7 @@ async function exportarPDF() {
     doc.text('Servicios Eléctricos y Seguridad Tapia', margin + (logoImg ? 30 : 0), y + 14);
     doc.text('Cotización formal para su proyecto. Valide plazos y especificaciones técnicas.', margin + (logoImg ? 30 : 0), y + 20);
     doc.text(`Documento elaborado por: ${modelo.elaborador || usuario?.nombre || ''}`, margin + (logoImg ? 30 : 0), y + 26);
-
+    
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
@@ -1676,11 +1664,11 @@ async function exportarPDF() {
     doc.setFontSize(8);
     doc.setTextColor(80, 80, 80);
     doc.text(`${modelo.fechaFmt} · Válida ${modelo.validez} días`, pageWidth - margin, y + 24, { align: 'right' });
-
+    
     doc.setDrawColor(200, 160, 0);
     doc.setLineWidth(0.5);
     doc.line(margin, y + 34, pageWidth - margin, y + 34);
-
+    
     y += 44;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -1697,7 +1685,7 @@ async function exportarPDF() {
     if (modelo.cliente.email) doc.text(modelo.cliente.email, margin, yLine);
     yLine += 5;
     if (modelo.cliente.dir) doc.text(modelo.cliente.dir, margin, yLine);
-
+    
     yLine += 8;
     if (modelo.descripcionTrabajo) {
       doc.setFont('helvetica', 'bold');
@@ -1757,7 +1745,7 @@ async function exportarPDF() {
       5: { cellWidth: 12, halign: 'center' },
       6: { cellWidth: 22, halign: 'right' }
     },
-    didDrawPage: function (data) {
+    didDrawPage: function(data) {
       if (data.pageNumber === 1) {
         if (data.startY !== firstHeaderY + 2) {
           data.startY = firstHeaderY + 2;
@@ -1777,7 +1765,7 @@ async function exportarPDF() {
   let yAfterTable = doc.lastAutoTable.finalY + 4;
   const leftColWidth = 80;
   const rightColWidth = 70;
-
+  
   let formaPagoLines = [];
   let leftHeight = 0;
   if (modelo.formaPago) {
@@ -1786,11 +1774,11 @@ async function exportarPDF() {
     formaPagoLines = doc.splitTextToSize(modelo.formaPago, leftColWidth - 10);
     leftHeight = 20 + (formaPagoLines.length * 5);
   }
-
+  
   const rightHeight = 42;
   const maxHeight = Math.max(leftHeight, rightHeight);
   let columnY = yAfterTable;
-
+  
   const pageHeight = doc.internal.pageSize.getHeight();
   if (columnY + maxHeight + 55 > pageHeight - 15) {
     doc.addPage();
@@ -1798,25 +1786,25 @@ async function exportarPDF() {
     const compactY = addCompactHeader(doc, modelo, doc.internal.getNumberOfPages());
     columnY = compactY + 6;
   }
-
+  
   if (modelo.formaPago) {
     const leftX = margin;
     const leftWidth = leftColWidth;
-
+    
     doc.setFillColor(248, 248, 248);
     doc.setDrawColor(200, 160, 0);
     doc.setLineWidth(0.3);
     doc.roundedRect(leftX, columnY, leftWidth, maxHeight, 3, 3, 'FD');
-
+    
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(100, 100, 100);
-    doc.text('FORMA DE PAGO', leftX + leftWidth / 2, columnY + 5, { align: 'center' });
-
+    doc.text('FORMA DE PAGO', leftX + leftWidth/2, columnY + 5, { align: 'center' });
+    
     doc.setDrawColor(200, 160, 0);
     doc.setLineWidth(0.2);
     doc.line(leftX + 5, columnY + 8, leftX + leftWidth - 5, columnY + 8);
-
+    
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(60, 60, 60);
@@ -1826,33 +1814,33 @@ async function exportarPDF() {
       textY += 5;
     }
   }
-
+  
   const cardWidth = rightColWidth;
   const cardX = pageWidth - margin - cardWidth;
-
+  
   doc.setFillColor(248, 248, 248);
   doc.setDrawColor(200, 160, 0);
   doc.setLineWidth(0.3);
   doc.roundedRect(cardX, columnY, cardWidth, maxHeight, 3, 3, 'FD');
-
+  
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 100, 100);
-  doc.text('RESUMEN DE LA COTIZACIÓN', cardX + cardWidth / 2, columnY + 5, { align: 'center' });
-
+  doc.text('RESUMEN DE LA COTIZACIÓN', cardX + cardWidth/2, columnY + 5, { align: 'center' });
+  
   doc.setDrawColor(200, 160, 0);
   doc.setLineWidth(0.2);
   doc.line(cardX + 5, columnY + 8, cardX + cardWidth - 5, columnY + 8);
-
+  
   let y = columnY + 12;
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(60, 60, 60);
-
+  
   doc.text('Subtotal sin IVA:', cardX + 5, y);
   doc.text(formatMoney(subtotal), cardX + cardWidth - 5, y, { align: 'right' });
   y += 5;
-
+  
   if (descuento > 0) {
     doc.setTextColor(200, 100, 100);
     doc.text(`Descuento (${descuentoPorcentaje}%):`, cardX + 5, y);
@@ -1860,27 +1848,27 @@ async function exportarPDF() {
     y += 5;
     doc.setTextColor(60, 60, 60);
   }
-
+  
   doc.text(`${modelo.ivaSumarioText || 'IVA'}:`, cardX + 5, y);
   doc.text(formatMoney(iva), cardX + cardWidth - 5, y, { align: 'right' });
   y += 6;
-
+  
   doc.setDrawColor(200, 160, 0);
   doc.line(cardX + 5, y - 2, cardX + cardWidth - 5, y - 2);
-
+  
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(200, 160, 0);
   doc.text('TOTAL:', cardX + 5, y + 2);
   doc.text(formatMoney(total), cardX + cardWidth - 5, y + 2, { align: 'right' });
-
+  
   let notasY = columnY + maxHeight + 8;
   if (modelo.notas) {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('NOTAS Y CONDICIONES', margin, notasY);
-
+    
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(60, 60, 60);
     const notasLines = doc.splitTextToSize(modelo.notas, contentWidth);
@@ -1889,33 +1877,33 @@ async function exportarPDF() {
   } else {
     notasY += 5;
   }
-
+  
   // SECCIÓN DE FIRMAS
   let firmaY = notasY + 15;
-
+  
   if (firmaY + 35 > pageHeight - 20) {
     doc.addPage();
     firmaY = 30;
     const compactY = addCompactHeader(doc, modelo, doc.internal.getNumberOfPages());
     firmaY = compactY + 10;
   }
-
+  
   doc.setDrawColor(200, 160, 0);
   doc.setLineWidth(0.3);
   doc.line(margin, firmaY - 5, pageWidth - margin, firmaY - 5);
-
+  
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 100, 100);
-  // doc.text('ACEPTACIÓN DE LA COTIZACIÓN', pageWidth / 2, firmaY, { align: 'center' });
-
+ // doc.text('ACEPTACIÓN DE LA COTIZACIÓN', pageWidth / 2, firmaY, { align: 'center' });
+  
   const firmaClienteX = margin;
   const firmaClienteWidth = (pageWidth - margin * 3) / 2;
   const firmaIngenieroX = pageWidth - margin - firmaClienteWidth;
-
+  
   doc.setDrawColor(180, 180, 180);
   doc.setLineWidth(0.2);
-
+  
   doc.line(firmaClienteX + 10, firmaY + 15, firmaClienteX + firmaClienteWidth - 10, firmaY + 15);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
@@ -1923,17 +1911,17 @@ async function exportarPDF() {
   doc.text('Firma del Cliente', firmaClienteX + firmaClienteWidth / 2, firmaY + 20, { align: 'center' });
   doc.text('Nombre completo:', firmaClienteX + 10, firmaY + 28);
   doc.text('Cédula / RUC:', firmaClienteX + 10, firmaY + 35);
-
+  
   doc.setDrawColor(200, 200, 200);
   doc.line(firmaClienteX + 55, firmaY + 26, firmaClienteX + firmaClienteWidth - 10, firmaY + 26);
   doc.line(firmaClienteX + 55, firmaY + 33, firmaClienteX + firmaClienteWidth - 10, firmaY + 33);
-
+  
   const nombreCliente = modelo.cliente.nombre || '';
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(80, 80, 80);
   doc.text(nombreCliente, firmaClienteX + 58, firmaY + 28);
   doc.text(modelo.cliente.ruc || '', firmaClienteX + 58, firmaY + 35);
-
+  
   doc.line(firmaIngenieroX + 10, firmaY + 15, firmaIngenieroX + firmaClienteWidth - 10, firmaY + 15);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
@@ -1941,18 +1929,18 @@ async function exportarPDF() {
   doc.text('Firma del Ingeniero', firmaIngenieroX + firmaClienteWidth / 2, firmaY + 20, { align: 'center' });
   doc.text('Nombre completo:', firmaIngenieroX + 10, firmaY + 28);
   doc.text('Cédula / RUC:', firmaIngenieroX + 10, firmaY + 35);
-
+  
   const nombreIngeniero = modelo.elaborador || usuario?.nombre || '';
   const rucIngeniero = modelo.ingenieroRuc || '';
   doc.text(nombreIngeniero, firmaIngenieroX + 58, firmaY + 28);
   doc.text(rucIngeniero, firmaIngenieroX + 58, firmaY + 35);
-
+  
   doc.line(firmaIngenieroX + 58, firmaY + 26, firmaIngenieroX + firmaClienteWidth - 10, firmaY + 26);
   doc.line(firmaIngenieroX + 58, firmaY + 33, firmaIngenieroX + firmaClienteWidth - 10, firmaY + 33);
-
+  
   _actualizarLoadingPdf('Finalizando documento...', 90);
   await new Promise(r => setTimeout(r, 200));
-
+  
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
@@ -1968,7 +1956,7 @@ async function exportarPDF() {
   }
 
   doc.save(`${modelo.numero}.pdf`);
-
+  
   _actualizarLoadingPdf('¡Listo! Descargando…', 100);
   await new Promise(r => setTimeout(r, 400));
   _ocultarLoadingPdf();
@@ -1977,225 +1965,225 @@ async function exportarPDF() {
 //-------==============================================================================
 
 /* Utilidades jhonatan */
-function openModal(id) { document.getElementById(id).classList.add('on'); refreshIcons(); }
-function closeModal(id) { document.getElementById(id).classList.remove('on'); }
-function setBL(id, load, txt) {
-  const b = document.getElementById(id); if (!b) return;
-  b.disabled = !!load;
-  if (load || txt === undefined) return;
-  const lbl = b.querySelector('.btn-lbl');
-  if (lbl) lbl.textContent = txt;
+function openModal(id){document.getElementById(id).classList.add('on');refreshIcons();}
+function closeModal(id){document.getElementById(id).classList.remove('on');}
+function setBL(id,load,txt){
+  const b=document.getElementById(id);if(!b)return;
+  b.disabled=!!load;
+  if(load||txt===undefined)return;
+  const lbl=b.querySelector('.btn-lbl');
+  if(lbl)lbl.textContent=txt;
 }
 let toastT;
-function toast(msg, tipo = 'ok') {
-  const el = document.getElementById('toast');
-  const pref = tipo === 'ok' ? '\u2705 ' : tipo === 'err' ? '\u274C ' : tipo === 'info' ? '\u2728 ' : '';
-  el.textContent = pref + msg;
-  el.className = 'show ' + (tipo === 'err' ? 'err' : tipo === 'info' ? 'info' : 'ok');
-  clearTimeout(toastT); toastT = setTimeout(() => { el.className = ''; el.textContent = ''; }, tipo === 'info' ? 5000 : 4000);
+function toast(msg,tipo='ok'){
+  const el=document.getElementById('toast');
+  const pref=tipo==='ok'?'\u2705 ':tipo==='err'?'\u274C ':tipo==='info'?'\u2728 ':'';
+  el.textContent=pref+msg;
+  el.className='show '+(tipo==='err'?'err':tipo==='info'?'info':'ok');
+  clearTimeout(toastT);toastT=setTimeout(()=>{el.className='';el.textContent='';},tipo==='info'?5000:4000);
 }
 // ─── PERFIL / USER DROPDOWN ────────────────────────────────────
-function _actualizarUiUsuario() {
-  const nombre = usuario?.nombre || '';
-  const apellido = usuario?.apellido || '';
-  const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
-  const inicial = nombre[0]?.toUpperCase() || '?';
+function _actualizarUiUsuario(){
+  const nombre=usuario?.nombre||'';
+  const apellido=usuario?.apellido||'';
+  const nombreCompleto=apellido?`${nombre} ${apellido}`:nombre;
+  const inicial=nombre[0]?.toUpperCase()||'?';
   // sidebar
-  const nmEl = document.getElementById('user-nm');
-  const avEl = document.getElementById('user-av');
-  if (nmEl) nmEl.textContent = nombreCompleto;
-  if (avEl) avEl.textContent = inicial;
+  const nmEl=document.getElementById('user-nm');
+  const avEl=document.getElementById('user-av');
+  if(nmEl)nmEl.textContent=nombreCompleto;
+  if(avEl)avEl.textContent=inicial;
   // dropdown
-  const ddAv = document.getElementById('dd-av');
-  const ddNm = document.getElementById('dd-nombre');
-  const ddEm = document.getElementById('dd-email');
-  const ddCed = document.getElementById('dd-cedula');
-  if (ddAv) ddAv.textContent = inicial;
-  if (ddNm) ddNm.textContent = nombreCompleto;
-  if (ddEm) ddEm.textContent = usuario?.email || '';
-  if (ddCed) ddCed.textContent = usuario?.cedula ? `CI/RUC: ${usuario.cedula}` : '';
+  const ddAv=document.getElementById('dd-av');
+  const ddNm=document.getElementById('dd-nombre');
+  const ddEm=document.getElementById('dd-email');
+  const ddCed=document.getElementById('dd-cedula');
+  if(ddAv)ddAv.textContent=inicial;
+  if(ddNm)ddNm.textContent=nombreCompleto;
+  if(ddEm)ddEm.textContent=usuario?.email||'';
+  if(ddCed)ddCed.textContent=usuario?.cedula?`CI/RUC: ${usuario.cedula}`:'';
 }
-function toggleUserDropdown(e) {
+function toggleUserDropdown(e){
   e.stopPropagation();
-  const card = document.getElementById('user-card-btn');
-  const dd = document.getElementById('user-dropdown');
-  if (!dd || !card) return;
-  const isOpen = dd.classList.contains('open');
-  if (isOpen) {
-    dd.style.display = 'none'; dd.classList.remove('open');
-    card.classList.remove('dd-open'); card.setAttribute('aria-expanded', 'false');
+  const card=document.getElementById('user-card-btn');
+  const dd=document.getElementById('user-dropdown');
+  if(!dd||!card)return;
+  const isOpen=dd.classList.contains('open');
+  if(isOpen){
+    dd.style.display='none';dd.classList.remove('open');
+    card.classList.remove('dd-open');card.setAttribute('aria-expanded','false');
   } else {
     // Calcular posición fija basada en la tarjeta del usuario
-    const rect = card.getBoundingClientRect();
-    dd.style.display = 'block';
-    dd.style.left = rect.left + 'px';
-    dd.style.width = rect.width + 'px';
+    const rect=card.getBoundingClientRect();
+    dd.style.display='block';
+    dd.style.left=rect.left+'px';
+    dd.style.width=rect.width+'px';
     // Intentar arriba primero, si no cabe abajo
-    const ddH = dd.offsetHeight || 200;
-    if (rect.top - ddH - 8 > 0) {
-      dd.style.top = (rect.top - ddH - 8) + 'px';
+    const ddH=dd.offsetHeight||200;
+    if(rect.top-ddH-8>0){
+      dd.style.top=(rect.top-ddH-8)+'px';
     } else {
-      dd.style.top = (rect.bottom + 8) + 'px';
+      dd.style.top=(rect.bottom+8)+'px';
     }
     dd.classList.add('open');
-    card.classList.add('dd-open'); card.setAttribute('aria-expanded', 'true');
+    card.classList.add('dd-open');card.setAttribute('aria-expanded','true');
   }
 }
-document.addEventListener('click', function (e) {
-  const card = document.getElementById('user-card-btn');
-  const dd = document.getElementById('user-dropdown');
-  if (dd && card && !card.contains(e.target) && !dd.contains(e.target)) {
-    dd.style.display = 'none'; dd.classList.remove('open');
-    card.classList.remove('dd-open'); card.setAttribute('aria-expanded', 'false');
+document.addEventListener('click',function(e){
+  const card=document.getElementById('user-card-btn');
+  const dd=document.getElementById('user-dropdown');
+  if(dd&&card&&!card.contains(e.target)&&!dd.contains(e.target)){
+    dd.style.display='none';dd.classList.remove('open');
+    card.classList.remove('dd-open');card.setAttribute('aria-expanded','false');
   }
 });
-function abrirEditarPerfil() {
+function abrirEditarPerfil(){
   // cerrar dropdown
-  const dd = document.getElementById('user-dropdown');
-  const card = document.getElementById('user-card-btn');
-  if (dd) { dd.style.display = 'none'; dd.classList.remove('open'); }
-  if (card) { card.classList.remove('dd-open'); card.setAttribute('aria-expanded', 'false'); }
+  const dd=document.getElementById('user-dropdown');
+  const card=document.getElementById('user-card-btn');
+  if(dd){dd.style.display='none';dd.classList.remove('open');}
+  if(card){card.classList.remove('dd-open');card.setAttribute('aria-expanded','false');}
   // rellenar modal
-  const inicial = (usuario?.nombre || '?')[0].toUpperCase();
-  const avBig = document.getElementById('perfil-av-big');
-  if (avBig) avBig.textContent = inicial;
-  const s = v => document.getElementById(v);
-  if (s('perfil-nombre')) s('perfil-nombre').value = usuario?.nombre || '';
-  if (s('perfil-apellido')) s('perfil-apellido').value = usuario?.apellido || '';
-  if (s('perfil-cedula')) s('perfil-cedula').value = usuario?.cedula || '';
-  if (s('perfil-email')) s('perfil-email').value = usuario?.email || '';
-  const errEl = document.getElementById('perfil-err');
-  if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
+  const inicial=(usuario?.nombre||'?')[0].toUpperCase();
+  const avBig=document.getElementById('perfil-av-big');
+  if(avBig)avBig.textContent=inicial;
+  const s=v=>document.getElementById(v);
+  if(s('perfil-nombre'))s('perfil-nombre').value=usuario?.nombre||'';
+  if(s('perfil-apellido'))s('perfil-apellido').value=usuario?.apellido||'';
+  if(s('perfil-cedula'))s('perfil-cedula').value=usuario?.cedula||'';
+  if(s('perfil-email'))s('perfil-email').value=usuario?.email||'';
+  const errEl=document.getElementById('perfil-err');
+  if(errEl){errEl.textContent='';errEl.classList.remove('show');}
   openModal('m-perfil');
   refreshIcons();
 }
-async function guardarPerfil() {
-  if (!usuario?.id) { toast('Error: sesión no válida, recarga la página', 'err'); return; }
-  const nombre = (document.getElementById('perfil-nombre')?.value || '').trim();
-  const apellido = (document.getElementById('perfil-apellido')?.value || '').trim();
-  const cedula = (document.getElementById('perfil-cedula')?.value || '').trim();
-  const emailInput = (document.getElementById('perfil-email')?.value || '').trim();
-  const email = emailInput || usuario?.email || '';
-  const errEl = document.getElementById('perfil-err');
-  if (!nombre) {
-    if (errEl) { errEl.textContent = 'El nombre es requerido'; errEl.classList.add('show'); }
+async function guardarPerfil(){
+  if(!usuario?.id){toast('Error: sesión no válida, recarga la página','err');return;}
+  const nombre=(document.getElementById('perfil-nombre')?.value||'').trim();
+  const apellido=(document.getElementById('perfil-apellido')?.value||'').trim();
+  const cedula=(document.getElementById('perfil-cedula')?.value||'').trim();
+  const emailInput=(document.getElementById('perfil-email')?.value||'').trim();
+  const email=emailInput||usuario?.email||'';
+  const errEl=document.getElementById('perfil-err');
+  if(!nombre){
+    if(errEl){errEl.textContent='El nombre es requerido';errEl.classList.add('show');}
     return;
   }
-  if (!email) {
-    if (errEl) { errEl.textContent = 'El email es requerido'; errEl.classList.add('show'); }
+  if(!email){
+    if(errEl){errEl.textContent='El email es requerido';errEl.classList.add('show');}
     return;
   }
-  if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
-  const btn = document.getElementById('btn-save-perfil');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" style="width:14px;height:14px"></i> Guardando…'; refreshIcons(); }
+  if(errEl){errEl.textContent='';errEl.classList.remove('show');}
+  const btn=document.getElementById('btn-save-perfil');
+  if(btn){btn.disabled=true;btn.innerHTML='<i data-lucide="loader-2" style="width:14px;height:14px"></i> Guardando…';refreshIcons();}
 
-  const body = { nombre, apellido: apellido || '', cedula: cedula || '', email };
-  const r = await api(`users?id=${usuario.id}`, { method: 'PUT', body: JSON.stringify(body) });
+  const body={nombre,apellido:apellido||'',cedula:cedula||'',email};
+  const r=await api(`users?id=${usuario.id}`,{method:'PUT',body:JSON.stringify(body)});
 
-  if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="save" style="width:14px;height:14px"></i> Guardar'; refreshIcons(); }
+  if(btn){btn.disabled=false;btn.innerHTML='<i data-lucide="save" style="width:14px;height:14px"></i> Guardar';refreshIcons();}
 
-  if (isErr(r)) {
-    const msg = r.msg || 'Error al guardar en el servidor';
-    if (errEl) { errEl.textContent = msg; errEl.classList.add('show'); }
+  if(isErr(r)){
+    const msg=r.msg||'Error al guardar en el servidor';
+    if(errEl){errEl.textContent=msg;errEl.classList.add('show');}
     return;
   }
   // Actualizar objeto local SOLO con la respuesta del servidor
-  usuario = { ...usuario, ...r };
+  usuario={...usuario,...r};
   _actualizarUiUsuario();
   closeModal('m-perfil');
-  toast('✨ Perfil guardado correctamente', 'ok');
+  toast('✨ Perfil guardado correctamente','ok');
 }
-function logout() { localStorage.clear(); location.href = '/'; }
+function logout(){localStorage.clear();location.href='/';}
 
-document.querySelectorAll('.modal-bg').forEach(bg => bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('on'); }));
-document.addEventListener('click', e => {
-  const d = document.getElementById('nc-results-drop');
-  if (d && !d.contains(e.target) && e.target.id !== 'nc-bi') d.style.display = 'none';
+document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('on');}));
+document.addEventListener('click',e=>{
+  const d=document.getElementById('nc-results-drop');
+  if(d&&!d.contains(e.target)&&e.target.id!=='nc-bi')d.style.display='none';
 });
 
 /* ═══════════ CATEGORÍAS (admin) ═══════════ */
-function renderCatsAdmin() {
-  const el = document.getElementById('tbl-cats-admin'); if (!el) return;
-  if (!cats.length) { el.innerHTML = '<div class="empty"><p>Sin categor\u00edas</p></div>'; return; }
-  el.innerHTML = `<table><thead><tr><th>Nombre</th><th>Descripci\u00f3n</th><th>Materiales</th></tr></thead>
-  <tbody>${cats.map(c => `<tr>
+function renderCatsAdmin(){
+  const el=document.getElementById('tbl-cats-admin');if(!el)return;
+  if(!cats.length){el.innerHTML='<div class="empty"><p>Sin categor\u00edas</p></div>';return;}
+  el.innerHTML=`<table><thead><tr><th>Nombre</th><th>Descripci\u00f3n</th><th>Materiales</th></tr></thead>
+  <tbody>${cats.map(c=>`<tr>
     <td style="font-weight:600">${c.nombre}</td>
-    <td style="color:var(--t3)">${c.descripcion || '\u2014'}</td>
-    <td style="color:var(--t3);font-size:12px">${mats.filter(m => m.categoria_id === c.id).length} materiales</td>
+    <td style="color:var(--t3)">${c.descripcion||'\u2014'}</td>
+    <td style="color:var(--t3);font-size:12px">${mats.filter(m=>m.categoria_id===c.id).length} materiales</td>
   </tr>`).join('')}</tbody></table>`;
 }
-function abrirModalCat() {
-  sSet('cat-nombre', ''); sSet('cat-desc', '');
-  document.getElementById('cat-err').className = 'alert err';
-  document.getElementById('m-cat-title').textContent = 'Nueva Categor\u00eda';
+function abrirModalCat(){
+  sSet('cat-nombre','');sSet('cat-desc','');
+  document.getElementById('cat-err').className='alert err';
+  document.getElementById('m-cat-title').textContent='Nueva Categor\u00eda';
   openModal('m-cat');
 }
-async function guardarCat() {
-  const nombre = sGet('cat-nombre').trim();
-  const desc = sGet('cat-desc').trim();
-  const errEl = document.getElementById('cat-err');
-  if (!nombre) { errEl.textContent = 'El nombre es requerido'; errEl.classList.add('show'); return; }
-  errEl.classList.remove('show'); setBL('btn-save-cat', true);
-  const r = await api('categories', { method: 'POST', body: JSON.stringify({ nombre, descripcion: desc }) });
-  setBL('btn-save-cat', false, 'Guardar');
-  if (isErr(r)) { errEl.textContent = r.msg; errEl.classList.add('show'); return; }
-  cats.push(r); poblarCats(); renderCatsAdmin();
-  closeModal('m-cat'); toast('Categor\u00eda creada \u2713', 'ok');
+async function guardarCat(){
+  const nombre=sGet('cat-nombre').trim();
+  const desc=sGet('cat-desc').trim();
+  const errEl=document.getElementById('cat-err');
+  if(!nombre){errEl.textContent='El nombre es requerido';errEl.classList.add('show');return;}
+  errEl.classList.remove('show');setBL('btn-save-cat',true);
+  const r=await api('categories',{method:'POST',body:JSON.stringify({nombre,descripcion:desc})});
+  setBL('btn-save-cat',false,'Guardar');
+  if(isErr(r)){errEl.textContent=r.msg;errEl.classList.add('show');return;}
+  cats.push(r);poblarCats();renderCatsAdmin();
+  closeModal('m-cat');toast('Categor\u00eda creada \u2713','ok');
 }
 
 /* ═══════════ USUARIOS (admin) ═══════════ */
-let usuarios = [];
-function rolIconHTML(u) {
-  if (u.rol === 'admin') {
-    return `<span class="role-badge r-admin role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:3px"><path d="M2 4l3 12h14l3-12-6 7.5L12 4l-4 7.5z"/></svg>Admin Principal</span>`;
-  } else if (u.permisos === 'admin') {
-    return `<span class="role-badge r-admin-delegado role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:3px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Acceso Admin</span>`;
+let usuarios=[];
+function rolIconHTML(u){
+  if(u.rol==='admin'){
+    return`<span class="role-badge r-admin role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:3px"><path d="M2 4l3 12h14l3-12-6 7.5L12 4l-4 7.5z"/></svg>Admin Principal</span>`;
+  } else if(u.permisos==='admin'){
+    return`<span class="role-badge r-admin-delegado role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:3px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Acceso Admin</span>`;
   }
-  return `<span class="role-badge r-vendedor role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:3px"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Vendedor</span>`;
+  return`<span class="role-badge r-vendedor role-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:3px"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Vendedor</span>`;
 }
-async function cargarUsuarios() {
-  const el = document.getElementById('tbl-usuarios'); if (!el) return;
-  el.innerHTML = '<div class="loading"><div class="spin"></div><p>Cargando\u2026</p></div>';
-  const r = await api('users');
-  if (isErr(r)) { el.innerHTML = `<div class="empty"><p>${r.msg}</p></div>`; return; }
-  usuarios = r;
-  const isPrincipalAdmin = usuario?.rol === 'admin';
-  el.innerHTML = `<table><thead><tr><th>Nombre</th><th>Email</th><th>Rol / Nivel</th><th>Acceso Admin</th><th>Compartir datos</th><th>Estado</th></tr></thead>
-  <tbody>${usuarios.map(u => `<tr>
+async function cargarUsuarios(){
+  const el=document.getElementById('tbl-usuarios');if(!el)return;
+  el.innerHTML='<div class="loading"><div class="spin"></div><p>Cargando\u2026</p></div>';
+  const r=await api('users');
+  if(isErr(r)){el.innerHTML=`<div class="empty"><p>${r.msg}</p></div>`;return;}
+  usuarios=r;
+  const isPrincipalAdmin=usuario?.rol==='admin';
+  el.innerHTML=`<table><thead><tr><th>Nombre</th><th>Email</th><th>Rol / Nivel</th><th>Acceso Admin</th><th>Compartir datos</th><th>Estado</th></tr></thead>
+  <tbody>${usuarios.map(u=>`<tr>
     <td style="font-weight:600">${u.nombre}</td>
     <td style="color:var(--t3);font-size:13px">${u.email}</td>
     <td>${rolIconHTML(u)}</td>
-    <td>${u.rol !== 'admin' ? `<div style="display:flex;align-items:center;gap:8px">
-      ${isPrincipalAdmin ? `<div onclick="togglePermisoAdmin(${u.id},${u.permisos === 'admin' ? 'false' : 'true'})"
-        style="width:36px;height:20px;border-radius:99px;background:${u.permisos === 'admin' ? 'rgba(192,132,252,.4)' : 'var(--s4)'};position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;border:1px solid var(--bd2)">
-        <div style="position:absolute;top:3px;left:${u.permisos === 'admin' ? '18' : '3'}px;width:12px;height:12px;border-radius:50%;background:${u.permisos === 'admin' ? '#c084fc' : 'var(--t3)'};transition:left .2s"></div>
+    <td>${u.rol!=='admin'?`<div style="display:flex;align-items:center;gap:8px">
+      ${isPrincipalAdmin?`<div onclick="togglePermisoAdmin(${u.id},${u.permisos==='admin'?'false':'true'})"
+        style="width:36px;height:20px;border-radius:99px;background:${u.permisos==='admin'?'rgba(192,132,252,.4)':'var(--s4)'};position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;border:1px solid var(--bd2)">
+        <div style="position:absolute;top:3px;left:${u.permisos==='admin'?'18':'3'}px;width:12px;height:12px;border-radius:50%;background:${u.permisos==='admin'?'#c084fc':'var(--t3)'};transition:left .2s"></div>
       </div>
-      <span style="color:${u.permisos === 'admin' ? '#c084fc' : 'var(--t3)'};font-size:12px;font-weight:600">${u.permisos === 'admin' ? 'Con acceso' : 'Sin acceso'}</span>`
-        : `<span style="font-size:12px;color:var(--t3)">Solo el admin principal puede cambiar</span>`}
-    </div>`: `<span style="font-size:12px;color:var(--t3)">Es administrador principal</span>`}</td>
+      <span style="color:${u.permisos==='admin'?'#c084fc':'var(--t3)'};font-size:12px;font-weight:600">${u.permisos==='admin'?'Con acceso':'Sin acceso'}</span>`
+      :`<span style="font-size:12px;color:var(--t3)">Solo el admin principal puede cambiar</span>`}
+    </div>`:`<span style="font-size:12px;color:var(--t3)">Es administrador principal</span>`}</td>
     <td><div style="display:flex;align-items:center;gap:6px">
-      <div style="width:10px;height:10px;border-radius:50%;background:${u.compartir_datos ? 'var(--ok)' : 'var(--s4)'}"></div>
-      <span style="font-size:12px;color:${u.compartir_datos ? 'var(--ok)' : 'var(--t3)'};">${u.compartir_datos ? 'Activo' : 'Inactivo'}</span>
+      <div style="width:10px;height:10px;border-radius:50%;background:${u.compartir_datos?'var(--ok)':'var(--s4)'}"></div>
+      <span style="font-size:12px;color:${u.compartir_datos?'var(--ok)':'var(--t3)'};">${u.compartir_datos?'Activo':'Inactivo'}</span>
     </div></td>
     <td>
-      ${(() => {
-      const fiveMin = 5 * 60 * 1000;
-      const online = u.last_seen && (Date.now() - new Date(u.last_seen).getTime()) < fiveMin;
-      const color = online ? 'var(--ok)' : 'rgba(144,144,170,.4)';
-      const pulse = online ? '<span style="position:absolute;inset:0;border-radius:50%;background:var(--ok);animation:pulse-dot .8s ease-out infinite;opacity:.6"></span>' : '';
-      const label = online ? 'Conectado' : 'Inactivo';
-      const labelColor = online ? 'var(--ok)' : 'var(--t3)';
-      return '<div style="display:flex;align-items:center;gap:7px"><span style="position:relative;display:inline-flex;width:10px;height:10px">' + pulse + '<span style="position:relative;display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + '"></span></span><span style="font-size:12px;font-weight:600;color:' + labelColor + '">' + label + '</span></div>';
-    })()}
+      ${(()=>{
+        const fiveMin = 5*60*1000;
+        const online = u.last_seen && (Date.now() - new Date(u.last_seen).getTime()) < fiveMin;
+        const color = online ? 'var(--ok)' : 'rgba(144,144,170,.4)';
+        const pulse = online ? '<span style="position:absolute;inset:0;border-radius:50%;background:var(--ok);animation:pulse-dot .8s ease-out infinite;opacity:.6"></span>' : '';
+        const label = online ? 'Conectado' : 'Inactivo';
+        const labelColor = online ? 'var(--ok)' : 'var(--t3)';
+        return '<div style="display:flex;align-items:center;gap:7px"><span style="position:relative;display:inline-flex;width:10px;height:10px">'+pulse+'<span style="position:relative;display:inline-block;width:10px;height:10px;border-radius:50%;background:'+color+'"></span></span><span style="font-size:12px;font-weight:600;color:'+labelColor+'">'+label+'</span></div>';
+      })()}
     </td>
   </tr>`).join('')}</tbody></table>`;
 }
-async function togglePermisoAdmin(userId, darPermiso) {
-  if (usuario?.rol !== 'admin') { toast('Solo el administrador principal puede cambiar permisos', 'err'); return; }
-  const permisos = darPermiso ? 'admin' : 'vendedor';
-  const r = await api(`users?id=${userId}`, { method: 'PUT', body: JSON.stringify({ permisos }) });
-  if (isErr(r)) { toast(r.msg, 'err'); return; }
-  toast(darPermiso ? '\u2728 Acceso admin otorgado. El usuario debe re-iniciar sesi\u00f3n.' : 'Acceso revertido a vendedor', 'ok');
+async function togglePermisoAdmin(userId,darPermiso){
+  if(usuario?.rol!=='admin'){toast('Solo el administrador principal puede cambiar permisos','err');return;}
+  const permisos=darPermiso?'admin':'vendedor';
+  const r=await api(`users?id=${userId}`,{method:'PUT',body:JSON.stringify({permisos})});
+  if(isErr(r)){toast(r.msg,'err');return;}
+  toast(darPermiso?'\u2728 Acceso admin otorgado. El usuario debe re-iniciar sesi\u00f3n.':'Acceso revertido a vendedor','ok');
   cargarUsuarios();
 }
 
@@ -2206,66 +2194,66 @@ async function togglePermisoAdmin(userId, darPermiso) {
 // ── Tabla AWG NEC 310.15(B)(16) ─────────────────────────
 const AWG_TABLE = [
   // [awgLabel, mm2, Cu60, Cu75, Cu90, Al75, Al90, RohmKm_Cu]
-  ['#14', 2.08, 15, 20, 25, null, null, 8.45],
-  ['#12', 3.31, 20, 25, 30, 20, 25, 5.31],
-  ['#10', 5.26, 30, 35, 40, 30, 35, 3.33],
-  ['#8', 8.37, 40, 50, 55, 40, 45, 2.09],
-  ['#6', 13.30, 55, 65, 75, 50, 60, 1.32],
-  ['#4', 21.15, 70, 85, 95, 65, 75, 0.829],
-  ['#3', 26.67, 85, 100, 110, 75, 85, 0.657],
-  ['#2', 33.62, 95, 115, 130, 90, 100, 0.521],
-  ['#1', 42.41, 110, 130, 150, 100, 115, 0.413],
-  ['1/0', 53.49, 125, 150, 170, 120, 135, 0.327],
-  ['2/0', 67.43, 145, 175, 195, 135, 150, 0.259],
-  ['3/0', 85.01, 165, 200, 225, 155, 175, 0.206],
-  ['4/0', 107.2, 195, 230, 260, 180, 205, 0.163],
-  ['250', 126.7, 215, 255, 290, 205, 230, 0.138],
-  ['300', 152.0, 240, 285, 320, 230, 260, 0.115],
-  ['350', 177.3, 260, 310, 350, 250, 280, 0.0987],
-  ['400', 202.7, 280, 335, 380, 270, 305, 0.0865],
-  ['500', 253.3, 320, 380, 430, 310, 350, 0.0693],
-  ['600', 304.0, 350, 420, 475, 340, 385, 0.0579],
-  ['700', 354.7, 385, 460, 520, 375, 420, 0.0496],
-  ['750', 380.0, 400, 475, 535, 385, 435, 0.0463],
+  ['#14',   2.08,  15,  20,  25,  null, null, 8.45],
+  ['#12',   3.31,  20,  25,  30,  20,   25,   5.31],
+  ['#10',   5.26,  30,  35,  40,  30,   35,   3.33],
+  ['#8',    8.37,  40,  50,  55,  40,   45,   2.09],
+  ['#6',   13.30,  55,  65,  75,  50,   60,   1.32],
+  ['#4',   21.15,  70,  85,  95,  65,   75,   0.829],
+  ['#3',   26.67,  85, 100, 110,  75,   85,   0.657],
+  ['#2',   33.62, 95,  115, 130,  90,  100,   0.521],
+  ['#1',   42.41, 110, 130, 150, 100,  115,   0.413],
+  ['1/0',  53.49, 125, 150, 170, 120,  135,   0.327],
+  ['2/0',  67.43, 145, 175, 195, 135,  150,   0.259],
+  ['3/0',  85.01, 165, 200, 225, 155,  175,   0.206],
+  ['4/0', 107.2,  195, 230, 260, 180,  205,   0.163],
+  ['250', 126.7,  215, 255, 290, 205,  230,   0.138],
+  ['300', 152.0,  240, 285, 320, 230,  260,   0.115],
+  ['350', 177.3,  260, 310, 350, 250,  280,   0.0987],
+  ['400', 202.7,  280, 335, 380, 270,  305,   0.0865],
+  ['500', 253.3,  320, 380, 430, 310,  350,   0.0693],
+  ['600', 304.0,  350, 420, 475, 340,  385,   0.0579],
+  ['700', 354.7,  385, 460, 520, 375,  420,   0.0496],
+  ['750', 380.0,  400, 475, 535, 385,  435,   0.0463],
 ];
 
 // mm² por AWG para cálculo de caída de tensión (usado en conduit)
 const AWG_AREA_MM2 = {
-  '14': 2.08, '12': 3.31, '10': 5.26, '8': 8.37, '6': 13.30, '4': 21.15, '2': 33.62,
-  '1': 42.41, '1/0': 53.49, '2/0': 67.43, '3/0': 85.01, '4/0': 107.2,
-  '250': 126.7, '350': 177.3, '500': 253.3
+  '14':2.08,'12':3.31,'10':5.26,'8':8.37,'6':13.30,'4':21.15,'2':33.62,
+  '1':42.41,'1/0':53.49,'2/0':67.43,'3/0':85.01,'4/0':107.2,
+  '250':126.7,'350':177.3,'500':253.3
 };
 
 // Área exterior del conductor THHN por AWG (mm²) para fill conduit
 const THHN_AREA = {
-  '14': 8.97, '12': 11.68, '10': 16.77, '8': 24.26, '6': 32.71, '4': 41.61, '2': 53.87,
-  '1': 61.29, '1/0': 72.77, '2/0': 87.1, '3/0': 104.0, '4/0': 125.1,
-  '250': 154.8, '350': 203.2, '500': 271.6
+  '14':8.97,'12':11.68,'10':16.77,'8':24.26,'6':32.71,'4':41.61,'2':53.87,
+  '1':61.29,'1/0':72.77,'2/0':87.1,'3/0':104.0,'4/0':125.1,
+  '250':154.8,'350':203.2,'500':271.6
 };
 
 // Área interna conduits (mm²) — NEC Chapter 9 Table 4
 const CONDUIT_AREA = {
   EMT: [
-    ['1/2"', 78.5], ['3/4"', 131.7], ['1"', 211.0], ['1-1/4"', 355.7], ['1-1/2"', 492.5],
-    ['2"', 807.7], ['2-1/2"', 1307], ['3"', 1924], ['3-1/2"', 2601], ['4"', 3308]
+    ['1/2"',78.5],['3/4"',131.7],['1"',211.0],['1-1/4"',355.7],['1-1/2"',492.5],
+    ['2"',807.7],['2-1/2"',1307],['3"',1924],['3-1/2"',2601],['4"',3308]
   ],
   PVC40: [
-    ['1/2"', 86.0], ['3/4"', 137.1], ['1"', 218.1], ['1-1/4"', 366.4], ['1-1/2"', 493.8],
-    ['2"', 818.0], ['2-1/2"', 1321], ['3"', 1936], ['3-1/2"', 2594], ['4"', 3327]
+    ['1/2"',86.0],['3/4"',137.1],['1"',218.1],['1-1/4"',366.4],['1-1/2"',493.8],
+    ['2"',818.0],['2-1/2"',1321],['3"',1936],['3-1/2"',2594],['4"',3327]
   ],
   IMC: [
-    ['1/2"', 84.9], ['3/4"', 140.5], ['1"', 221.9], ['1-1/4"', 372.8], ['1-1/2"', 508.0],
-    ['2"', 828.3], ['2-1/2"', 1337], ['3"', 1944], ['3-1/2"', 2611], ['4"', 3325]
+    ['1/2"',84.9],['3/4"',140.5],['1"',221.9],['1-1/4"',372.8],['1-1/2"',508.0],
+    ['2"',828.3],['2-1/2"',1337],['3"',1944],['3-1/2"',2611],['4"',3325]
   ],
   RMC: [
-    ['1/2"', 78.9], ['3/4"', 134.8], ['1"', 211.7], ['1-1/4"', 358.2], ['1-1/2"', 486.7],
-    ['2"', 799.0], ['2-1/2"', 1295], ['3"', 1922], ['3-1/2"', 2593], ['4"', 3308]
+    ['1/2"',78.9],['3/4"',134.8],['1"',211.7],['1-1/4"',358.2],['1-1/2"',486.7],
+    ['2"',799.0],['2-1/2"',1295],['3"',1922],['3-1/2"',2593],['4"',3308]
   ]
 };
 
 // Breakers estándar Ecuador (IEC/NTE INEN)
-const BREAKERS_STD = [1, 2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200,
-  250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000];
+const BREAKERS_STD = [1,2,3,4,6,10,16,20,25,32,40,50,63,80,100,125,160,200,
+  250,315,400,500,630,800,1000,1250,1600,2000];
 
 let calcInited = false;
 let cargas = [];
@@ -2275,14 +2263,14 @@ function initCalculadora() {
     calcInited = true;
     // Check DB connection status
     _updateDbBadge('loading');
-    api('electrical-projects').then(r => {
-      _updateDbBadge(isErr(r) ? 'err' : 'ok');
-    }).catch(() => _updateDbBadge('err'));
+    api('electrical-projects').then(r=>{
+      _updateDbBadge(isErr(r)?'err':'ok');
+    }).catch(()=>_updateDbBadge('err'));
     window._ccSistema = '120/240';
     window._ccMaterial = 'Cu';
     window._ccTempCol = 'cu90';
     // Hide Al temp buttons initially (Cu selected by default)
-    ['al75', 'al90'].forEach(k => {
+    ['al75','al90'].forEach(k => {
       const b = document.getElementById('tempcol-' + k);
       if (b) b.style.display = 'none';
     });
@@ -2321,11 +2309,11 @@ function renderAWGTable() {
   tb.innerHTML = AWG_TABLE.map(r => `<tr>
     <td style="font-weight:700;font-family:'DM Mono',monospace">${r[0]}</td>
     <td>${r[1].toFixed(2)}</td>
-    <td>${r[2] ?? '—'}</td>
-    <td>${r[3] ?? '—'}</td>
-    <td style="color:var(--acc);font-weight:600">${r[4] ?? '—'}</td>
-    <td>${r[5] ?? '—'}</td>
-    <td>${r[6] ?? '—'}</td>
+    <td>${r[2]??'—'}</td>
+    <td>${r[3]??'—'}</td>
+    <td style="color:var(--acc);font-weight:600">${r[4]??'—'}</td>
+    <td>${r[5]??'—'}</td>
+    <td>${r[6]??'—'}</td>
     <td style="font-family:'DM Mono',monospace;font-size:12px">${r[7].toFixed(4)}</td>
   </tr>`).join('');
 }
@@ -2337,9 +2325,9 @@ function renderConduitTable() {
   tb.innerHTML = CONDUIT_AREA.EMT.map(([nom, area]) => `<tr>
     <td style="font-weight:700">${nom}</td>
     <td style="font-family:'DM Mono',monospace">${area.toFixed(1)}</td>
-    <td>${(area * 0.53).toFixed(1)}</td>
-    <td>${(area * 0.31).toFixed(1)}</td>
-    <td style="color:var(--acc)">${(area * 0.40).toFixed(1)}</td>
+    <td>${(area*0.53).toFixed(1)}</td>
+    <td>${(area*0.31).toFixed(1)}</td>
+    <td style="color:var(--acc)">${(area*0.40).toFixed(1)}</td>
   </tr>`).join('');
 }
 
@@ -2363,17 +2351,17 @@ function setMaterial(mat) {
   window._ccMaterial = mat;
   // Sync temp col buttons visibility based on material
   const isCu = mat === 'Cu';
-  ['cu60', 'cu75', 'cu90'].forEach(k => {
+  ['cu60','cu75','cu90'].forEach(k => {
     const b = document.getElementById('tempcol-' + k);
     if (b) b.style.display = isCu ? '' : 'none';
   });
-  ['al75', 'al90'].forEach(k => {
+  ['al75','al90'].forEach(k => {
     const b = document.getElementById('tempcol-' + k);
     if (b) b.style.display = !isCu ? '' : 'none';
   });
   // Reset to sensible default
-  if (isCu && !['cu60', 'cu75', 'cu90'].includes(window._ccTempCol)) setTempCol('cu90');
-  else if (!isCu && !['al75', 'al90'].includes(window._ccTempCol)) setTempCol('al90');
+  if (isCu && !['cu60','cu75','cu90'].includes(window._ccTempCol)) setTempCol('cu90');
+  else if (!isCu && !['al75','al90'].includes(window._ccTempCol)) setTempCol('al90');
   else calcCable();
 }
 
@@ -2431,8 +2419,8 @@ const SISTEMAS_EC = {
     label: '120/240 V — Bifásico 3 hilos (domiciliario Ecuador)',
     desc: 'Dos líneas de 120 V + neutro. Tomacorrientes y luz: L–N (120 V). Ducha, cocina, A/C: L1–L2 (240 V).',
     circuitos: [
-      { value: 'mono-ln', label: 'Monofásico L–N (120 V) — tomacorrientes, iluminación' },
-      { value: 'mono-ll', label: 'Monofasico L1–L2 (240 V) — ducha, cocina, A/C' },
+      {value:'mono-ln', label:'Monofásico L–N (120 V) — tomacorrientes, iluminación'},
+      {value:'mono-ll', label:'Monofasico L1–L2 (240 V) — ducha, cocina, A/C'},
     ],
     defaultCircuito: 'mono-ll',
     fases: 1, tension: 240
@@ -2441,7 +2429,7 @@ const SISTEMAS_EC = {
     label: '120 V — Monofásico 2 hilos',
     desc: 'Circuitos de tomacorrientes e iluminación. Un hilo de línea + neutro.',
     circuitos: [
-      { value: 'mono', label: 'Monofásico (120 V)' },
+      {value:'mono', label:'Monofásico (120 V)'},
     ],
     defaultCircuito: 'mono',
     fases: 1, tension: 120
@@ -2450,7 +2438,7 @@ const SISTEMAS_EC = {
     label: '220 V — Monofásico (industrial / equipos)',
     desc: 'Tensión de equipos industriales monofásicos. Dos líneas sin neutro.',
     circuitos: [
-      { value: 'mono', label: 'Monofásico (220 V)' },
+      {value:'mono', label:'Monofásico (220 V)'},
     ],
     defaultCircuito: 'mono',
     fases: 1, tension: 220
@@ -2459,8 +2447,8 @@ const SISTEMAS_EC = {
     label: '380 V — Trifásico 3F (industrial)',
     desc: 'Sistema trifásico industrial. Tres líneas de 220 V entre fase-neutro.',
     circuitos: [
-      { value: 'tri-fn', label: 'Fase–Neutro (220 V)' },
-      { value: 'tri-ff', label: 'Fase–Fase (380 V)' },
+      {value:'tri-fn', label:'Fase–Neutro (220 V)'},
+      {value:'tri-ff', label:'Fase–Fase (380 V)'},
     ],
     defaultCircuito: 'tri-ff',
     fases: 3, tension: 380
@@ -2491,27 +2479,27 @@ function calcCable() {
   const el = document.getElementById('cc-resultado');
   if (!el) return;
 
-  const sys = window._ccSistema || '120/240';
-  const cfg = SISTEMAS_EC[sys] || SISTEMAS_EC['120/240'];
-  const circuito = document.getElementById('cc-circuito')?.value || 'mono-ll';
-  const material = window._ccMaterial || 'Cu';
-  const fp = parseFloat(document.getElementById('cc-fp')?.value) || 0.9;
-  const eff = parseFloat(document.getElementById('cc-eff')?.value) || 0.85;
-  const tempF = parseFloat(document.getElementById('cc-temp')?.value) || 1.0;
-  const agrupF = parseFloat(document.getElementById('cc-agrup')?.value) || 1.0;
+  const sys       = window._ccSistema || '120/240';
+  const cfg       = SISTEMAS_EC[sys] || SISTEMAS_EC['120/240'];
+  const circuito  = document.getElementById('cc-circuito')?.value || 'mono-ll';
+  const material  = window._ccMaterial || 'Cu';
+  const fp        = parseFloat(document.getElementById('cc-fp')?.value) || 0.9;
+  const eff       = parseFloat(document.getElementById('cc-eff')?.value) || 0.85;
+  const tempF     = parseFloat(document.getElementById('cc-temp')?.value) || 1.0;
+  const agrupF    = parseFloat(document.getElementById('cc-agrup')?.value) || 1.0;
   const tipoMotor = parseInt(document.getElementById('cc-motor')?.value) || 0;
-  const longitud = parseFloat(document.getElementById('cc-long')?.value) || 1;
-  const caidaMax = parseFloat(document.getElementById('cc-caida-max')?.value) || 3;
+  const longitud  = parseFloat(document.getElementById('cc-long')?.value) || 1;
+  const caidaMax  = parseFloat(document.getElementById('cc-caida-max')?.value) || 3;
 
   // Determinar tensión de cálculo según sistema y circuito
   let tension = cfg.tension;
-  let nFases = cfg.fases;
+  let nFases  = cfg.fases;
   if (sys === '120/240') {
     tension = circuito === 'mono-ln' ? 120 : 240;
-    nFases = 1;
+    nFases  = 1;
   } else if (sys === '380') {
     tension = circuito === 'tri-fn' ? 220 : 380;
-    nFases = circuito === 'tri-fn' ? 1 : 3;
+    nFases  = circuito === 'tri-fn' ? 1 : 3;
   }
 
   // Corriente de carga
@@ -2537,9 +2525,9 @@ function calcCable() {
 
   // Factor de motor NEC 430.22
   const factorMotor = (tipoMotor === 1 || tipoMotor === 2) ? 1.25 : 1.0;
-  const IdDiseño = Ic * factorMotor;
+  const IdDiseño    = Ic * factorMotor;
   const factorTotal = tempF * agrupF;
-  const IdCorr = IdDiseño / factorTotal;
+  const IdCorr      = IdDiseño / factorTotal;
 
   // ══════════════════════════════════════════════════════════════
   // CÁLCULO A — Límite por Ampacidad (NEC 310.15 / NTE INEN 2345)
@@ -2556,13 +2544,13 @@ function calcCable() {
   // ══════════════════════════════════════════════════════════════
   const rho = material === 'Cu' ? 0.0172 : 0.0282;
   let awgPorCaida = awgPorAmpacidad; // parte del mínimo de ampacidad
-  let caidaReal = 0;
+  let caidaReal   = 0;
 
   if (awgPorAmpacidad) {
     // Caída con el cable mínimo de ampacidad
-    const R0 = rho * longitud / awgPorAmpacidad[1];
+    const R0  = rho * longitud / awgPorAmpacidad[1];
     const Vd0 = Ic * R0 * 2;
-    caidaReal = (Vd0 / tension) * 100;
+    caidaReal  = (Vd0 / tension) * 100;
 
     if (caidaReal > caidaMax) {
       // Necesita cable más grueso por distancia
@@ -2570,8 +2558,8 @@ function calcCable() {
       const candidato = AWG_TABLE.find(r => r[1] >= areaMinVD && r[colIdx] != null);
       if (candidato) {
         awgPorCaida = candidato;
-        const R2 = rho * longitud / candidato[1];
-        caidaReal = (Ic * R2 * 2 / tension) * 100;
+        const R2  = rho * longitud / candidato[1];
+        caidaReal  = (Ic * R2 * 2 / tension) * 100;
       }
     } else {
       // La caída ya cumple con el cable de ampacidad — no cambiar
@@ -2600,15 +2588,15 @@ function calcCable() {
 
   // Indicadores de qué criterio fue limitante
   const limitadoPorAmp = awgFinal && awgPorAmpacidad && awgFinal[0] === awgPorAmpacidad[0] && caidaReal <= caidaMax;
-  const limitadoPorVD = awgFinal && awgPorCaida && awgFinal[0] === awgPorCaida[0] && awgFinal[0] !== awgPorAmpacidad[0];
-  const ambosIguales = awgPorAmpacidad && awgPorCaida && awgPorAmpacidad[0] === awgPorCaida[0];
+  const limitadoPorVD  = awgFinal && awgPorCaida    && awgFinal[0] === awgPorCaida[0]     && awgFinal[0] !== awgPorAmpacidad[0];
+  const ambosIguales   = awgPorAmpacidad && awgPorCaida && awgPorAmpacidad[0] === awgPorCaida[0];
 
   // Recomendación de breaker
-  const pctBreaker = (tipoMotor === 1 || tipoMotor === 2) ? 2.50 : 1.25;
+  const pctBreaker  = (tipoMotor === 1 || tipoMotor === 2) ? 2.50 : 1.25;
   const IbreakerMin = Ic * pctBreaker;
-  const IbreakerRec = BREAKERS_STD.find(b => b >= IbreakerMin) || BREAKERS_STD[BREAKERS_STD.length - 1];
-  const colorCaida = caidaReal > caidaMax ? 'var(--err)' : 'var(--ok)';
-  const polarity = nFases === 3 ? '3 polos' : tension <= 120 ? '2 polos (120 V)' : '2 polos (240 V)';
+  const IbreakerRec = BREAKERS_STD.find(b => b >= IbreakerMin) || BREAKERS_STD[BREAKERS_STD.length-1];
+  const colorCaida  = caidaReal > caidaMax ? 'var(--err)' : 'var(--ok)';
+  const polarity    = nFases === 3 ? '3 polos' : tension <= 120 ? '2 polos (120 V)' : '2 polos (240 V)';
 
   // Nota conductor neutro (bifásico Ecuador)
   let notaNeutro = '';
@@ -2624,7 +2612,7 @@ function calcCable() {
       <div class="calc-card">
         <div class="calc-card-lbl"><i data-lucide="activity" style="width:12px;height:12px"></i> Corriente de carga</div>
         <div class="calc-card-val" style="color:var(--t1)">${Ic.toFixed(2)} <span style="font-size:14px">A</span></div>
-        <div class="calc-card-sub">${tension} V · ${nFases === 3 ? 'Trifásico' : 'Monofásico'}</div>
+        <div class="calc-card-sub">${tension} V · ${nFases===3?'Trifásico':'Monofásico'}</div>
       </div>
       <div class="calc-card">
         <div class="calc-card-lbl"><i data-lucide="shield" style="width:12px;height:12px"></i> Corriente de diseño</div>
@@ -2634,18 +2622,18 @@ function calcCable() {
       <div class="calc-card highlight">
         <div class="calc-card-lbl"><i data-lucide="cable" style="width:12px;height:12px"></i> Calibre final — MAX(Amp., C.T.)</div>
         <div class="calc-card-val" style="color:var(--acc)">${awgFinal ? 'AWG ' + awgFinal[0] : '> 750 kcmil'}</div>
-        <div class="calc-card-sub">${awgFinal ? awgFinal[1].toFixed(2) + ' mm² · Cap. ' + awgFinal[colIdx] + ' A (' + (TEMPCOL_MAP[window._ccTempCol || 'cu90'] || TEMPCOL_MAP['cu90']).label + ')' : 'Usar conductores en paralelo'}
+        <div class="calc-card-sub">${awgFinal ? awgFinal[1].toFixed(2) + ' mm² · Cap. ' + awgFinal[colIdx] + ' A (' + (TEMPCOL_MAP[window._ccTempCol||'cu90']||TEMPCOL_MAP['cu90']).label + ')' : 'Usar conductores en paralelo'}
           <span style="margin-left:4px;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:700;
-            background:${limitadoPorVD ? 'rgba(239,68,68,.15)' : 'rgba(34,197,94,.12)'};
-            color:${limitadoPorVD ? '#f87171' : 'var(--ok)'}">
+            background:${limitadoPorVD?'rgba(239,68,68,.15)':'rgba(34,197,94,.12)'};
+            color:${limitadoPorVD?'#f87171':'var(--ok)'}">
             ${limitadoPorVD ? '📏 Distancia limitó' : '⚡ Ampacidad limitó'}
           </span>
         </div>
       </div>
-      <div class="calc-card" style="border-color:${caidaReal > caidaMax ? 'rgba(239,68,68,.4)' : 'var(--bd)'}">
+      <div class="calc-card" style="border-color:${caidaReal>caidaMax?'rgba(239,68,68,.4)':'var(--bd)'}">
         <div class="calc-card-lbl"><i data-lucide="trending-down" style="width:12px;height:12px"></i> Caída de tensión</div>
         <div class="calc-card-val" style="color:${colorCaida}">${caidaReal.toFixed(2)}<span style="font-size:14px">%</span></div>
-        <div class="calc-card-sub">${caidaReal > caidaMax ? '⚠️ Excede ' + caidaMax + '%' : '✅ Dentro del límite'} · ${(tension * caidaReal / 100).toFixed(1)} V</div>
+        <div class="calc-card-sub">${caidaReal>caidaMax?'⚠️ Excede '+caidaMax+'%':'✅ Dentro del límite'} · ${(tension*caidaReal/100).toFixed(1)} V</div>
       </div>
       <div class="calc-card">
         <div class="calc-card-lbl"><i data-lucide="toggle-left" style="width:12px;height:12px"></i> Breaker recomendado</div>
@@ -2654,26 +2642,26 @@ function calcCable() {
       </div>
       <div class="calc-card">
         <div class="calc-card-lbl"><i data-lucide="git-branch" style="width:12px;height:12px"></i> Resistencia del tramo</div>
-        <div class="calc-card-val" style="color:var(--t1);font-size:20px">${awgFinal ? (rho * longitud / awgFinal[1]).toFixed(4) : '—'} <span style="font-size:13px">Ω</span></div>
+        <div class="calc-card-val" style="color:var(--t1);font-size:20px">${awgFinal ? (rho*longitud/awgFinal[1]).toFixed(4) : '—'} <span style="font-size:13px">Ω</span></div>
         <div class="calc-card-sub">${longitud} m · Material: ${material}</div>
       </div>
     </div>
     <!-- Detalle de los dos criterios independientes -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
       <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:10px 14px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--ok);margin-bottom:4px">⚡ Criterio A — Ampacidad NEC 310.15 · ${(TEMPCOL_MAP[window._ccTempCol || 'cu90'] || TEMPCOL_MAP['cu90']).label}</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--ok);margin-bottom:4px">⚡ Criterio A — Ampacidad NEC 310.15 · ${(TEMPCOL_MAP[window._ccTempCol||'cu90']||TEMPCOL_MAP['cu90']).label}</div>
         <div style="font-family:'DM Mono',monospace;font-weight:700;color:var(--t1)">AWG ${awgPorAmpacidad ? awgPorAmpacidad[0] : '—'}</div>
         <div style="font-size:11px;color:var(--t3);margin-top:2px">Cap. ${awgPorAmpacidad ? awgPorAmpacidad[colIdx] : '—'} A ≥ ${IdCorr.toFixed(1)} A requeridos — <strong style="color:var(--ok)">Seguridad térmica garantizada</strong></div>
       </div>
       <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:10px 14px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--info);margin-bottom:4px">📏 Criterio B — Caída de Tensión ${caidaMax}%</div>
         <div style="font-family:'DM Mono',monospace;font-weight:700;color:var(--t1)">AWG ${awgPorCaida ? awgPorCaida[0] : '—'}</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:2px">${longitud} m · ρ ${rho} Ω·mm²/m · VD real: ${caidaReal.toFixed(2)}% — ${caidaReal > caidaMax ? '<strong style="color:var(--err)">Excede límite</strong>' : '<strong style="color:var(--ok)">OK</strong>'}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">${longitud} m · ρ ${rho} Ω·mm²/m · VD real: ${caidaReal.toFixed(2)}% — ${caidaReal>caidaMax?'<strong style="color:var(--err)">Excede límite</strong>':'<strong style="color:var(--ok)">OK</strong>'}</div>
       </div>
     </div>
     <div style="background:rgba(245,200,0,.06);border:1px solid rgba(245,200,0,.18);border-radius:10px;padding:12px;font-size:12px;color:var(--t2);margin-top:10px">
-      <strong style="color:var(--acc)">Norma aplicada:</strong> NEC 310.15(B)(16) · NTE INEN 2345 · Aislamiento: <strong style="color:var(--t1)">${(TEMPCOL_MAP[window._ccTempCol || 'cu90'] || TEMPCOL_MAP['cu90']).label}</strong> · Factor temp: ${(tempF * 100).toFixed(0)}% · Agrupamiento: ${(agrupF * 100).toFixed(0)}%
-      · ${(tipoMotor === 1 || tipoMotor === 2) ? 'NEC 430.22 motor (×1.25)' : 'Carga general'} · Sistema: <strong style="color:var(--t1)">${SISTEMAS_EC[sys]?.label || sys}</strong>
+      <strong style="color:var(--acc)">Norma aplicada:</strong> NEC 310.15(B)(16) · NTE INEN 2345 · Aislamiento: <strong style="color:var(--t1)">${(TEMPCOL_MAP[window._ccTempCol||'cu90']||TEMPCOL_MAP['cu90']).label}</strong> · Factor temp: ${(tempF*100).toFixed(0)}% · Agrupamiento: ${(agrupF*100).toFixed(0)}%
+      · ${(tipoMotor===1||tipoMotor===2)?'NEC 430.22 motor (×1.25)':'Carga general'} · Sistema: <strong style="color:var(--t1)">${SISTEMAS_EC[sys]?.label || sys}</strong>
       · <strong style="color:var(--acc)">Calibre = MAX(Criterio A, Criterio B)</strong>
     </div>
     ${notaNeutro}
@@ -2682,7 +2670,7 @@ function calcCable() {
 }
 
 // ─── BALANCE DE CARGAS ───────────────────────────────────
-function agregarCarga(desc = '', tipo = 'iluminacion', potencia = 1000, fase = 'L1', fs = 100, cantidad = 1, sistema = 'mono', voltaje = null, fp = 0.9) {
+function agregarCarga(desc='', tipo='iluminacion', potencia=1000, fase='L1', fs=100, cantidad=1, sistema='mono', voltaje=null, fp=0.9) {
   const cfg = BC_SISTEMAS[_bcSistema] || BC_SISTEMAS['120'];
   const v = voltaje || cfg.tension;
   const sys = sistema || (cfg.esTri ? 'tri' : 'mono');
@@ -2693,10 +2681,10 @@ function agregarCarga(desc = '', tipo = 'iluminacion', potencia = 1000, fase = '
 
 // Sistema balance de cargas (Ecuador)
 const BC_SISTEMAS = {
-  '120/240': { tension: 120, esTri: false, fases: ['L1', 'L2'], label: '120/240V Bifásico Ecuador' },
-  '120': { tension: 120, esTri: false, fases: ['L1', 'L2'], label: '120V Monofásico' },
-  '220': { tension: 220, esTri: false, fases: ['L1', 'L2'], label: '220V Monofásico' },
-  '380': { tension: 380, esTri: true, fases: ['L1', 'L2', 'L3'], label: '380V Trifásico' },
+  '120/240': { tension: 120, esTri: false, fases: ['L1','L2'], label: '120/240V Bifásico Ecuador' },
+  '120':     { tension: 120, esTri: false, fases: ['L1','L2'], label: '120V Monofásico' },
+  '220':     { tension: 220, esTri: false, fases: ['L1','L2'], label: '220V Monofásico' },
+  '380':     { tension: 380, esTri: true,  fases: ['L1','L2','L3'], label: '380V Trifásico' },
 };
 let _bcSistema = '120';
 
@@ -2733,14 +2721,14 @@ function renderCargas() {
   const cfg = BC_SISTEMAS[_bcSistema] || BC_SISTEMAS['120'];
   const { tension, esTri, fases } = cfg;
   const TIPOS = {
-    iluminacion: '💡 Iluminación',
-    tomacorriente: '🔌 Tomacorriente',
-    motor: '⚙️ Motor',
-    hvac: '❄️ HVAC/Clima',
-    resistivo: '🔥 Resistivo',
-    otro: '📦 Otro',
+    iluminacion:  '💡 Iluminación',
+    tomacorriente:'🔌 Tomacorriente',
+    motor:        '⚙️ Motor',
+    hvac:         '❄️ HVAC/Clima',
+    resistivo:    '🔥 Resistivo',
+    otro:         '📦 Otro',
   };
-  const FASE_COLOR = { L1: '#60a5fa', L2: '#f472b6', L3: '#4ade80' };
+  const FASE_COLOR = { L1:'#60a5fa', L2:'#f472b6', L3:'#4ade80' };
   const tempF = parseFloat(document.getElementById('bc-temperatura-global')?.value || 1.0);
 
   if (!cargas.length) {
@@ -2753,38 +2741,38 @@ function renderCargas() {
 
   tb.innerHTML = cargas.map((c, i) => {
     const cant = c.cantidad || 1;
-    const fp = c.fp || 0.9;
+    const fp   = c.fp || 0.9;
     const isMono2f = c.sistema === 'mono2f';
-    const esTri_c = c.sistema === 'tri';
-    const vCarga = isMono2f ? 240 : (c.voltaje || tension);
-    const sqrt3_c = esTri_c ? Math.sqrt(3) : 1;
-    const potUnit = c.potencia || 0;
+    const esTri_c  = c.sistema === 'tri';
+    const vCarga   = isMono2f ? 240 : (c.voltaje || tension);
+    const sqrt3_c  = esTri_c ? Math.sqrt(3) : 1;
+    const potUnit  = c.potencia || 0;
     const potTotal = potUnit * cant;
-    const pd = potTotal * (c.fs || 100) / 100;
+    const pd       = potTotal * (c.fs || 100) / 100;
     // Para mono2f: corriente por línea = P/(2*120*fp) = P/(240*fp)
     const Ic = pd > 0 ? pd / (vCarga * sqrt3_c * fp) : 0;
     const factorM = (c.tipo === 'motor' || c.tipo === 'hvac') ? 1.25 : 1.0;
     const IdD = Ic * factorM / tempF;
     const colIdx = 4;
-    let awgRow = AWG_TABLE.find(r => r[colIdx] != null && r[colIdx] >= IdD) || AWG_TABLE[AWG_TABLE.length - 1];
+    let awgRow = AWG_TABLE.find(r => r[colIdx] != null && r[colIdx] >= IdD) || AWG_TABLE[AWG_TABLE.length-1];
     const awgLabel = awgRow ? '#' + awgRow[0] : '—';
-    const IbMin = Ic * (factorM > 1 ? 2.5 : 1.25);
+    const IbMin  = Ic * (factorM > 1 ? 2.5 : 1.25);
     const brkRec = BREAKERS_STD.find(b => b >= IbMin) || 2000;
-    const polos = esTri_c ? '3P' : isMono2f ? '2P' : vCarga > 120 ? '2P' : '2P';
-    const areaC = THHN_AREA[awgRow ? awgRow[0] : '14'] || THHN_AREA['12'];
-    const nCond = esTri_c ? 4 : 3;
+    const polos  = esTri_c ? '3P' : isMono2f ? '2P' : vCarga > 120 ? '2P' : '2P';
+    const areaC  = THHN_AREA[awgRow ? awgRow[0] : '14'] || THHN_AREA['12'];
+    const nCond  = esTri_c ? 4 : 3;
     const totArea = areaC * nCond;
-    const emtTbl = CONDUIT_AREA.EMT;
+    const emtTbl  = CONDUIT_AREA.EMT;
     let conduitSel = emtTbl.find(([nom, area]) => area * 0.40 >= totArea);
-    if (!conduitSel) conduitSel = emtTbl[emtTbl.length - 1];
+    if (!conduitSel) conduitSel = emtTbl[emtTbl.length-1];
     const conduitNom = conduitSel ? conduitSel[0] : '—';
     const fc = isMono2f ? '#a78bfa' : (FASE_COLOR[c.fase] || '#9090aa');
 
     // Sistema select opciones
     const sistemaOpts = `
-      <option value="mono"${(!esTri_c && !isMono2f && c.voltaje !== 240) ? ' selected' : (!esTri_c && !isMono2f && c.fase !== 'L1+L2' ? ' selected' : '')}>1F Mono</option>
-      <option value="mono2f"${isMono2f ? ' selected' : ''}>2F 240V (L1+L2)</option>
-      <option value="tri"${esTri_c ? ' selected' : ''}>3F Tri</option>
+      <option value="mono"${(!esTri_c&&!isMono2f&&c.voltaje!==240)?' selected':(!esTri_c&&!isMono2f&&c.fase!=='L1+L2'?' selected':'')}>1F Mono</option>
+      <option value="mono2f"${isMono2f?' selected':''}>2F 240V (L1+L2)</option>
+      <option value="tri"${esTri_c?' selected':''}>3F Tri</option>
     `;
 
     // Voltaje select — si es mono2f, bloqueado en 240V
@@ -2793,18 +2781,18 @@ function renderCargas() {
            <span>240V</span><span style="font-size:9px;opacity:.7">(2×120)</span>
          </div>`
       : `<select class="bc-inp" onchange="cargas[${i}].voltaje=parseInt(this.value);recalcBalance()" style="width:90px">
-           <option value="120"${vCarga === 120 ? ' selected' : ''}>120 V</option>
-           <option value="220"${vCarga === 220 ? ' selected' : ''}>220 V</option>
-           <option value="240"${vCarga === 240 ? ' selected' : ''}>240 V</option>
-           <option value="380"${vCarga === 380 ? ' selected' : ''}>380 V</option>
-           <option value="440"${vCarga === 440 ? ' selected' : ''}>440 V</option>
+           <option value="120"${vCarga===120?' selected':''}>120 V</option>
+           <option value="220"${vCarga===220?' selected':''}>220 V</option>
+           <option value="240"${vCarga===240?' selected':''}>240 V</option>
+           <option value="380"${vCarga===380?' selected':''}>380 V</option>
+           <option value="440"${vCarga===440?' selected':''}>440 V</option>
          </select>`;
 
     // Fase select — si es mono2f, fijo en L1+L2
     const faseCell = isMono2f
       ? `<div class="bc-inp" style="width:64px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#a78bfa;font-weight:700;background:rgba(167,139,250,.08);border:1.5px solid rgba(167,139,250,.3);border-radius:8px;padding:6px 4px">L1+L2</div>`
       : `<select class="bc-inp" onchange="cargas[${i}].fase=this.value;recalcBalance()" style="width:64px">
-           ${fases.map(f => `<option value="${f}"${c.fase === f ? ' selected' : ''}>${f}</option>`).join('')}
+           ${fases.map(f=>`<option value="${f}"${c.fase===f?' selected':''}>${f}</option>`).join('')}
          </select>`;
 
     return `<tr>
@@ -2815,7 +2803,7 @@ function renderCargas() {
           oninput="cargas[${i}].cantidad=parseInt(this.value)||1;updatePdCell(${i});recalcBalance()" style="width:50px;text-align:center"/>
       </td>
       <td><select class="bc-inp" onchange="cargas[${i}].tipo=this.value;recalcBalance()">
-        ${Object.entries(TIPOS).map(([k, v]) => `<option value="${k}"${c.tipo === k ? ' selected' : ''}>${v}</option>`).join('')}
+        ${Object.entries(TIPOS).map(([k,v])=>`<option value="${k}"${c.tipo===k?' selected':''}>${v}</option>`).join('')}
       </select></td>
       <td>
         <div style="display:flex;align-items:center;gap:3px">
@@ -2836,15 +2824,15 @@ function renderCargas() {
       </td>
       <td>${faseCell}</td>
       <td>
-        <input class="bc-inp" type="number" min="1" max="100" value="${c.fs || 100}"
+        <input class="bc-inp" type="number" min="1" max="100" value="${c.fs||100}"
           oninput="cargas[${i}].fs=parseFloat(this.value)||100;updatePdCell(${i});recalcBalance()" style="width:48px"/>
       </td>
       <td id="pd-cell-${i}">
         <div>
-          <span style="font-family:'DM Mono',monospace;font-weight:700;font-size:12px;color:${isMono2f ? '#a78bfa' : 'var(--acc)'}">${(pd / 1000).toFixed(2)}</span>
+          <span style="font-family:'DM Mono',monospace;font-weight:700;font-size:12px;color:${isMono2f?'#a78bfa':'var(--acc)'}">${(pd/1000).toFixed(2)}</span>
           <span style="font-size:10px;color:var(--t3)"> kW</span>
         </div>
-        <div style="font-size:10px;color:var(--t3)">${potTotal.toFixed(0)}W${isMono2f ? '<span style="color:#a78bfa;margin-left:3px">÷2 fases</span>' : ''}</div>
+        <div style="font-size:10px;color:var(--t3)">${potTotal.toFixed(0)}W${isMono2f?'<span style="color:#a78bfa;margin-left:3px">÷2 fases</span>':''}</div>
       </td>
       <td><span class="bc-cell-result bc-cell-I">${Ic.toFixed(2)} A</span></td>
       <td><span class="bc-cell-result bc-cell-cable">AWG ${awgLabel}</span></td>
@@ -2868,33 +2856,33 @@ function updatePdCell(i) {
   if (!c) return;
   const cell = document.getElementById('pd-cell-' + i);
   if (!cell) return;
-  const cant = c.cantidad || 1;
+  const cant     = c.cantidad || 1;
   const potTotal = (c.potencia || 0) * cant;
-  const pd = potTotal * (c.fs || 100) / 100;
+  const pd       = potTotal * (c.fs || 100) / 100;
   const isMono2f = c.sistema === 'mono2f';
-  const color = isMono2f ? '#a78bfa' : 'var(--acc)';
+  const color    = isMono2f ? '#a78bfa' : 'var(--acc)';
   cell.innerHTML = `
     <div>
-      <span style="font-family:'DM Mono',monospace;font-weight:700;font-size:12px;color:${color}">${(pd / 1000).toFixed(2)}</span>
+      <span style="font-family:'DM Mono',monospace;font-weight:700;font-size:12px;color:${color}">${(pd/1000).toFixed(2)}</span>
       <span style="font-size:10px;color:var(--t3)"> kW</span>
     </div>
-    <div style="font-size:10px;color:var(--t3)">${potTotal.toFixed(0)}W${isMono2f ? '<span style="color:#a78bfa;margin-left:3px">÷2 fases</span>' : ''}</div>
+    <div style="font-size:10px;color:var(--t3)">${potTotal.toFixed(0)}W${isMono2f?'<span style="color:#a78bfa;margin-left:3px">÷2 fases</span>':''}</div>
   `;
 }
 
 function recalcBalance() {
-  const cfg = BC_SISTEMAS[_bcSistema] || BC_SISTEMAS['120'];
+  const cfg     = BC_SISTEMAS[_bcSistema] || BC_SISTEMAS['120'];
   const { tension, esTri, fases, label } = cfg;
-  const sqrt3 = esTri ? Math.sqrt(3) : 1;
-  const FASE_COLOR = { L1: '#60a5fa', L2: '#f472b6', L3: '#4ade80' };
+  const sqrt3   = esTri ? Math.sqrt(3) : 1;
+  const FASE_COLOR = { L1:'#60a5fa', L2:'#f472b6', L3:'#4ade80' };
 
   const potPorFase = {};
   fases.forEach(f => potPorFase[f] = 0);
   let totalW = 0, totalWD = 0;
 
   cargas.forEach(c => {
-    const pd = (c.potencia || 0) * (c.cantidad || 1) * (c.fs || 100) / 100;
-    totalW += (c.potencia || 0) * (c.cantidad || 1);
+    const pd = (c.potencia||0) * (c.cantidad||1) * (c.fs||100) / 100;
+    totalW  += (c.potencia||0) * (c.cantidad||1);
     totalWD += pd;
     // Monofásico 2F (Ecuador 120/240V): reparte 50% a L1 y 50% a L2
     if (c.sistema === 'mono2f') {
@@ -2905,13 +2893,13 @@ function recalcBalance() {
     }
   });
 
-  const vals = Object.values(potPorFase);
-  const maxFase = Math.max(...vals);
-  const minFase = Math.min(...vals);
+  const vals      = Object.values(potPorFase);
+  const maxFase   = Math.max(...vals);
+  const minFase   = Math.min(...vals);
   const desbalance = maxFase > 0 ? ((maxFase - minFase) / maxFase * 100) : 0;
-  const ITotal = totalWD / (tension * sqrt3 * 0.9);
+  const ITotal    = totalWD / (tension * sqrt3 * 0.9);
   const fsPromedio = cargas.length > 0
-    ? cargas.reduce((a, c) => a + (c.fs || 100), 0) / cargas.length : 0;
+    ? cargas.reduce((a,c) => a + (c.fs||100), 0) / cargas.length : 0;
   const breakerAcom = BREAKERS_STD.find(b => b >= ITotal * 1.25) || 2000;
 
   const cDesBal = desbalance > 10 ? 'var(--err)' : desbalance > 5 ? 'var(--acc)' : 'var(--ok)';
@@ -2925,20 +2913,20 @@ function recalcBalance() {
     <div class="calc-result-grid" style="grid-template-columns:repeat(auto-fill,minmax(175px,1fr))">
       <div class="calc-card">
         <div class="calc-card-lbl"><i data-lucide="database" style="width:12px;height:12px"></i> Potencia instalada</div>
-        <div class="calc-card-val" style="color:var(--t1);font-size:22px">${(totalW / 1000).toFixed(2)} <span style="font-size:13px">kW</span></div>
-        <div class="calc-card-sub">${cargas.length} circuito${cargas.length !== 1 ? 's' : ''}</div>
+        <div class="calc-card-val" style="color:var(--t1);font-size:22px">${(totalW/1000).toFixed(2)} <span style="font-size:13px">kW</span></div>
+        <div class="calc-card-sub">${cargas.length} circuito${cargas.length!==1?'s':''}</div>
       </div>
       <div class="calc-card highlight">
         <div class="calc-card-lbl"><i data-lucide="zap" style="width:12px;height:12px"></i> Demanda real (con Fs)</div>
-        <div class="calc-card-val" style="color:var(--acc);font-size:22px">${(totalWD / 1000).toFixed(2)} <span style="font-size:13px">kW</span></div>
+        <div class="calc-card-val" style="color:var(--acc);font-size:22px">${(totalWD/1000).toFixed(2)} <span style="font-size:13px">kW</span></div>
         <div class="calc-card-sub">Fs promedio: ${fsPromedio.toFixed(0)}%</div>
       </div>
       <div class="calc-card">
         <div class="calc-card-lbl"><i data-lucide="activity" style="width:12px;height:12px"></i> Corriente total</div>
         <div class="calc-card-val" style="color:var(--info);font-size:22px">${ITotal.toFixed(2)} <span style="font-size:13px">A</span></div>
-        <div class="calc-card-sub">${tension} V · ${esTri ? 'Trifásico' : 'Bifásico'}</div>
+        <div class="calc-card-sub">${tension} V · ${esTri?'Trifásico':'Bifásico'}</div>
       </div>
-      <div class="calc-card" style="border-color:${desbalance > 10 ? 'rgba(239,68,68,.4)' : desbalance > 5 ? 'rgba(245,200,0,.3)' : 'var(--bd)'}">
+      <div class="calc-card" style="border-color:${desbalance>10?'rgba(239,68,68,.4)':desbalance>5?'rgba(245,200,0,.3)':'var(--bd)'}">
         <div class="calc-card-lbl"><i data-lucide="scale" style="width:12px;height:12px"></i> Desbalance</div>
         <div class="calc-card-val" style="color:${cDesBal};font-size:22px">${desbalance.toFixed(1)}<span style="font-size:13px">%</span></div>
         <div class="calc-card-sub">${txtDesBal}</div>
@@ -2971,11 +2959,11 @@ function recalcBalance() {
           </thead>
           <tbody>
             ${fases.map(f => {
-    const pf = potPorFase[f] || 0;
-    const pct = totalWD > 0 ? (pf / totalWD * 100) : 0;
-    const If = pf / (tension * 0.9);
-    const fc = FASE_COLOR[f] || '#aaa';
-    return `<tr>
+              const pf  = potPorFase[f] || 0;
+              const pct = totalWD > 0 ? (pf / totalWD * 100) : 0;
+              const If  = pf / (tension * 0.9);
+              const fc  = FASE_COLOR[f] || '#aaa';
+              return `<tr>
                 <td>
                   <div style="display:flex;align-items:center;gap:7px">
                     <div style="width:10px;height:10px;border-radius:50%;background:${fc};flex-shrink:0;box-shadow:0 0 6px ${fc}60"></div>
@@ -2987,7 +2975,7 @@ function recalcBalance() {
                 <td>
                   <div style="display:flex;align-items:center;gap:10px">
                     <div style="flex:1;background:var(--s3);border-radius:6px;height:10px;overflow:hidden">
-                      <div style="width:${Math.min(pct, 100)}%;height:100%;
+                      <div style="width:${Math.min(pct,100)}%;height:100%;
                         background:linear-gradient(90deg,${fc},${fc}99);
                         border-radius:6px;transition:width .4s cubic-bezier(.4,0,.2,1)"></div>
                     </div>
@@ -2995,13 +2983,13 @@ function recalcBalance() {
                 </td>
                 <td style="font-family:'DM Mono',monospace;font-weight:600;color:${fc}">${pct.toFixed(1)}%</td>
               </tr>`;
-  }).join('')}
+            }).join('')}
           </tbody>
         </table>
       </div>
       <div style="margin:0 12px 12px;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:12px;font-size:12px;color:var(--t2)">
         <strong style="color:var(--info)">📋 NEC / NTE INEN:</strong> El desbalance entre fases no debe superar el <strong>10%</strong>.
-        ${_bcSistema === '120/240' ? ' Para el sistema <strong>120/240 V Ecuador</strong>: las cargas de 120 V deben distribuirse equitativamente entre L1 y L2 para minimizar corriente de neutro.' : ''}
+        ${_bcSistema==='120/240' ? ' Para el sistema <strong>120/240 V Ecuador</strong>: las cargas de 120 V deben distribuirse equitativamente entre L1 y L2 para minimizar corriente de neutro.' : ''}
         Acometida recomendada: <strong style="color:var(--acc)">${breakerAcom} A</strong> (125% × ${ITotal.toFixed(1)} A).
       </div>
     </div>
@@ -3018,13 +3006,13 @@ function recalcBalance() {
     kpiEl.innerHTML = `
       <div class="bc-kpi">
         <div class="bc-kpi-lbl">Potencia instalada</div>
-        <div class="bc-kpi-val" style="color:var(--t1)">${(totalW / 1000).toFixed(2)} <span style="font-size:12px;font-weight:500">kW</span></div>
-        <div class="bc-kpi-sub">${cargas.length} circuito${cargas.length !== 1 ? 's' : ''}</div>
+        <div class="bc-kpi-val" style="color:var(--t1)">${(totalW/1000).toFixed(2)} <span style="font-size:12px;font-weight:500">kW</span></div>
+        <div class="bc-kpi-sub">${cargas.length} circuito${cargas.length!==1?'s':''}</div>
         <div class="bc-kpi-icon"><i data-lucide="database"></i></div>
       </div>
       <div class="bc-kpi" style="border-color:rgba(245,200,0,.3)">
         <div class="bc-kpi-lbl">Demanda real</div>
-        <div class="bc-kpi-val" style="color:var(--acc)">${(totalWD / 1000).toFixed(2)} <span style="font-size:12px;font-weight:500">kW</span></div>
+        <div class="bc-kpi-val" style="color:var(--acc)">${(totalWD/1000).toFixed(2)} <span style="font-size:12px;font-weight:500">kW</span></div>
         <div class="bc-kpi-sub">Fs prom: ${fsPromedio.toFixed(0)}%</div>
         <div class="bc-kpi-icon"><i data-lucide="zap"></i></div>
       </div>
@@ -3034,16 +3022,16 @@ function recalcBalance() {
         <div class="bc-kpi-sub">${label}</div>
         <div class="bc-kpi-icon"><i data-lucide="activity"></i></div>
       </div>
-      <div class="bc-kpi" style="border-color:${desbalance > 10 ? 'rgba(239,68,68,.4)' : 'var(--bd)'}">
+      <div class="bc-kpi" style="border-color:${desbalance>10?'rgba(239,68,68,.4)':'var(--bd)'}">
         <div class="bc-kpi-lbl">Desbalance fases</div>
         <div class="bc-kpi-val" style="color:${cDesBal}">${desbalance.toFixed(1)}<span style="font-size:12px;font-weight:500">%</span></div>
-        <div class="bc-kpi-sub">${desbalance > 10 ? '⚠️ Excede 10%' : desbalance > 5 ? '⚠️ Revisar' : '✅ OK'}</div>
+        <div class="bc-kpi-sub">${desbalance>10?'⚠️ Excede 10%':desbalance>5?'⚠️ Revisar':'✅ OK'}</div>
         <div class="bc-kpi-icon"><i data-lucide="scale"></i></div>
       </div>
       <div class="bc-kpi" style="border-color:rgba(245,200,0,.3)">
         <div class="bc-kpi-lbl">Breaker principal</div>
         <div class="bc-kpi-val" style="color:var(--acc)">${breakerAcom} <span style="font-size:12px;font-weight:500">A</span></div>
-        <div class="bc-kpi-sub">${esTri ? '3 Polos' : '2 Polos'}</div>
+        <div class="bc-kpi-sub">${esTri?'3 Polos':'2 Polos'}</div>
         <div class="bc-kpi-icon"><i data-lucide="shield"></i></div>
       </div>`;
     refreshIcons();
@@ -3053,29 +3041,29 @@ function recalcBalance() {
 function renderChartFases(potPorFase, esTri) {
   const cont = document.getElementById('bc-chart');
   if (!cont) return;
-  const fases = esTri ? ['L1', 'L2', 'L3'] : ['L1', 'L2'];
-  const COLORS = { L1: '#60a5fa', L2: '#f472b6', L3: '#4ade80' };
-  const max = Math.max(...Object.values(potPorFase), 1);
-  const totalW = Object.values(potPorFase).reduce((a, v) => a + v, 0);
+  const fases  = esTri ? ['L1','L2','L3'] : ['L1','L2'];
+  const COLORS = { L1:'#60a5fa', L2:'#f472b6', L3:'#4ade80' };
+  const max    = Math.max(...Object.values(potPorFase), 1);
+  const totalW = Object.values(potPorFase).reduce((a,v) => a+v, 0);
 
   cont.innerHTML = `
     <div style="display:flex;align-items:flex-end;gap:20px;height:200px;position:relative;padding:0 8px">
       <!-- Líneas de referencia -->
-      ${[25, 50, 75, 100].map(pct => `
-        <div style="position:absolute;left:0;right:0;bottom:${pct}%;border-top:1px dashed rgba(255,255,255,${pct === 100 ? '.12' : '.06'});pointer-events:none">
-          <span style="position:absolute;right:calc(100% + 6px);top:-8px;font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;white-space:nowrap">${((max * pct / 100) / 1000).toFixed(1)}k</span>
+      ${[25,50,75,100].map(pct => `
+        <div style="position:absolute;left:0;right:0;bottom:${pct}%;border-top:1px dashed rgba(255,255,255,${pct===100?'.12':'.06'});pointer-events:none">
+          <span style="position:absolute;right:calc(100% + 6px);top:-8px;font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;white-space:nowrap">${((max*pct/100)/1000).toFixed(1)}k</span>
         </div>`).join('')}
       ${fases.map(f => {
-    const v = potPorFase[f] || 0;
-    const pct = (v / max * 100);
-    const fc = COLORS[f];
-    const If = v / (BC_SISTEMAS[_bcSistema]?.tension || 120) / 0.9;
-    return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:6px;height:100%;justify-content:flex-end">
-          <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:${fc}">${(v / 1000).toFixed(2)} kW</div>
+        const v   = potPorFase[f] || 0;
+        const pct = (v / max * 100);
+        const fc  = COLORS[f];
+        const If  = v / (BC_SISTEMAS[_bcSistema]?.tension || 120) / 0.9;
+        return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:6px;height:100%;justify-content:flex-end">
+          <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:${fc}">${(v/1000).toFixed(2)} kW</div>
           <div style="width:100%;position:relative;border-radius:8px 8px 0 0;overflow:hidden;min-height:6px"
-               style="height:${Math.max(pct, 3)}%">
+               style="height:${Math.max(pct,3)}%">
             <div style="
-              width:100%;height:${Math.max(pct, 3)}%;
+              width:100%;height:${Math.max(pct,3)}%;
               background:linear-gradient(180deg,${fc},${fc}88);
               border-radius:8px 8px 0 0;
               box-shadow:0 0 20px ${fc}40;
@@ -3088,66 +3076,66 @@ function renderChartFases(potPorFase, esTri) {
           <div style="font-weight:700;color:${fc};font-size:13px">${f}</div>
           <div style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace">${If.toFixed(1)} A</div>
         </div>`;
-  }).join('')}
+      }).join('')}
     </div>
     <div style="display:flex;justify-content:center;gap:20px;margin-top:16px;flex-wrap:wrap">
       ${fases.map(f => {
-    const pct = totalW > 0 ? ((potPorFase[f] || 0) / totalW * 100) : 0;
-    return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2)">
+        const pct = totalW > 0 ? ((potPorFase[f]||0)/totalW*100) : 0;
+        return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2)">
           <div style="width:10px;height:10px;border-radius:3px;background:${COLORS[f]};box-shadow:0 0 6px ${COLORS[f]}60"></div>
           <span style="font-weight:600;color:${COLORS[f]}">${f}</span>
           <span>${pct.toFixed(1)}% del total</span>
         </div>`;
-  }).join('')}
+      }).join('')}
     </div>
   `;
 }
 
 // Presets de cargas
-function _c(desc, tipo, potencia, fase, fs, cantidad, sistema, voltaje, fp) {
-  return { desc, tipo, potencia, fase, fs, cantidad: cantidad || 1, sistema: sistema || 'mono', voltaje: voltaje || 120, fp: fp || 0.9 };
+function _c(desc,tipo,potencia,fase,fs,cantidad,sistema,voltaje,fp){
+  return{desc,tipo,potencia,fase,fs,cantidad:cantidad||1,sistema:sistema||'mono',voltaje:voltaje||120,fp:fp||0.9};
 }
 function presetResidencial() {
-  _bcSistema = '120/240'; setBcSistema('120/240');
+  _bcSistema='120/240'; setBcSistema('120/240');
   cargas = [
-    _c('Iluminación sala/comedor', 'iluminacion', 400, 'L1', 75, 1, 'mono', 120, 1.0),
-    _c('Iluminación dormitorios', 'iluminacion', 200, 'L2', 50, 2, 'mono', 120, 1.0),
-    _c('Iluminación exterior', 'iluminacion', 150, 'L1', 80, 1, 'mono', 120, 1.0),
-    _c('Tomacorrientes sala', 'tomacorriente', 1500, 'L2', 50, 1, 'mono', 120, 0.9),
-    _c('Tomacorrientes dormitorios', 'tomacorriente', 1000, 'L1', 40, 1, 'mono', 120, 0.9),
-    _c('Cocina eléctrica', 'resistivo', 4000, 'L1+L2', 60, 1, 'mono2f', 240, 1.0),
-    _c('Ducha eléctrica', 'resistivo', 3500, 'L1+L2', 30, 1, 'mono2f', 240, 1.0),
-    _c('Lavadora', 'motor', 1200, 'L2', 25, 1, 'mono', 120, 0.85),
-    _c('Refrigeradora', 'motor', 350, 'L1', 100, 1, 'mono', 120, 0.85),
-    _c('Aire acondicionado', 'hvac', 2200, 'L1+L2', 70, 1, 'mono2f', 240, 0.85),
+    _c('Iluminación sala/comedor','iluminacion',400,'L1',75,1,'mono',120,1.0),
+    _c('Iluminación dormitorios','iluminacion',200,'L2',50,2,'mono',120,1.0),
+    _c('Iluminación exterior','iluminacion',150,'L1',80,1,'mono',120,1.0),
+    _c('Tomacorrientes sala','tomacorriente',1500,'L2',50,1,'mono',120,0.9),
+    _c('Tomacorrientes dormitorios','tomacorriente',1000,'L1',40,1,'mono',120,0.9),
+    _c('Cocina eléctrica','resistivo',4000,'L1+L2',60,1,'mono2f',240,1.0),
+    _c('Ducha eléctrica','resistivo',3500,'L1+L2',30,1,'mono2f',240,1.0),
+    _c('Lavadora','motor',1200,'L2',25,1,'mono',120,0.85),
+    _c('Refrigeradora','motor',350,'L1',100,1,'mono',120,0.85),
+    _c('Aire acondicionado','hvac',2200,'L1+L2',70,1,'mono2f',240,0.85),
   ];
   renderCargas(); recalcBalance();
 }
 function presetComercial() {
-  _bcSistema = '220'; setBcSistema('220');
+  _bcSistema='220'; setBcSistema('220');
   cargas = [
-    _c('Iluminación general LED', 'iluminacion', 2000, 'L1', 100, 2, 'mono', 220, 1.0),
-    _c('Computadoras / equipos', 'tomacorriente', 300, 'L2', 80, 12, 'mono', 120, 0.9),
-    _c('Aire acondicionado central', 'hvac', 8000, 'L1', 80, 1, 'mono', 220, 0.85),
-    _c('Aire acondicionado oficinas', 'hvac', 3500, 'L2', 70, 2, 'mono', 220, 0.85),
-    _c('Cocina / cafetería', 'resistivo', 3000, 'L1', 50, 1, 'mono', 220, 1.0),
-    _c('Servidores / UPS', 'otro', 2000, 'L2', 100, 1, 'mono', 220, 0.9),
-    _c('Tomacorrientes generales', 'tomacorriente', 2500, 'L1', 60, 1, 'mono', 120, 0.9),
-    _c('Sistema CCTV / alarmas', 'otro', 500, 'L2', 100, 1, 'mono', 120, 0.9),
+    _c('Iluminación general LED','iluminacion',2000,'L1',100,2,'mono',220,1.0),
+    _c('Computadoras / equipos','tomacorriente',300,'L2',80,12,'mono',120,0.9),
+    _c('Aire acondicionado central','hvac',8000,'L1',80,1,'mono',220,0.85),
+    _c('Aire acondicionado oficinas','hvac',3500,'L2',70,2,'mono',220,0.85),
+    _c('Cocina / cafetería','resistivo',3000,'L1',50,1,'mono',220,1.0),
+    _c('Servidores / UPS','otro',2000,'L2',100,1,'mono',220,0.9),
+    _c('Tomacorrientes generales','tomacorriente',2500,'L1',60,1,'mono',120,0.9),
+    _c('Sistema CCTV / alarmas','otro',500,'L2',100,1,'mono',120,0.9),
   ];
   renderCargas(); recalcBalance();
 }
 function presetIndustrial() {
-  _bcSistema = '380'; setBcSistema('380');
+  _bcSistema='380'; setBcSistema('380');
   cargas = [
-    _c('Motor bomba 10HP', 'motor', 7460, 'L1', 80, 1, 'tri', 380, 0.85),
-    _c('Motor compresor 5HP', 'motor', 3730, 'L2', 70, 1, 'tri', 380, 0.85),
-    _c('Motor ventilador 3HP', 'motor', 2238, 'L1', 90, 2, 'tri', 380, 0.85),
-    _c('Iluminación planta industrial', 'iluminacion', 5000, 'L2', 100, 1, 'mono', 220, 0.95),
-    _c('Soldadora industrial', 'resistivo', 10000, 'L1', 40, 1, 'mono', 220, 0.7),
-    _c('Tomacorrientes 220V', 'tomacorriente', 3000, 'L2', 50, 1, 'mono', 220, 0.9),
-    _c('Sistema de control PLC', 'otro', 500, 'L1', 100, 1, 'mono', 220, 0.9),
-    _c('Horno industrial', 'resistivo', 15000, 'L2', 60, 1, 'tri', 380, 1.0),
+    _c('Motor bomba 10HP','motor',7460,'L1',80,1,'tri',380,0.85),
+    _c('Motor compresor 5HP','motor',3730,'L2',70,1,'tri',380,0.85),
+    _c('Motor ventilador 3HP','motor',2238,'L1',90,2,'tri',380,0.85),
+    _c('Iluminación planta industrial','iluminacion',5000,'L2',100,1,'mono',220,0.95),
+    _c('Soldadora industrial','resistivo',10000,'L1',40,1,'mono',220,0.7),
+    _c('Tomacorrientes 220V','tomacorriente',3000,'L2',50,1,'mono',220,0.9),
+    _c('Sistema de control PLC','otro',500,'L1',100,1,'mono',220,0.9),
+    _c('Horno industrial','resistivo',15000,'L2',60,1,'tri',380,1.0),
   ];
   renderCargas(); recalcBalance();
 }
@@ -3168,13 +3156,13 @@ function togglePresets() {
 
 // ── Auto-balanceo de cargas entre fases ─────────────────
 function autoBalancearCargas() {
-  if (!cargas.length) { toast('Agrega cargas antes de balancear', 'err'); return; }
+  if (!cargas.length) { toast('Agrega cargas antes de balancear','err'); return; }
 
   // Separar cargas bifásicas/mono2f (no se mueven) de monofásicas a una sola fase
-  const fijas = cargas.filter(c => c.sistema === 'tri' || c.sistema === 'mono2f' || c.voltaje >= 380);
-  const mono = cargas.filter(c => c.sistema !== 'tri' && c.sistema !== 'mono2f' && c.voltaje < 380);
+  const fijas  = cargas.filter(c => c.sistema === 'tri' || c.sistema === 'mono2f' || c.voltaje >= 380);
+  const mono   = cargas.filter(c => c.sistema !== 'tri' && c.sistema !== 'mono2f' && c.voltaje < 380);
 
-  if (!mono.length) { toast('No hay cargas monofásicas para balancear', 'info'); return; }
+  if (!mono.length) { toast('No hay cargas monofásicas para balancear','info'); return; }
 
   // Calcular demanda de cada carga monofásica
   const conDemanda = mono.map(c => ({
@@ -3183,10 +3171,10 @@ function autoBalancearCargas() {
   })).sort((a, b) => b.demanda - a.demanda); // mayor a menor
 
   // Determinar fases disponibles según sistema
-  const fases = _bcSistema === '120/240' ? ['L1', 'L2'] :
-    _bcSistema === '380' ? ['L1', 'L2', 'L3'] : ['L1'];
+  const fases = _bcSistema === '120/240' ? ['L1','L2'] :
+                _bcSistema === '380'    ? ['L1','L2','L3'] : ['L1'];
 
-  if (fases.length < 2) { toast('El sistema actual no requiere balanceo', 'info'); return; }
+  if (fases.length < 2) { toast('El sistema actual no requiere balanceo','info'); return; }
 
   // Algoritmo greedy: asignar cada carga a la fase con menor carga acumulada
   const totales = {};
@@ -3210,10 +3198,10 @@ function autoBalancearCargas() {
 
   // Mostrar resumen del balance
   const pcts = fases.map(f => {
-    const total = Object.values(totales).reduce((a, b) => a + b, 0);
-    return total > 0 ? ((totales[f] / total) * 100).toFixed(1) : '0.0';
+    const total = Object.values(totales).reduce((a,b)=>a+b,0);
+    return total > 0 ? ((totales[f]/total)*100).toFixed(1) : '0.0';
   });
-  const resumen = fases.map((f, i) => `${f}: ${pcts[i]}%`).join(' · ');
+  const resumen = fases.map((f,i) => `${f}: ${pcts[i]}%`).join(' · ');
   toast(`⚡ Cargas balanceadas — ${resumen}`, 'ok');
 }
 
@@ -3221,12 +3209,12 @@ function autoBalancearCargas() {
 function calcProtecciones() {
   const el = document.getElementById('pr-resultado');
   if (!el) return;
-  const Ic = parseFloat(document.getElementById('pr-Ic').value) || 0;
-  const tipo = document.getElementById('pr-tipo').value;
-  const V = parseFloat(document.getElementById('pr-v').value);
-  const fases = parseInt(document.getElementById('pr-fases').value);
-  const kvaCC = parseFloat(document.getElementById('pr-kva-cc').value) || 150;
-  const Zpct = parseFloat(document.getElementById('pr-z').value) || 5;
+  const Ic     = parseFloat(document.getElementById('pr-Ic').value) || 0;
+  const tipo   = document.getElementById('pr-tipo').value;
+  const V      = parseFloat(document.getElementById('pr-v').value);
+  const fases  = parseInt(document.getElementById('pr-fases').value);
+  const kvaCC  = parseFloat(document.getElementById('pr-kva-cc').value) || 150;
+  const Zpct   = parseFloat(document.getElementById('pr-z').value) || 5;
 
   if (Ic <= 0) { el.innerHTML = '<p style="color:var(--t3)">Ingresa la corriente de carga.</p>'; return; }
 
@@ -3238,9 +3226,9 @@ function calcProtecciones() {
     condensador: { cb: 1.35, fusible: 1.65, label: 'Condensadores — NEC 460.8', nota: 'Breaker al 135%, fusible al 165% de Ic.' },
   };
   const f = factores[tipo];
-  const IbCB = Ic * f.cb;
+  const IbCB  = Ic * f.cb;
   const IbFus = Ic * f.fusible;
-  const cbRec = BREAKERS_STD.find(b => b >= IbCB) || 2000;
+  const cbRec  = BREAKERS_STD.find(b => b >= IbCB)  || 2000;
   const fusRec = BREAKERS_STD.find(b => b >= IbFus) || 2000;
 
   // Corriente de cortocircuito (Icc) — método simplificado
@@ -3265,7 +3253,7 @@ function calcProtecciones() {
       <div style="background:var(--s2);border-radius:10px;padding:14px;border:1px solid rgba(245,200,0,.3)">
         <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Breaker recomendado</div>
         <div style="font-size:28px;font-weight:700;font-family:'DM Mono',monospace;color:var(--acc)">${cbRec} A</div>
-        <div style="font-size:11px;color:var(--t3)">Mín. ${IbCB.toFixed(1)} A — ${fases === 3 ? '3 polos' : '2 polos'}</div>
+        <div style="font-size:11px;color:var(--t3)">Mín. ${IbCB.toFixed(1)} A — ${fases===3?'3 polos':'2 polos'}</div>
       </div>
       <div style="background:var(--s2);border-radius:10px;padding:14px">
         <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Fusible recomendado</div>
@@ -3294,10 +3282,10 @@ function calcProtecciones() {
     tagEl.innerHTML = BREAKERS_STD.map(b => {
       const esRec = b === cbRec;
       const cercano = Math.abs(b - IbCB) < 10;
-      return `<span style="display:inline-block;padding:5px 12px;border-radius:6px;font-family:'DM Mono',monospace;font-size:13px;font-weight:${esRec ? '700' : '500'};
-        background:${esRec ? 'var(--acc)' : cercano ? 'rgba(245,200,0,.15)' : 'var(--s2)'};
-        color:${esRec ? '#000' : cercano ? 'var(--acc)' : 'var(--t2)'};
-        border:1px solid ${esRec ? 'var(--acc)' : cercano ? 'rgba(245,200,0,.3)' : 'var(--bd)'};
+      return `<span style="display:inline-block;padding:5px 12px;border-radius:6px;font-family:'DM Mono',monospace;font-size:13px;font-weight:${esRec?'700':'500'};
+        background:${esRec?'var(--acc)':cercano?'rgba(245,200,0,.15)':'var(--s2)'};
+        color:${esRec?'#000':cercano?'var(--acc)':'var(--t2)'};
+        border:1px solid ${esRec?'var(--acc)':cercano?'rgba(245,200,0,.3)':'var(--bd)'};
         margin:3px">${b}A</span>`;
     }).join('');
   }
@@ -3307,17 +3295,17 @@ function calcProtecciones() {
 function calcTuberia() {
   const el = document.getElementById('tb-resultado');
   // Update fill factor label
-  const nCond_lbl = parseInt(document.getElementById('tb-ncond')?.value) || 1;
-  const factorLbl = nCond_lbl === 1 ? 0.53 : nCond_lbl === 2 ? 0.31 : 0.40;
+  const nCond_lbl = parseInt(document.getElementById('tb-ncond')?.value)||1;
+  const factorLbl = nCond_lbl===1?0.53:nCond_lbl===2?0.31:0.40;
   const ruleEl = document.getElementById('tb-fill-rule-lbl');
   const factEl = document.getElementById('tb-fill-factor-lbl');
-  if (ruleEl) ruleEl.textContent = nCond_lbl === 1 ? '1 conductor' : nCond_lbl === 2 ? '2 conductores' : '3+ conductores';
-  if (factEl) factEl.textContent = (factorLbl * 100).toFixed(0) + '%';
+  if(ruleEl) ruleEl.textContent = nCond_lbl===1?'1 conductor':nCond_lbl===2?'2 conductores':'3+ conductores';
+  if(factEl) factEl.textContent = (factorLbl*100).toFixed(0)+'%';
   if (!el) return;
-  const tipo = document.getElementById('tb-tipo').value;
-  const nCond = parseInt(document.getElementById('tb-ncond').value) || 1;
-  const awg = document.getElementById('tb-awg').value;
-  const aisl = document.getElementById('tb-aislamiento').value;
+  const tipo   = document.getElementById('tb-tipo').value;
+  const nCond  = parseInt(document.getElementById('tb-ncond').value) || 1;
+  const awg    = document.getElementById('tb-awg').value;
+  const aisl   = document.getElementById('tb-aislamiento').value;
 
   const areaCond = THHN_AREA[awg];
   if (!areaCond) { el.innerHTML = '<p style="color:var(--t3)">Selecciona un calibre válido.</p>'; return; }
@@ -3334,7 +3322,7 @@ function calcTuberia() {
 
   const [nomSel, areaSel] = conduitSel;
   const pctLlenado = (totalArea / areaSel * 100);
-  const colorFill = pctLlenado > factor * 100 ? 'var(--err)' : 'var(--ok)';
+  const colorFill = pctLlenado > factor*100 ? 'var(--err)' : 'var(--ok)';
 
   el.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px">
@@ -3350,168 +3338,168 @@ function calcTuberia() {
       <div style="background:var(--s2);border-radius:10px;padding:14px;border:1px solid rgba(245,200,0,.3)">
         <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Conduit recomendado (${tipo})</div>
         <div style="font-size:28px;font-weight:700;font-family:'DM Mono',monospace;color:var(--acc)">${nomSel}</div>
-        <div style="font-size:11px;color:var(--t3)">Área interna: ${areaSel.toFixed(1)} mm² — Llenado máx: ${(factor * 100).toFixed(0)}%</div>
+        <div style="font-size:11px;color:var(--t3)">Área interna: ${areaSel.toFixed(1)} mm² — Llenado máx: ${(factor*100).toFixed(0)}%</div>
       </div>
       <div style="background:var(--s2);border-radius:10px;padding:14px">
         <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">% de llenado real</div>
         <div style="font-size:24px;font-weight:700;font-family:'DM Mono',monospace;color:${colorFill}">${pctLlenado.toFixed(1)}%</div>
         <div style="height:8px;background:var(--s3);border-radius:4px;margin-top:6px;overflow:hidden">
-          <div style="width:${Math.min(pctLlenado, 100)}%;height:100%;background:${colorFill};border-radius:4px;transition:width .4s"></div>
+          <div style="width:${Math.min(pctLlenado,100)}%;height:100%;background:${colorFill};border-radius:4px;transition:width .4s"></div>
         </div>
       </div>
     </div>
     <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:12px;font-size:12px;color:var(--t2)">
-      <strong style="color:var(--info)">NEC Chapter 9 Table 1:</strong> Con ${nCond} conductor${nCond > 1 ? 'es' : ''}, el llenado máximo permitido es <strong>${(factor * 100).toFixed(0)}%</strong> del área interna del conduit.
+      <strong style="color:var(--info)">NEC Chapter 9 Table 1:</strong> Con ${nCond} conductor${nCond>1?'es':''}, el llenado máximo permitido es <strong>${(factor*100).toFixed(0)}%</strong> del área interna del conduit.
       Área mínima requerida: <strong style="color:var(--acc)">${areaConduitMin.toFixed(1)} mm²</strong>
     </div>
   `;
 }
 
 // ── Estado compartir granular ──────────────────────────────
-let miCompartir = false; // legacy - keep for compatibility
-let miCompartirCots = false;
-let miCompartirClis = false;
-let miCompartirCon = [];   // [] = todos, [id,id,...] = solo esos
-let equipoUsuarios = [];   // lista de usuarios del equipo
+let miCompartir=false; // legacy - keep for compatibility
+let miCompartirCots=false;
+let miCompartirClis=false;
+let miCompartirCon=[];   // [] = todos, [id,id,...] = solo esos
+let equipoUsuarios=[];   // lista de usuarios del equipo
 
-function _actualizarToggleCompartir() {
+function _actualizarToggleCompartir(){
   // legacy toggle (ya no se usa en UI pero se mantiene por compatibilidad)
-  const tog = document.getElementById('eq-share-toggle');
-  const knob = document.getElementById('eq-share-knob');
-  const lbl = document.getElementById('eq-share-lbl');
-  if (tog) tog.style.background = miCompartir ? 'var(--ok)' : 'var(--s4)';
-  if (knob) { knob.style.left = miCompartir ? '18px' : '3px'; knob.style.background = miCompartir ? '#fff' : 'var(--t3)'; }
-  if (lbl) { lbl.textContent = miCompartir ? 'Activado' : 'Desactivado'; lbl.style.color = miCompartir ? 'var(--ok)' : 'var(--t3)'; }
+  const tog=document.getElementById('eq-share-toggle');
+  const knob=document.getElementById('eq-share-knob');
+  const lbl=document.getElementById('eq-share-lbl');
+  if(tog)tog.style.background=miCompartir?'var(--ok)':'var(--s4)';
+  if(knob){knob.style.left=miCompartir?'18px':'3px';knob.style.background=miCompartir?'#fff':'var(--t3)';}
+  if(lbl){lbl.textContent=miCompartir?'Activado':'Desactivado';lbl.style.color=miCompartir?'var(--ok)':'var(--t3)';}
 }
 
-function _actualizarTogglesGranulares() {
-  const setToggle = (togId, knobId, lblId, val) => {
-    const tog = document.getElementById(togId);
-    const knob = document.getElementById(knobId);
-    const lbl = document.getElementById(lblId);
-    if (tog) tog.style.background = val ? 'var(--ok)' : 'var(--s4)';
-    if (knob) { knob.style.left = val ? '18px' : '3px'; knob.style.background = val ? '#fff' : 'var(--t3)'; }
-    if (lbl) { lbl.textContent = val ? 'Activado' : 'Desactivado'; lbl.style.color = val ? 'var(--ok)' : 'var(--t3)'; }
+function _actualizarTogglesGranulares(){
+  const setToggle=(togId,knobId,lblId,val)=>{
+    const tog=document.getElementById(togId);
+    const knob=document.getElementById(knobId);
+    const lbl=document.getElementById(lblId);
+    if(tog)tog.style.background=val?'var(--ok)':'var(--s4)';
+    if(knob){knob.style.left=val?'18px':'3px';knob.style.background=val?'#fff':'var(--t3)';}
+    if(lbl){lbl.textContent=val?'Activado':'Desactivado';lbl.style.color=val?'var(--ok)':'var(--t3)';}
   };
-  setToggle('eq-toggle-cots', 'eq-knob-cots', 'eq-lbl-cots', miCompartirCots);
-  setToggle('eq-toggle-clis', 'eq-knob-clis', 'eq-lbl-clis', miCompartirClis);
-  const wrap = document.getElementById('eq-usuarios-wrap');
-  if (wrap) wrap.style.display = (miCompartirCots || miCompartirClis) ? 'block' : 'none';
+  setToggle('eq-toggle-cots','eq-knob-cots','eq-lbl-cots',miCompartirCots);
+  setToggle('eq-toggle-clis','eq-knob-clis','eq-lbl-clis',miCompartirClis);
+  const wrap=document.getElementById('eq-usuarios-wrap');
+  if(wrap)wrap.style.display=(miCompartirCots||miCompartirClis)?'block':'none';
 }
 
-async function toggleCompartirTipo(tipo) {
-  if (tipo === 'cotizaciones') miCompartirCots = !miCompartirCots;
-  else if (tipo === 'clientes') miCompartirClis = !miCompartirClis;
+async function toggleCompartirTipo(tipo){
+  if(tipo==='cotizaciones') miCompartirCots=!miCompartirCots;
+  else if(tipo==='clientes') miCompartirClis=!miCompartirClis;
   _actualizarTogglesGranulares();
   // Cargar lista de usuarios si hace falta
-  if ((miCompartirCots || miCompartirClis) && !equipoUsuarios.length) await _cargarEquipoUsuarios();
+  if((miCompartirCots||miCompartirClis)&&!equipoUsuarios.length) await _cargarEquipoUsuarios();
   _renderUsuariosLista();
   // Auto-guardar el toggle inmediatamente
   await _guardarCompartir();
 }
 
-async function _cargarEquipoUsuarios() {
-  try {
-    const r = await api('users?todos=1');
-    if (!isErr(r) && Array.isArray(r)) equipoUsuarios = r.filter(u => u.id !== usuario?.id && u.activo !== false);
-  } catch (e) { }
+async function _cargarEquipoUsuarios(){
+  try{
+    const r=await api('users?todos=1');
+    if(!isErr(r)&&Array.isArray(r)) equipoUsuarios=r.filter(u=>u.id!==usuario?.id&&u.activo!==false);
+  }catch(e){}
 }
 
-function _renderUsuariosLista() {
-  const el = document.getElementById('eq-usuarios-lista');
-  if (!el) return;
-  if (!equipoUsuarios.length) { el.innerHTML = `<span style="font-size:12px;color:var(--t3)">No hay otros usuarios en el equipo</span>`; return; }
-  el.innerHTML = equipoUsuarios.map(u => {
-    const sel = miCompartirCon.includes(u.id);
-    return `<div onclick="_toggleUsuarioCon(${u.id})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;border:1px solid ${sel ? 'var(--acc)' : 'var(--bd2)'};background:${sel ? 'var(--acc-dim,rgba(200,160,0,.12))' : 'var(--s2)'}; transition:.15s">
-      <div style="width:18px;height:18px;border-radius:50%;background:var(--s3);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--t2)">${(u.nombre || '?')[0].toUpperCase()}</div>
-      <span style="font-size:12px;font-weight:${sel ? '600' : '400'};color:${sel ? 'var(--acc)' : 'var(--t2)'}">${u.nombre}</span>
-      ${sel ? '<i data-lucide="check" style="width:12px;height:12px;color:var(--acc)"></i>' : ''}
+function _renderUsuariosLista(){
+  const el=document.getElementById('eq-usuarios-lista');
+  if(!el)return;
+  if(!equipoUsuarios.length){el.innerHTML=`<span style="font-size:12px;color:var(--t3)">No hay otros usuarios en el equipo</span>`;return;}
+  el.innerHTML=equipoUsuarios.map(u=>{
+    const sel=miCompartirCon.includes(u.id);
+    return `<div onclick="_toggleUsuarioCon(${u.id})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;border:1px solid ${sel?'var(--acc)':'var(--bd2)'};background:${sel?'var(--acc-dim,rgba(200,160,0,.12))':'var(--s2)'}; transition:.15s">
+      <div style="width:18px;height:18px;border-radius:50%;background:var(--s3);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--t2)">${(u.nombre||'?')[0].toUpperCase()}</div>
+      <span style="font-size:12px;font-weight:${sel?'600':'400'};color:${sel?'var(--acc)':'var(--t2)'}">${u.nombre}</span>
+      ${sel?'<i data-lucide="check" style="width:12px;height:12px;color:var(--acc)"></i>':''}
     </div>`;
   }).join('');
   refreshIcons();
 }
 
-function _toggleUsuarioCon(id) {
-  if (miCompartirCon.includes(id)) miCompartirCon = miCompartirCon.filter(x => x !== id);
+function _toggleUsuarioCon(id){
+  if(miCompartirCon.includes(id)) miCompartirCon=miCompartirCon.filter(x=>x!==id);
   else miCompartirCon.push(id);
   _renderUsuariosLista();
 }
 
-let _guardarCompartirTimer = null;
-async function _guardarCompartir() {
+let _guardarCompartirTimer=null;
+async function _guardarCompartir(){
   // Debounce: esperar 400ms antes de enviar, para evitar múltiples PUTs seguidos
-  return new Promise((resolve) => {
+  return new Promise((resolve)=>{
     clearTimeout(_guardarCompartirTimer);
-    _guardarCompartirTimer = setTimeout(async () => {
-      if (!usuario?.id) { resolve(false); return; }
-      const body = {
-        compartir_cotizaciones: miCompartirCots,
-        compartir_clientes: miCompartirClis,
+    _guardarCompartirTimer=setTimeout(async()=>{
+      if(!usuario?.id){resolve(false);return;}
+      const body={
+        compartir_cotizaciones:miCompartirCots,
+        compartir_clientes:miCompartirClis,
         // El servidor espera compartir_con como JSON string, no como array
-        compartir_con: JSON.stringify(miCompartirCon || []),
+        compartir_con:JSON.stringify(miCompartirCon||[]),
         // Campo legacy para compatibilidad con versiones anteriores del API
-        compartir_datos: !!(miCompartirCots || miCompartirClis)
+        compartir_datos:!!(miCompartirCots||miCompartirClis)
       };
-      const r = await api(`users?id=${usuario.id}`, { method: 'PUT', body: JSON.stringify(body) });
-      if (isErr(r)) { toast(r.msg || 'Error al guardar preferencias', 'err'); resolve(false); return; }
-      miCompartir = miCompartirCots || miCompartirClis;
+      const r=await api(`users?id=${usuario.id}`,{method:'PUT',body:JSON.stringify(body)});
+      if(isErr(r)){toast(r.msg||'Error al guardar preferencias','err');resolve(false);return;}
+      miCompartir=miCompartirCots||miCompartirClis;
       resolve(true);
-    }, 400);
+    },400);
   });
 }
 
-async function guardarPrefsCompartir() {
-  const ok = await _guardarCompartir();
-  if (ok) { toast('✨ Preferencias guardadas', 'ok'); cargarEquipo(); }
+async function guardarPrefsCompartir(){
+  const ok=await _guardarCompartir();
+  if(ok){toast('✨ Preferencias guardadas','ok');cargarEquipo();}
 }
 
 // legacy - mantenido por compatibilidad
-async function toggleCompartirDatos() {
-  miCompartirCots = !miCompartir;
-  miCompartirClis = !miCompartir;
-  const ok = await _guardarCompartir();
-  if (ok) {
-    miCompartir = miCompartirCots;
+async function toggleCompartirDatos(){
+  miCompartirCots=!miCompartir;
+  miCompartirClis=!miCompartir;
+  const ok=await _guardarCompartir();
+  if(ok){
+    miCompartir=miCompartirCots;
     _actualizarToggleCompartir();
     _actualizarTogglesGranulares();
-    toast(miCompartir ? '✨ Tus datos ahora son visibles para el equipo' : 'Datos privados. Ya no se comparten.', 'info');
+    toast(miCompartir?'✨ Tus datos ahora son visibles para el equipo':'Datos privados. Ya no se comparten.','info');
     cargarEquipo();
   }
 }
 
-async function cargarEquipo() {
+async function cargarEquipo(){
   // Cargar estado del usuario actual
-  const ru = await api('users?todos=1');
-  if (!isErr(ru) && Array.isArray(ru)) {
-    const yo = ru.find(u => u.id === usuario?.id);
-    if (yo) {
-      miCompartirCots = !!(yo.compartir_cotizaciones ?? yo.compartir_datos);
-      miCompartirClis = !!(yo.compartir_clientes ?? yo.compartir_datos);
-      miCompartirCon = Array.isArray(yo.compartir_con) ? yo.compartir_con : [];
-      miCompartir = miCompartirCots || miCompartirClis;
+  const ru=await api('users?todos=1');
+  if(!isErr(ru)&&Array.isArray(ru)){
+    const yo=ru.find(u=>u.id===usuario?.id);
+    if(yo){
+      miCompartirCots=!!(yo.compartir_cotizaciones??yo.compartir_datos);
+      miCompartirClis=!!(yo.compartir_clientes??yo.compartir_datos);
+      miCompartirCon=Array.isArray(yo.compartir_con)?yo.compartir_con:[];
+      miCompartir=miCompartirCots||miCompartirClis;
       _actualizarToggleCompartir();
       _actualizarTogglesGranulares();
     }
-    equipoUsuarios = ru.filter(u => u.id !== usuario?.id && u.activo !== false);
-    if (miCompartirCots || miCompartirClis) _renderUsuariosLista();
+    equipoUsuarios=ru.filter(u=>u.id!==usuario?.id&&u.activo!==false);
+    if(miCompartirCots||miCompartirClis) _renderUsuariosLista();
   }
 
-  const [rq, rc] = await Promise.all([api('quotes?equipo=1'), api('clients?equipo=1')]);
+  const [rq,rc]=await Promise.all([api('quotes?equipo=1'),api('clients?equipo=1')]);
 
   // Tabla cotizaciones compartidas (con botón editar)
-  const tblCots = document.getElementById('tbl-eq-cots');
-  if (tblCots) {
-    if (isErr(rq) || !Array.isArray(rq) || !rq.length) {
-      tblCots.innerHTML = '<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="file-text" style="width:36px;height:36px"></i></div><p>Ningún usuario ha compartido cotizaciones todavía</p></div>';
+  const tblCots=document.getElementById('tbl-eq-cots');
+  if(tblCots){
+    if(isErr(rq)||!Array.isArray(rq)||!rq.length){
+      tblCots.innerHTML='<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="file-text" style="width:36px;height:36px"></i></div><p>Ningún usuario ha compartido cotizaciones todavía</p></div>';
     } else {
-      tblCots.innerHTML = `<table><thead><tr><th>N°</th><th>Título / Cliente</th><th>Estado</th><th>Total</th><th>Usuario</th><th>Acciones</th></tr></thead>
-        <tbody>${rq.map(c => `<tr>
-          <td style="font-size:11px;color:var(--t3)">${c.numero || '—'}</td>
-          <td><div style="font-weight:500;color:var(--t1)">${c.titulo || '—'}</div><div style="font-size:11px;color:var(--t3)">${c.cliente_nombre || 'Sin cliente'}</div></td>
-          <td><span class="badge ${c.estado === 'aprobada' ? 'ok' : c.estado === 'rechazada' ? 'err' : 'warn'}">${c.estado || '—'}</span></td>
-          <td style="font-weight:600">$${(+c.total || 0).toFixed(2)}</td>
-          <td style="font-size:12px;color:var(--t3)">${c.usuario_nombre || '—'}</td>
+      tblCots.innerHTML=`<table><thead><tr><th>N°</th><th>Título / Cliente</th><th>Estado</th><th>Total</th><th>Usuario</th><th>Acciones</th></tr></thead>
+        <tbody>${rq.map(c=>`<tr>
+          <td style="font-size:11px;color:var(--t3)">${c.numero||'—'}</td>
+          <td><div style="font-weight:500;color:var(--t1)">${c.titulo||'—'}</div><div style="font-size:11px;color:var(--t3)">${c.cliente_nombre||'Sin cliente'}</div></td>
+          <td><span class="badge ${c.estado==='aprobada'?'ok':c.estado==='rechazada'?'err':'warn'}">${c.estado||'—'}</span></td>
+          <td style="font-weight:600">$${(+c.total||0).toFixed(2)}</td>
+          <td style="font-size:12px;color:var(--t3)">${c.usuario_nombre||'—'}</td>
           <td><button class="btn btn-ghost" style="height:28px;font-size:11px;padding:0 8px" onclick="editarCotCompartida(${c.id})"><i data-lucide="pencil" style="width:13px;height:13px"></i> Editar</button></td>
         </tr>`).join('')}</tbody></table>`;
     }
@@ -3519,18 +3507,18 @@ async function cargarEquipo() {
   }
 
   // Tabla clientes compartidos
-  const tblClis = document.getElementById('tbl-eq-clis');
-  if (tblClis) {
-    if (isErr(rc) || !Array.isArray(rc) || !rc.length) {
-      tblClis.innerHTML = '<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="users" style="width:36px;height:36px"></i></div><p>Ningún usuario ha compartido clientes todavía</p></div>';
+  const tblClis=document.getElementById('tbl-eq-clis');
+  if(tblClis){
+    if(isErr(rc)||!Array.isArray(rc)||!rc.length){
+      tblClis.innerHTML='<div class="empty"><div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)"><i data-lucide="users" style="width:36px;height:36px"></i></div><p>Ningún usuario ha compartido clientes todavía</p></div>';
     } else {
-      tblClis.innerHTML = `<table><thead><tr><th>Nombre</th><th>Empresa</th><th>Teléfono</th><th>Email</th><th>Compartido por</th></tr></thead>
-        <tbody>${rc.map(c => `<tr>
+      tblClis.innerHTML=`<table><thead><tr><th>Nombre</th><th>Empresa</th><th>Teléfono</th><th>Email</th><th>Compartido por</th></tr></thead>
+        <tbody>${rc.map(c=>`<tr>
           <td style="font-weight:500">${c.nombre}</td>
-          <td style="color:var(--t2)">${c.empresa || '—'}</td>
-          <td style="color:var(--t3)">${c.telefono || '—'}</td>
-          <td style="color:var(--t3)">${c.email || '—'}</td>
-          <td style="font-size:12px;color:var(--t3)">${c.usuario_nombre || '—'}</td>
+          <td style="color:var(--t2)">${c.empresa||'—'}</td>
+          <td style="color:var(--t3)">${c.telefono||'—'}</td>
+          <td style="color:var(--t3)">${c.email||'—'}</td>
+          <td style="font-size:12px;color:var(--t3)">${c.usuario_nombre||'—'}</td>
         </tr>`).join('')}</tbody></table>`;
     }
     // Merge shared clients into clis for search
@@ -3540,47 +3528,47 @@ async function cargarEquipo() {
 }
 
 // Merge clientes compartidos en el array global clis para que el buscador los encuentre
-let _clisCompartidasIds = new Set();
-function _mergeClientesCompartidos(compartidos) {
-  if (!Array.isArray(compartidos) || !compartidos.length) return;
-  const nuevos = compartidos.filter(c => !clis.some(x => x.id === c.id));
-  if (nuevos.length) {
-    clis = [...clis, ...nuevos.map(c => ({ ...c, _compartido: true, _compartidoPor: c.usuario_nombre }))];
-    nuevos.forEach(c => _clisCompartidasIds.add(c.id));
+let _clisCompartidasIds=new Set();
+function _mergeClientesCompartidos(compartidos){
+  if(!Array.isArray(compartidos)||!compartidos.length)return;
+  const nuevos=compartidos.filter(c=>!clis.some(x=>x.id===c.id));
+  if(nuevos.length){
+    clis=[...clis,...nuevos.map(c=>({...c,_compartido:true,_compartidoPor:c.usuario_nombre}))];
+    nuevos.forEach(c=>_clisCompartidasIds.add(c.id));
   }
 }
 
 // Editar cotización compartida de otro usuario (abre en el editor)
-async function editarCotCompartida(id) {
+async function editarCotCompartida(id){
   // Carga la cotización usando el endpoint equipo para permitir acceso
-  const r = await api(`quotes?id=${id}&equipo=1`);
-  if (isErr(r)) { toast(r.msg || 'No se pudo cargar la cotización', 'err'); return; }
+  const r=await api(`quotes?id=${id}&equipo=1`);
+  if(isErr(r)){toast(r.msg||'No se pudo cargar la cotización','err');return;}
   // Reutilizamos la lógica de prepEditarCot pero con datos ya cargados
-  cotEditandoId = id;
+  cotEditandoId=id;
   limpiarCot(false);
-  sSet('nc-numero', r.numero || '');
-  sSet('nc-fecha', (r.creado_en || new Date().toISOString()).split('T')[0]);
-  sSet('nc-validez', r.validez_dias || 30);
-  sSet('nc-cliente-id', r.cliente_id || '');
-  sSet('nc-cliente', r.cliente_nombre || r.titulo || '');
-  sSet('nc-ruc', r.cliente_ruc || '');
-  sSet('nc-telefono', r.cliente_telefono || '');
-  sSet('nc-email', r.cliente_email || '');
-  sSet('nc-direccion', r.cliente_direccion || '');
-  const notasRaw = r.notas || '';
-  sSet('nc-notas', notasRaw.split('\n').filter(l => !l.startsWith('Forma de pago:')).join('\n').trim());
-  sSet('nc-descripcion', r.descripcion || '');
-  sSet('nc-descuento', r.descuento_pct || 0);
-  cotItems = (r.items || []).map(it => ({ material_id: it.material_id || null, descripcion: it.descripcion || it.material_nombre || '', cantidad: parseFloat(it.cantidad) || 1, unidad: it.unidad || it.material_unidad || 'unidad', precio_unitario: parseFloat(it.precio_unitario) || 0, iva_pct: 15, tiene_iva: true }));
-  cotAdic = [];
-  renderItems(); renderAdic(); calcTotals();
-  ir('nueva-cot'); irSubTab('cotizacion');
-  const eyebrow = document.querySelector('.nc-eyebrow');
-  const title = document.querySelector('.nc-title');
-  if (eyebrow) eyebrow.textContent = 'Editando cotización compartida';
-  if (title) title.innerHTML = `<i data-lucide="pencil" style="width:26px;height:26px;stroke-width:2;color:var(--acc)"></i> ${r.numero || 'Cotización'}`;
+  sSet('nc-numero',r.numero||'');
+  sSet('nc-fecha',(r.creado_en||new Date().toISOString()).split('T')[0]);
+  sSet('nc-validez',r.validez_dias||30);
+  sSet('nc-cliente-id',r.cliente_id||'');
+  sSet('nc-cliente',r.cliente_nombre||r.titulo||'');
+  sSet('nc-ruc',r.cliente_ruc||'');
+  sSet('nc-telefono',r.cliente_telefono||'');
+  sSet('nc-email',r.cliente_email||'');
+  sSet('nc-direccion',r.cliente_direccion||'');
+  const notasRaw=r.notas||'';
+  sSet('nc-notas',notasRaw.split('\n').filter(l=>!l.startsWith('Forma de pago:')).join('\n').trim());
+  sSet('nc-descripcion',r.descripcion||'');
+  sSet('nc-descuento',r.descuento_pct||0);
+  cotItems=(r.items||[]).map(it=>({material_id:it.material_id||null,descripcion:it.descripcion||it.material_nombre||'',cantidad:parseFloat(it.cantidad)||1,unidad:it.unidad||it.material_unidad||'unidad',precio_unitario:parseFloat(it.precio_unitario)||0,iva_pct:15,tiene_iva:true}));
+  cotAdic=[];
+  renderItems();renderAdic();calcTotals();
+  ir('nueva-cot');irSubTab('cotizacion');
+  const eyebrow=document.querySelector('.nc-eyebrow');
+  const title=document.querySelector('.nc-title');
+  if(eyebrow)eyebrow.textContent='Editando cotización compartida';
+  if(title)title.innerHTML=`<i data-lucide="pencil" style="width:26px;height:26px;stroke-width:2;color:var(--acc)"></i> ${r.numero||'Cotización'}`;
   refreshIcons();
-  toast(`Editando "${r.numero}" de ${r.usuario_nombre || 'otro usuario'}. Guarda para actualizar.`, 'info');
+  toast(`Editando "${r.numero}" de ${r.usuario_nombre||'otro usuario'}. Guarda para actualizar.`,'info');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3616,61 +3604,61 @@ function calcTablero() {
 
   // Agrupar cargas por tipo para distribución
   const TIPO_COLOR = {
-    iluminacion: {
-      color: '#facc15',
-      bg: 'rgba(250,204,21,.15)',
-      label: 'Iluminación',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>`
-    },
-    tomacorriente: {
-      color: '#60a5fa',
-      bg: 'rgba(96,165,250,.15)',
-      label: 'Tomacorrientes',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 22v-5"/><path d="M14 22v-5"/><path d="M12 11V7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"/><path d="M12 11V7a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v4"/><path d="M6 11h12"/></svg>`
-    },
-    motor: {
-      color: '#4ade80',
-      bg: 'rgba(74,222,128,.15)',
-      label: 'Motores',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`
-    },
-    hvac: {
-      color: '#38bdf8',
-      bg: 'rgba(56,189,248,.15)',
-      label: 'HVAC/Clima',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12v.5"/><path d="M12 12c0 3 0 3-3 4.5-2.7 1.5-2.5 3.5-2 5.5"/><path d="M12 12c0 3 0 3 3 4.5 2.7 1.5 2.5 3.5 2 5.5"/><path d="M12 12c-3 0-3 0-4.5-3-1.5-2.7-3.5-2.5-5.5-2"/><path d="M12 12c3 0 3 0 4.5-3 1.5-2.7 3.5-2.5 5.5-2"/><path d="M12 12c-3 0-3 0-4.5 3-1.5 2.7-3.5 2.5-5.5 2"/><path d="M12 12c3 0 3 0 4.5 3 1.5 2.7 3.5 2.5 5.5 2"/><circle cx="12" cy="12" r="2"/></svg>`
-    },
-    resistivo: {
-      color: '#f87171',
-      bg: 'rgba(248,113,113,.15)',
-      label: 'Resistivos',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>`
-    },
-    otro: {
-      color: '#a78bfa',
-      bg: 'rgba(167,139,250,.15)',
-      label: 'Especiales',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`
-    },
-  };
+  iluminacion: { 
+    color:'#facc15', 
+    bg:'rgba(250,204,21,.15)', 
+    label:'Iluminación', 
+    icon:`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>` 
+  },
+  tomacorriente:{ 
+    color:'#60a5fa', 
+    bg:'rgba(96,165,250,.15)', 
+    label:'Tomacorrientes', 
+    icon:`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 22v-5"/><path d="M14 22v-5"/><path d="M12 11V7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"/><path d="M12 11V7a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v4"/><path d="M6 11h12"/></svg>` 
+  },
+  motor:{ 
+    color:'#4ade80', 
+    bg:'rgba(74,222,128,.15)', 
+    label:'Motores', 
+    icon:`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>` 
+  },
+  hvac:{ 
+    color:'#38bdf8', 
+    bg:'rgba(56,189,248,.15)', 
+    label:'HVAC/Clima', 
+    icon:`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12v.5"/><path d="M12 12c0 3 0 3-3 4.5-2.7 1.5-2.5 3.5-2 5.5"/><path d="M12 12c0 3 0 3 3 4.5 2.7 1.5 2.5 3.5 2 5.5"/><path d="M12 12c-3 0-3 0-4.5-3-1.5-2.7-3.5-2.5-5.5-2"/><path d="M12 12c3 0 3 0 4.5-3 1.5-2.7 3.5-2.5 5.5-2"/><path d="M12 12c-3 0-3 0-4.5 3-1.5 2.7-3.5 2.5-5.5 2"/><path d="M12 12c3 0 3 0 4.5 3 1.5 2.7 3.5 2.5 5.5 2"/><circle cx="12" cy="12" r="2"/></svg>` 
+  },
+  resistivo:{ 
+    color:'#f87171', 
+    bg:'rgba(248,113,113,.15)', 
+    label:'Resistivos', 
+    icon:`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>` 
+  },
+  otro:{ 
+    color:'#a78bfa', 
+    bg:'rgba(167,139,250,.15)', 
+    label:'Especiales', 
+    icon:`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>` 
+  },
+};
 
 
   // Construir lista de circuitos con cálculos completos
   const circuitos = [];
   cargas.forEach((c, ci) => {
     const cant = c.cantidad || 1;
-    const fp = c.fp || 0.9;
+    const fp   = c.fp || 0.9;
     const vCarga = c.voltaje || tension;
     const esTri_c = c.sistema === 'tri';
     const sqrt3_c = esTri_c ? Math.sqrt(3) : 1;
     const potUnit = c.potencia || 0;
     const potTotal = potUnit * cant;
-    const pd = potTotal * (c.fs || 100) / 100;
-    const Ic = pd > 0 ? pd / (vCarga * sqrt3_c * fp) : 0;
+    const pd    = potTotal * (c.fs || 100) / 100;
+    const Ic    = pd > 0 ? pd / (vCarga * sqrt3_c * fp) : 0;
     const factorM = (c.tipo === 'motor' || c.tipo === 'hvac') ? 1.25 : 1.0;
     const IdD = Ic * factorM / tempF;
     // AWG
-    let awgRow = AWG_TABLE.find(r => r[4] != null && r[4] >= IdD) || AWG_TABLE[AWG_TABLE.length - 1];
+    let awgRow = AWG_TABLE.find(r => r[4] != null && r[4] >= IdD) || AWG_TABLE[AWG_TABLE.length-1];
     const awgLabel = awgRow ? '#' + awgRow[0] : '—';
     // Breaker
     const IbMin = Ic * (factorM > 1 ? 2.5 : 1.25);
@@ -3681,10 +3669,10 @@ function calcTablero() {
     const nCond = esTri_c ? 4 : 3;
     const totArea = areaC * nCond;
     let conduitSel = CONDUIT_AREA.EMT.find(([n, a]) => a * 0.40 >= totArea);
-    if (!conduitSel) conduitSel = CONDUIT_AREA.EMT[CONDUIT_AREA.EMT.length - 1];
+    if (!conduitSel) conduitSel = CONDUIT_AREA.EMT[CONDUIT_AREA.EMT.length-1];
     circuitos.push({
       idx: ci + 1,
-      desc: c.desc || `Carga ${ci + 1}`,
+      desc: c.desc || `Carga ${ci+1}`,
       tipo: c.tipo,
       cant,
       potTotal,
@@ -3703,12 +3691,12 @@ function calcTablero() {
 
   // Acometida general
   const totalWD = circuitos.reduce((a, c) => a + c.pd, 0);
-  const ITotal = cfg.esTri
+  const ITotal  = cfg.esTri
     ? totalWD / (cfg.tension * Math.sqrt(3) * 0.9)
     : totalWD / (cfg.tension * 0.9);
-  const brkAco = BREAKERS_STD.find(b => b >= ITotal * 1.25) || 2000;
-  const IdAco = ITotal * 1.25 / tempF;
-  let acometidaRow = AWG_TABLE.find(r => r[4] != null && r[4] >= IdAco) || AWG_TABLE[AWG_TABLE.length - 1];
+  const brkAco  = BREAKERS_STD.find(b => b >= ITotal * 1.25) || 2000;
+  const IdAco   = ITotal * 1.25 / tempF;
+  let acometidaRow = AWG_TABLE.find(r => r[4] != null && r[4] >= IdAco) || AWG_TABLE[AWG_TABLE.length-1];
 
   // Renderizar tablero
   const sec = document.getElementById('bc-tablero-section');
@@ -3729,12 +3717,12 @@ function calcTablero() {
   const resumenGrupos = Object.entries(grupos).map(([tipo, lista]) => {
     const tc = TIPO_COLOR[tipo] || TIPO_COLOR.otro;
     const totalBrk = lista.reduce((a, c) => a + 1, 0);
-    const totalPD = lista.reduce((a, c) => a + c.pd, 0);
+    const totalPD  = lista.reduce((a, c) => a + c.pd, 0);
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;border-left:3px solid ${tc.color}">
       <span style="font-size:18px">${tc.icon}</span>
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;font-size:12px;color:${tc.color}">${tc.label}</div>
-        <div style="font-size:11px;color:var(--t3)">${lista.length} circuito${lista.length !== 1 ? 's' : ''} · ${(totalPD / 1000).toFixed(2)} kW demanda</div>
+        <div style="font-size:11px;color:var(--t3)">${lista.length} circuito${lista.length!==1?'s':''} · ${(totalPD/1000).toFixed(2)} kW demanda</div>
       </div>
       <div style="font-family:'DM Mono',monospace;font-weight:800;font-size:13px;color:${tc.color}">${lista.length}</div>
     </div>`;
@@ -3753,11 +3741,11 @@ function calcTablero() {
           <div style="background:var(--s2);border-radius:8px;padding:10px;text-align:center">
             <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px">Breaker principal</div>
             <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:800;color:var(--acc)">${brkAco}A</div>
-            <div style="font-size:10px;color:var(--t3)">${cfg.esTri ? '3 polos' : '2 polos'}</div>
+            <div style="font-size:10px;color:var(--t3)">${cfg.esTri?'3 polos':'2 polos'}</div>
           </div>
           <div style="background:var(--s2);border-radius:8px;padding:10px;text-align:center">
             <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px">Cable acometida</div>
-            <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:800;color:var(--info)">AWG #${acometidaRow ? acometidaRow[0] : '—'}</div>
+            <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:800;color:var(--info)">AWG #${acometidaRow?acometidaRow[0]:'—'}</div>
             <div style="font-size:10px;color:var(--t3)">Cu THHN 90°C</div>
           </div>
         </div>
@@ -3768,11 +3756,11 @@ function calcTablero() {
           </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
             <span style="color:var(--t3)">Potencia instalada total</span>
-            <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--t1)">${(circuitos.reduce((a, c) => a + c.potTotal, 0) / 1000).toFixed(2)} kW</span>
+            <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--t1)">${(circuitos.reduce((a,c)=>a+c.potTotal,0)/1000).toFixed(2)} kW</span>
           </div>
           <div style="display:flex;justify-content:space-between">
             <span style="color:var(--t3)">Potencia demanda real</span>
-            <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--ok)">${(totalWD / 1000).toFixed(2)} kW</span>
+            <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--ok)">${(totalWD/1000).toFixed(2)} kW</span>
           </div>
         </div>
       </div>
@@ -3791,7 +3779,7 @@ function calcTablero() {
       </div>
       <span class="breaker-amp" style="color:${tc.color}">${c.brkRec}A</span>
       <div class="breaker-info">
-        <div class="breaker-desc" title="${c.desc}">${String(i + 1).padStart(2, '0')}. ${c.desc}</div>
+        <div class="breaker-desc" title="${c.desc}">${String(i+1).padStart(2,'0')}. ${c.desc}</div>
         <div class="breaker-sub">AWG ${c.awg} · EMT ${c.conduit} · ${c.vCarga}V</div>
       </div>
       <span style="font-size:10px;color:${tc.color}">${tc.icon}</span>
@@ -3808,12 +3796,12 @@ function calcTablero() {
       <!-- Main breaker -->
       <div style="background:rgba(245,200,0,.08);border-bottom:2px solid rgba(245,200,0,.25);padding:10px 12px;display:flex;align-items:center;gap:10px">
         <div style="width:36px;height:42px;background:rgba(245,200,0,.2);border:2px solid var(--acc);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative">
-          <span style="font-size:8px;font-weight:800;color:var(--acc)">${cfg.esTri ? '3P' : '2P'}</span>
+          <span style="font-size:8px;font-weight:800;color:var(--acc)">${cfg.esTri?'3P':'2P'}</span>
           <div style="position:absolute;top:4px;left:50%;transform:translateX(-50%);width:4px;height:18px;background:rgba(0,0,0,.4);border-radius:2px"></div>
         </div>
         <div>
           <div style="font-weight:800;font-size:13px;color:var(--acc)">INTERRUPTOR PRINCIPAL — ${brkAco}A</div>
-          <div style="font-size:10px;color:var(--t3)">Cable acometida: AWG #${acometidaRow ? acometidaRow[0] : '—'} Cu · ${cfg.esTri ? 'Trifásico 380V' : 'Bifásico 120/240V'}</div>
+          <div style="font-size:10px;color:var(--t3)">Cable acometida: AWG #${acometidaRow?acometidaRow[0]:'—'} Cu · ${cfg.esTri?'Trifásico 380V':'Bifásico 120/240V'}</div>
         </div>
       </div>
       ${breakerSlots}
@@ -3845,10 +3833,10 @@ function calcTablero() {
             </tr>
           </thead>
           <tbody>
-            ${circuitos.map((c, i) => {
-    const tc = TIPO_COLOR[c.tipo] || TIPO_COLOR.otro;
-    return `<tr style="border-bottom:1px solid var(--bd);transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.025)'" onmouseout="this.style.background=''">
-                <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-weight:700;color:var(--t3)">${String(i + 1).padStart(2, '0')}</td>
+            ${circuitos.map((c,i) => {
+              const tc = TIPO_COLOR[c.tipo] || TIPO_COLOR.otro;
+              return `<tr style="border-bottom:1px solid var(--bd);transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.025)'" onmouseout="this.style.background=''">
+                <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-weight:700;color:var(--t3)">${String(i+1).padStart(2,'0')}</td>
                 <td style="padding:8px 10px;font-weight:600;color:var(--t1)">${c.desc}</td>
                 <td style="padding:8px 10px">
                   <span style="font-size:11px;font-weight:600;color:${tc.color};background:${tc.bg};padding:2px 8px;border-radius:4px">${tc.icon} ${tc.label}</span>
@@ -3857,18 +3845,18 @@ function calcTablero() {
                 <td style="padding:8px 10px;text-align:right;font-family:'DM Mono',monospace;color:var(--t2)">${c.vCarga}V</td>
                 <td style="padding:8px 10px;text-align:right;font-family:'DM Mono',monospace;color:var(--t2)">${c.fp}</td>
                 <td style="padding:8px 10px;text-align:right;font-family:'DM Mono',monospace;color:var(--t2)">${c.fs}%</td>
-                <td style="padding:8px 10px;text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--acc)">${(c.pd / 1000).toFixed(3)}</td>
+                <td style="padding:8px 10px;text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--acc)">${(c.pd/1000).toFixed(3)}</td>
                 <td style="padding:8px 10px;text-align:right;font-family:'DM Mono',monospace;color:#c084fc">${c.Ic.toFixed(2)}</td>
                 <td style="padding:8px 10px;text-align:center"><span style="background:rgba(59,130,246,.12);color:var(--info);font-family:'DM Mono',monospace;font-weight:700;padding:3px 8px;border-radius:5px;font-size:11px">${c.awg}</span></td>
                 <td style="padding:8px 10px;text-align:center"><span style="background:rgba(245,200,0,.12);color:var(--acc);font-family:'DM Mono',monospace;font-weight:700;padding:3px 8px;border-radius:5px;font-size:11px">${c.brkRec}A ${c.polos}P</span></td>
                 <td style="padding:8px 10px;text-align:center"><span style="background:rgba(34,197,94,.12);color:var(--ok);font-family:'DM Mono',monospace;font-weight:700;padding:3px 8px;border-radius:5px;font-size:11px">EMT ${c.conduit}</span></td>
               </tr>`;
-  }).join('')}
+            }).join('')}
           </tbody>
           <tfoot>
             <tr style="background:rgba(245,200,0,.05);border-top:2px solid rgba(245,200,0,.25)">
               <td colspan="7" style="padding:10px;font-weight:800;color:var(--acc);font-size:12px">TOTALES</td>
-              <td style="padding:10px;text-align:right;font-family:'DM Mono',monospace;font-weight:800;color:var(--acc)">${(totalWD / 1000).toFixed(3)}</td>
+              <td style="padding:10px;text-align:right;font-family:'DM Mono',monospace;font-weight:800;color:var(--acc)">${(totalWD/1000).toFixed(3)}</td>
               <td style="padding:10px;text-align:right;font-family:'DM Mono',monospace;font-weight:800;color:#c084fc">${ITotal.toFixed(2)}</td>
               <td colspan="3" style="padding:10px;text-align:center;font-size:11px;color:var(--t3)">Interruptor principal: <strong style="color:var(--acc)">${brkAco}A</strong></td>
             </tr>
@@ -3881,8 +3869,8 @@ function calcTablero() {
   refreshIcons();
 
   // Guardar circuitos calculados para PDF
-  window._bcCircuitos = circuitos;
-  window._bcAcometida = { brkAco, awg: acometidaRow ? '#' + acometidaRow[0] : '—', ITotal, totalWD };
+  window._bcCircuitos    = circuitos;
+  window._bcAcometida    = { brkAco, awg: acometidaRow ? '#'+acometidaRow[0] : '—', ITotal, totalWD };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3890,70 +3878,70 @@ function calcTablero() {
 // ═══════════════════════════════════════════════════════════════
 
 // ── Database helpers (API + localStorage cache) ────────────────
-function _getBalancesCache() { try { return JSON.parse(localStorage.getItem('sest_balances_cache') || '[]') } catch { return [] } }
-function _setBalancesCache(arr) { localStorage.setItem('sest_balances_cache', JSON.stringify(arr)) }
+function _getBalancesCache(){try{return JSON.parse(localStorage.getItem('sest_balances_cache')||'[]')}catch{return[]}}
+function _setBalancesCache(arr){localStorage.setItem('sest_balances_cache',JSON.stringify(arr))}
 
-async function _loadBalancesFromDB() {
-  try {
-    const r = await api('electrical-projects');
-    if (!isErr(r) && Array.isArray(r)) {
+async function _loadBalancesFromDB(){
+  try{
+    const r=await api('electrical-projects');
+    if(!isErr(r)&&Array.isArray(r)){
       _setBalancesCache(r);
       _updateDbBadge('ok');
       return r;
     }
-  } catch (e) { }
+  }catch(e){}
   _updateDbBadge('err');
   return _getBalancesCache();
 }
 
-async function _saveBalanceToDB(data) {
-  try {
-    const r = data.id
-      ? await api(`electrical-projects?id=${data.id}`, { method: 'PUT', body: JSON.stringify(data) })
-      : await api('electrical-projects', { method: 'POST', body: JSON.stringify(data) });
-    if (!isErr(r)) {
+async function _saveBalanceToDB(data){
+  try{
+    const r=data.id
+      ? await api(`electrical-projects?id=${data.id}`,{method:'PUT',body:JSON.stringify(data)})
+      : await api('electrical-projects',{method:'POST',body:JSON.stringify(data)});
+    if(!isErr(r)){
       // Refresh cache
-      const all = await _loadBalancesFromDB();
+      const all=await _loadBalancesFromDB();
       _updateDbBadge('ok');
       return r;
     }
-  } catch (e) { }
+  }catch(e){}
   // Fallback to localStorage
-  const arr = _getBalancesCache();
-  const idx = arr.findIndex(b => b.id === data.id);
-  if (idx >= 0) arr[idx] = { ...arr[idx], ...data };
+  const arr=_getBalancesCache();
+  const idx=arr.findIndex(b=>b.id===data.id);
+  if(idx>=0) arr[idx]={...arr[idx],...data};
   else arr.push(data);
   _setBalancesCache(arr);
   _updateDbBadge('err');
   return data;
 }
 
-async function _deleteBalanceFromDB(id) {
-  try {
-    const r = await api(`electrical-projects?id=${id}`, { method: 'DELETE' });
-    if (!isErr(r)) {
-      const all = await _loadBalancesFromDB();
+async function _deleteBalanceFromDB(id){
+  try{
+    const r=await api(`electrical-projects?id=${id}`,{method:'DELETE'});
+    if(!isErr(r)){
+      const all=await _loadBalancesFromDB();
       return true;
     }
-  } catch (e) { }
+  }catch(e){}
   // Fallback
-  const arr = _getBalancesCache().filter(b => b.id !== id);
+  const arr=_getBalancesCache().filter(b=>b.id!==id);
   _setBalancesCache(arr);
   return true;
 }
 
-function _updateDbBadge(status) {
-  const badge = document.getElementById('bc-db-badge');
-  if (!badge) return;
-  if (status === 'ok') {
-    badge.className = 'db-status-badge db-ok';
-    badge.innerHTML = '<span class="db-pulse"></span> PostgreSQL conectado';
-  } else if (status === 'err') {
-    badge.className = 'db-status-badge db-err';
-    badge.innerHTML = '<span class="db-pulse"></span> Sin BD · Caché local';
-  } else {
-    badge.className = 'db-status-badge db-loading';
-    badge.innerHTML = '<span class="db-pulse"></span> Conectando…';
+function _updateDbBadge(status){
+  const badge=document.getElementById('bc-db-badge');
+  if(!badge)return;
+  if(status==='ok'){
+    badge.className='db-status-badge db-ok';
+    badge.innerHTML='<span class="db-pulse"></span> PostgreSQL conectado';
+  }else if(status==='err'){
+    badge.className='db-status-badge db-err';
+    badge.innerHTML='<span class="db-pulse"></span> Sin BD · Caché local';
+  }else{
+    badge.className='db-status-badge db-loading';
+    badge.innerHTML='<span class="db-pulse"></span> Conectando…';
   }
 }
 
@@ -3964,122 +3952,122 @@ function _updateDbBadge(status) {
 // ═══════════════════════════════════════════════════════════════
 
 // ── Badge de conexión propio del calibrador ────────────────────
-function _updateCcDbBadge(status) {
-  const b = document.getElementById('cc-db-badge');
-  if (!b) return;
-  if (status === 'ok') { b.className = 'db-status-badge db-ok'; b.innerHTML = '<span class="db-pulse"></span> BD conectada'; }
-  else if (status === 'err') { b.className = 'db-status-badge db-err'; b.innerHTML = '<span class="db-pulse"></span> Sin BD'; }
-  else { b.className = 'db-status-badge db-loading'; b.innerHTML = '<span class="db-pulse"></span> Conectando…'; }
+function _updateCcDbBadge(status){
+  const b=document.getElementById('cc-db-badge');
+  if(!b)return;
+  if(status==='ok'){b.className='db-status-badge db-ok';b.innerHTML='<span class="db-pulse"></span> BD conectada';}
+  else if(status==='err'){b.className='db-status-badge db-err';b.innerHTML='<span class="db-pulse"></span> Sin BD';}
+  else{b.className='db-status-badge db-loading';b.innerHTML='<span class="db-pulse"></span> Conectando…';}
 }
 
 // ── Recolecta todos los inputs del cálculo actual ──────────────
-function _ccSnapshot() {
+function _ccSnapshot(){
   return {
-    sistema: window._ccSistema || '120/240',
-    circuito: document.getElementById('cc-circuito')?.value || 'mono-ll',
-    instalacion: document.getElementById('cc-instalacion')?.value || 'ducto',
-    modo: document.getElementById('modo-btn-pot')?.classList.contains('on') ? 'potencia' : 'corriente',
-    potencia: document.getElementById('cc-potencia')?.value || '',
-    unidad: document.getElementById('cc-pot-unit')?.value || 'W',
-    amperes: document.getElementById('cc-amperes')?.value || '',
-    fp: document.getElementById('cc-fp')?.value || '',
-    motor: document.getElementById('cc-motor')?.value || '0',
-    eff: document.getElementById('cc-eff')?.value || '',
-    temp: document.getElementById('cc-temp')?.value || '1.0',
-    agrup: document.getElementById('cc-agrup')?.value || '1.0',
-    longitud: document.getElementById('cc-long')?.value || '',
-    material: window._ccMaterial || 'Cu',
-    tempCol: window._ccTempCol || 'cu90',
-    caidaMax: document.getElementById('cc-caida-max')?.value || '3',
+    sistema:    window._ccSistema||'120/240',
+    circuito:   document.getElementById('cc-circuito')?.value||'mono-ll',
+    instalacion:document.getElementById('cc-instalacion')?.value||'ducto',
+    modo:       document.getElementById('modo-btn-pot')?.classList.contains('on')?'potencia':'corriente',
+    potencia:   document.getElementById('cc-potencia')?.value||'',
+    unidad:     document.getElementById('cc-pot-unit')?.value||'W',
+    amperes:    document.getElementById('cc-amperes')?.value||'',
+    fp:         document.getElementById('cc-fp')?.value||'',
+    motor:      document.getElementById('cc-motor')?.value||'0',
+    eff:        document.getElementById('cc-eff')?.value||'',
+    temp:       document.getElementById('cc-temp')?.value||'1.0',
+    agrup:      document.getElementById('cc-agrup')?.value||'1.0',
+    longitud:   document.getElementById('cc-long')?.value||'',
+    material:   window._ccMaterial||'Cu',
+    tempCol:    window._ccTempCol||'cu90',
+    caidaMax:   document.getElementById('cc-caida-max')?.value||'3',
   };
 }
 
 // ── Restaura todos los inputs desde un snapshot ────────────────
-function _ccRestore(snap) {
-  if (!snap) return;
-  setSistema(snap.sistema || '120/240');
-  const circ = document.getElementById('cc-circuito');
-  if (circ) { circ.value = snap.circuito || 'mono-ll'; }
-  const inst = document.getElementById('cc-instalacion');
-  if (inst) inst.value = snap.instalacion || 'ducto';
-  setModoCable(snap.modo || 'potencia');
-  if (snap.modo === 'potencia') {
-    document.getElementById('cc-potencia').value = snap.potencia || '';
-    const pu = document.getElementById('cc-pot-unit'); if (pu) pu.value = snap.unidad || 'W';
-  } else {
-    document.getElementById('cc-amperes').value = snap.amperes || '';
+function _ccRestore(snap){
+  if(!snap)return;
+  setSistema(snap.sistema||'120/240');
+  const circ=document.getElementById('cc-circuito');
+  if(circ){circ.value=snap.circuito||'mono-ll';}
+  const inst=document.getElementById('cc-instalacion');
+  if(inst)inst.value=snap.instalacion||'ducto';
+  setModoCable(snap.modo||'potencia');
+  if(snap.modo==='potencia'){
+    document.getElementById('cc-potencia').value=snap.potencia||'';
+    const pu=document.getElementById('cc-pot-unit');if(pu)pu.value=snap.unidad||'W';
+  }else{
+    document.getElementById('cc-amperes').value=snap.amperes||'';
   }
-  document.getElementById('cc-fp').value = snap.fp || '';
-  const mot = document.getElementById('cc-motor'); if (mot) { mot.value = snap.motor || '0'; toggleEff(); }
-  document.getElementById('cc-eff').value = snap.eff || '';
-  const tmp = document.getElementById('cc-temp'); if (tmp) tmp.value = snap.temp || '1.0';
-  const agr = document.getElementById('cc-agrup'); if (agr) agr.value = snap.agrup || '1.0';
-  document.getElementById('cc-long').value = snap.longitud || '';
-  setMaterial(snap.material || 'Cu');
-  setTempCol(snap.tempCol || 'cu90');
-  document.getElementById('cc-caida-max').value = snap.caidaMax || '3';
+  document.getElementById('cc-fp').value=snap.fp||'';
+  const mot=document.getElementById('cc-motor');if(mot){mot.value=snap.motor||'0';toggleEff();}
+  document.getElementById('cc-eff').value=snap.eff||'';
+  const tmp=document.getElementById('cc-temp');if(tmp)tmp.value=snap.temp||'1.0';
+  const agr=document.getElementById('cc-agrup');if(agr)agr.value=snap.agrup||'1.0';
+  document.getElementById('cc-long').value=snap.longitud||'';
+  setMaterial(snap.material||'Cu');
+  setTempCol(snap.tempCol||'cu90');
+  document.getElementById('cc-caida-max').value=snap.caidaMax||'3';
   onCaidaInput();
   calcCable();
 }
 
 // ── Genera texto resumen corto del snapshot ────────────────────
-function _ccResumenSnap(snap) {
-  if (!snap) return '—';
-  const modo = snap.modo === 'corriente' ? `${snap.amperes || '—'} A` : `${snap.potencia || '—'} ${snap.unidad || 'W'}`;
-  return `${SISTEMAS_EC[snap.sistema]?.label || snap.sistema} · ${modo} · ${snap.longitud || '—'} m · ${(TEMPCOL_MAP[snap.tempCol] || TEMPCOL_MAP['cu90']).label}`;
+function _ccResumenSnap(snap){
+  if(!snap)return '—';
+  const modo=snap.modo==='corriente'?`${snap.amperes||'—'} A`:`${snap.potencia||'—'} ${snap.unidad||'W'}`;
+  return `${SISTEMAS_EC[snap.sistema]?.label||snap.sistema} · ${modo} · ${snap.longitud||'—'} m · ${(TEMPCOL_MAP[snap.tempCol]||TEMPCOL_MAP['cu90']).label}`;
 }
 
 // ── Abre modal de guardar ──────────────────────────────────────
-function abrirGuardarCalcCable() {
-  const snap = _ccSnapshot();
-  const res = document.getElementById('cc-resultado');
-  const tieneRes = res && res.textContent.trim().length > 10;
-  if (!tieneRes) { toast('Completa el cálculo antes de guardar', 'err'); return; }
-  document.getElementById('cc-guardar-nombre').value = '';
-  document.getElementById('cc-guardar-cliente').value = '';
-  document.getElementById('cc-guardar-notas').value = '';
-  document.getElementById('cc-guardar-err').className = 'alert err';
-  document.getElementById('cc-guardar-preview-body').textContent = _ccResumenSnap(snap);
+function abrirGuardarCalcCable(){
+  const snap=_ccSnapshot();
+  const res=document.getElementById('cc-resultado');
+  const tieneRes=res&&res.textContent.trim().length>10;
+  if(!tieneRes){toast('Completa el cálculo antes de guardar','err');return;}
+  document.getElementById('cc-guardar-nombre').value='';
+  document.getElementById('cc-guardar-cliente').value='';
+  document.getElementById('cc-guardar-notas').value='';
+  document.getElementById('cc-guardar-err').className='alert err';
+  document.getElementById('cc-guardar-preview-body').textContent=_ccResumenSnap(snap);
   openModal('m-cc-guardar');
 }
 
 // ── Confirma y guarda en Neon/Vercel ──────────────────────────
-async function confirmarGuardarCalcCable() {
-  const nombre = (document.getElementById('cc-guardar-nombre')?.value || '').trim();
-  const cliente = (document.getElementById('cc-guardar-cliente')?.value || '').trim();
-  const notas = (document.getElementById('cc-guardar-notas')?.value || '').trim();
-  const errEl = document.getElementById('cc-guardar-err');
-  if (!nombre) { errEl.textContent = 'El nombre es obligatorio'; errEl.classList.add('show'); document.getElementById('cc-guardar-nombre').focus(); return; }
+async function confirmarGuardarCalcCable(){
+  const nombre=(document.getElementById('cc-guardar-nombre')?.value||'').trim();
+  const cliente=(document.getElementById('cc-guardar-cliente')?.value||'').trim();
+  const notas=(document.getElementById('cc-guardar-notas')?.value||'').trim();
+  const errEl=document.getElementById('cc-guardar-err');
+  if(!nombre){errEl.textContent='El nombre es obligatorio';errEl.classList.add('show');document.getElementById('cc-guardar-nombre').focus();return;}
   errEl.classList.remove('show');
-  setBL('btn-cc-guardar-ok', true);
+  setBL('btn-cc-guardar-ok',true);
   _updateCcDbBadge('loading');
-  const snap = _ccSnapshot();
-  const payload = {
+  const snap=_ccSnapshot();
+  const payload={
     nombre,
     cliente,
     ubicacion: notas,
     tipo: 'cable_calc',
-    temp_f: snap.temp || '1.0',
-    sistema: snap.sistema || '120/240',
+    temp_f: snap.temp||'1.0',
+    sistema: snap.sistema||'120/240',
     cargas: [snap],   // reutilizamos el campo JSONB para el snapshot
   };
-  try {
-    const r = await api('electrical-projects', { method: 'POST', body: JSON.stringify(payload) });
-    if (isErr(r)) {
-      errEl.textContent = r?.msg || 'Error al guardar en la base de datos';
+  try{
+    const r=await api('electrical-projects',{method:'POST',body:JSON.stringify(payload)});
+    if(isErr(r)){
+      errEl.textContent=r?.msg||'Error al guardar en la base de datos';
       errEl.classList.add('show');
       _updateCcDbBadge('err');
-    } else {
+    }else{
       closeModal('m-cc-guardar');
       _updateCcDbBadge('ok');
-      toast('✅ Cálculo guardado en PostgreSQL', 'ok');
+      toast('✅ Cálculo guardado en PostgreSQL','ok');
     }
-  } catch (e) {
-    errEl.textContent = 'Error de conexión con el servidor';
+  }catch(e){
+    errEl.textContent='Error de conexión con el servidor';
     errEl.classList.add('show');
     _updateCcDbBadge('err');
   }
-  setBL('btn-cc-guardar-ok', false, 'Guardar en BD');
+  setBL('btn-cc-guardar-ok',false,'Guardar en BD');
 }
 
 // ── Cache de cálculos cargados (evita re-fetch al cargar) ──────
@@ -4087,42 +4075,42 @@ let _ccCalcsCache = [];
 
 // ── Helper: extrae y parsea el campo cargas de forma robusta ───
 // Maneja: null, string simple, string doble-serializado, array, objeto directo
-function _parseCargasField(raw) {
-  if (raw === null || raw === undefined) return [];
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw === 'object') return [raw];
-  if (typeof raw === 'string') {
+function _parseCargasField(raw){
+  if(raw === null || raw === undefined) return [];
+  if(Array.isArray(raw)) return raw;
+  if(typeof raw === 'object') return [raw];
+  if(typeof raw === 'string'){
     let parsed;
-    try { parsed = JSON.parse(raw); } catch (e) { return []; }
-    if (typeof parsed === 'string') {
-      try { parsed = JSON.parse(parsed); } catch (e) { return []; }
+    try{ parsed = JSON.parse(raw); }catch(e){ return []; }
+    if(typeof parsed === 'string'){
+      try{ parsed = JSON.parse(parsed); }catch(e){ return []; }
     }
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed && typeof parsed === 'object') return [parsed];
+    if(Array.isArray(parsed)) return parsed;
+    if(parsed && typeof parsed === 'object') return [parsed];
   }
   return [];
 }
 
 // ── Abre modal con historial desde BD ─────────────────────────
-async function abrirHistorialCalcCable() {
+async function abrirHistorialCalcCable(){
   openModal('m-cc-historial');
-  const listEl = document.getElementById('cc-historial-list');
-  listEl.innerHTML = '<div class="loading"><div class="spin"></div><p>Cargando desde PostgreSQL…</p></div>';
+  const listEl=document.getElementById('cc-historial-list');
+  listEl.innerHTML='<div class="loading"><div class="spin"></div><p>Cargando desde PostgreSQL…</p></div>';
   _updateCcDbBadge('loading');
-  try {
-    const r = await api('electrical-projects');
-    if (isErr(r)) {
-      listEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--err)">${r?.msg || 'Error al cargar historial'}</div>`;
+  try{
+    const r=await api('electrical-projects');
+    if(isErr(r)){
+      listEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--err)">${r?.msg||'Error al cargar historial'}</div>`;
       _updateCcDbBadge('err');
       return;
     }
     _updateCcDbBadge('ok');
     const todos = Array.isArray(r) ? r : (r?.data ? r.data : (r ? [r] : []));
-    const calcs = todos.filter(p => p.tipo === 'cable_calc');
+    const calcs = todos.filter(p=>p.tipo==='cable_calc');
     // Guardar en caché para usarlo al cargar sin re-fetch
     _ccCalcsCache = calcs;
     // DEBUG: ver estructura real del primer registro
-    if (calcs.length) {
+    if(calcs.length){
       const sample = calcs[0];
       console.log('[CC-DEBUG] Primer registro:', JSON.stringify({
         id: sample.id,
@@ -4130,31 +4118,31 @@ async function abrirHistorialCalcCable() {
         tipo: sample.tipo,
         cargasType: typeof sample.cargas,
         cargasIsArray: Array.isArray(sample.cargas),
-        cargasPreview: JSON.stringify(sample.cargas)?.slice(0, 120)
+        cargasPreview: JSON.stringify(sample.cargas)?.slice(0,120)
       }));
     }
-    if (!calcs.length) {
-      listEl.innerHTML = `<div style="text-align:center;padding:32px;color:var(--t3)">
+    if(!calcs.length){
+      listEl.innerHTML=`<div style="text-align:center;padding:32px;color:var(--t3)">
         <i data-lucide="inbox" style="width:36px;height:36px;display:block;margin:0 auto 10px"></i>
         <p style="font-size:13px">No hay cálculos guardados aún.</p>
         <p style="font-size:12px;margin-top:4px">Usa el botón <strong style="color:var(--acc)">Guardar</strong> después de calcular.</p>
       </div>`;
-      refreshIcons(); return;
+      refreshIcons();return;
     }
-    calcs.sort((a, b) => new Date(b.created_at || b.creado_en || 0) - new Date(a.created_at || a.creado_en || 0));
-    listEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px">
-      ${calcs.map(c => {
-      const cargasArr = _parseCargasField(c.cargas);
-      const snap = cargasArr[0] || {};
-      const fecha = c.created_at || c.creado_en ? new Date(c.created_at || c.creado_en).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-      return `<div style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px">
+    calcs.sort((a,b)=>new Date(b.created_at||b.creado_en||0)-new Date(a.created_at||a.creado_en||0));
+    listEl.innerHTML=`<div style="display:flex;flex-direction:column;gap:10px">
+      ${calcs.map(c=>{
+        const cargasArr = _parseCargasField(c.cargas);
+        const snap = cargasArr[0] || {};
+        const fecha=c.created_at||c.creado_en?new Date(c.created_at||c.creado_en).toLocaleDateString('es-EC',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+        return`<div style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px">
           <div style="width:36px;height:36px;border-radius:9px;background:rgba(245,200,0,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--acc)">
             <i data-lucide="cable" style="width:18px;height:18px"></i>
           </div>
           <div style="flex:1;min-width:0">
             <div style="font-weight:700;font-size:13px;color:var(--t1);margin-bottom:2px">${c.nombre}</div>
-            ${c.cliente ? `<div style="font-size:12px;color:var(--t3);margin-bottom:2px">📁 ${c.cliente}</div>` : ''}
-            ${c.ubicacion ? `<div style="font-size:11px;color:var(--t3);margin-bottom:4px">📝 ${c.ubicacion}</div>` : ''}
+            ${c.cliente?`<div style="font-size:12px;color:var(--t3);margin-bottom:2px">📁 ${c.cliente}</div>`:''}
+            ${c.ubicacion?`<div style="font-size:11px;color:var(--t3);margin-bottom:4px">📝 ${c.ubicacion}</div>`:''}
             <div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${_ccResumenSnap(snap)}</div>
             <div style="font-size:10px;color:var(--t3);margin-top:4px">🕒 ${fecha}</div>
           </div>
@@ -4167,33 +4155,33 @@ async function abrirHistorialCalcCable() {
             </button>
           </div>
         </div>`;
-    }).join('')}
+      }).join('')}
     </div>`;
     refreshIcons();
-  } catch (e) {
-    listEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--err)">Error de conexión</div>`;
+  }catch(e){
+    listEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--err)">Error de conexión</div>`;
     _updateCcDbBadge('err');
   }
 }
 
 // ── Carga un cálculo desde caché (sin re-fetch) ────────────────
-async function cargarCalcCable(id) {
+async function cargarCalcCable(id){
   closeModal('m-cc-historial');
 
   // 1. Buscar en caché local primero (ya fue cargado al abrir el historial)
   let record = _ccCalcsCache.find(c => String(c.id) === String(id));
 
   // 2. Si no está en caché, re-fetch de toda la lista y buscar por id
-  if (!record) {
-    toast('Cargando cálculo…', 'info');
+  if(!record){
+    toast('Cargando cálculo…','info');
     const r = await api('electrical-projects');
-    if (isErr(r)) { toast(r?.msg || 'Error al cargar cálculo', 'err'); return; }
+    if(isErr(r)){ toast(r?.msg||'Error al cargar cálculo','err'); return; }
     const todos = Array.isArray(r) ? r : (r?.data ? r.data : []);
     _ccCalcsCache = todos.filter(p => p.tipo === 'cable_calc');
     record = _ccCalcsCache.find(c => String(c.id) === String(id));
   }
 
-  if (!record) { toast('No se encontró el registro en la base de datos', 'err'); return; }
+  if(!record){ toast('No se encontró el registro en la base de datos','err'); return; }
 
   // 3. Parsear el campo cargas de forma ultra-robusta
   const cargasArr = _parseCargasField(record.cargas);
@@ -4202,53 +4190,53 @@ async function cargarCalcCable(id) {
   let snap = cargasArr[0] || null;
 
   // 5. Si sigue siendo null, intentar parsear record.cargas como snapshot directo
-  if (!snap && record.cargas) {
+  if(!snap && record.cargas){
     snap = _parseCargasField(record.cargas)[0] || null;
   }
 
-  if (!snap || typeof snap !== 'object') {
+  if(!snap || typeof snap !== 'object'){
     // Último recurso: intentar re-parsear todo el registro como snapshot
     // por si el backend devuelve los datos con estructura diferente
-    const keys = ['sistema', 'circuito', 'longitud', 'material', 'tempCol', 'potencia', 'amperes'];
+    const keys = ['sistema','circuito','longitud','material','tempCol','potencia','amperes'];
     const esSnap = keys.some(k => k in record);
-    if (esSnap) { snap = record; }
+    if(esSnap){ snap = record; }
   }
 
-  if (!snap) {
-    toast('No se encontraron datos de cálculo en este registro', 'err');
+  if(!snap){
+    toast('No se encontraron datos de cálculo en este registro','err');
     return;
   }
 
   _ccRestore(snap);
   irCalcTab('cables');
-  toast(`✅ Cálculo "${record.nombre}" cargado`, 'ok');
+  toast(`✅ Cálculo "${record.nombre}" cargado`,'ok');
 }
 
 // ── Elimina un cálculo de la BD ────────────────────────────────
-async function eliminarCalcCable(id, btnEl) {
-  if (!confirm('¿Eliminar este cálculo? La acción no se puede deshacer.')) return;
-  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '…'; }
-  const r = await api(`electrical-projects?id=${id}`, { method: 'DELETE' });
-  if (isErr(r)) { toast(r?.msg || 'Error al eliminar', 'err'); if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '<i data-lucide="trash-2" style="width:13px;height:13px"></i>'; refreshIcons(); } return; }
-  toast('Cálculo eliminado', 'ok');
+async function eliminarCalcCable(id, btnEl){
+  if(!confirm('¿Eliminar este cálculo? La acción no se puede deshacer.'))return;
+  if(btnEl){btnEl.disabled=true;btnEl.textContent='…';}
+  const r=await api(`electrical-projects?id=${id}`,{method:'DELETE'});
+  if(isErr(r)){toast(r?.msg||'Error al eliminar','err');if(btnEl){btnEl.disabled=false;btnEl.innerHTML='<i data-lucide="trash-2" style="width:13px;height:13px"></i>';refreshIcons();}return;}
+  toast('Cálculo eliminado','ok');
   abrirHistorialCalcCable();
 }
 
 // ═══════════════════════════════════════════════════════════════
 // EXPORTAR PDF — CALIBRADOR DE CABLES
 // ═══════════════════════════════════════════════════════════════
-async function exportarPDFCable() {
-  const resEl = document.getElementById('cc-resultado');
-  if (!resEl || !resEl.textContent.trim().length || resEl.textContent.includes('Ingresa los valores')) {
-    toast('Completa el cálculo antes de exportar', 'err'); return;
+async function exportarPDFCable(){
+  const resEl=document.getElementById('cc-resultado');
+  if(!resEl||!resEl.textContent.trim().length||resEl.textContent.includes('Ingresa los valores')){
+    toast('Completa el cálculo antes de exportar','err');return;
   }
-  const snap = _ccSnapshot();
-  const fecha = new Date().toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
-  const tempColInfo = TEMPCOL_MAP[snap.tempCol || 'cu90'] || TEMPCOL_MAP['cu90'];
-  const sisInfo = SISTEMAS_EC[snap.sistema] || SISTEMAS_EC['120/240'];
+  const snap=_ccSnapshot();
+  const fecha=new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
+  const tempColInfo=TEMPCOL_MAP[snap.tempCol||'cu90']||TEMPCOL_MAP['cu90'];
+  const sisInfo=SISTEMAS_EC[snap.sistema]||SISTEMAS_EC['120/240'];
 
   // Construir HTML del PDF
-  const htmlPDF = `
+  const htmlPDF=`
   <div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#111827;background:#fff;padding:40px;max-width:750px;margin:0 auto">
     <!-- ENCABEZADO -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #f5c800;padding-bottom:16px;margin-bottom:20px">
@@ -4260,7 +4248,7 @@ async function exportarPDFCable() {
         <div style="font-size:13px;font-weight:700;color:#111827">Cálculo de Conductor AWG</div>
         <div style="font-size:11px;color:#6b7280;margin-top:2px">NEC 310.15(B)(16) · NTE INEN 2345</div>
         <div style="font-size:11px;color:#6b7280;margin-top:2px">${fecha}</div>
-        ${usuario?.nombre ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">Elaborado por: <strong>${usuario.nombre}</strong></div>` : ''}
+        ${usuario?.nombre?`<div style="font-size:11px;color:#6b7280;margin-top:2px">Elaborado por: <strong>${usuario.nombre}</strong></div>`:''}
       </div>
     </div>
 
@@ -4270,11 +4258,11 @@ async function exportarPDFCable() {
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Sistema</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${sisInfo.label || snap.sistema}</div>
+          <div style="font-size:12px;font-weight:700;color:#111827">${sisInfo.label||snap.sistema}</div>
         </div>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">${snap.modo === 'corriente' ? 'Corriente de entrada' : 'Potencia de la carga'}</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.modo === 'corriente' ? (snap.amperes || '—') + ' A' : (snap.potencia || '—') + ' ' + snap.unidad}</div>
+          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">${snap.modo==='corriente'?'Corriente de entrada':'Potencia de la carga'}</div>
+          <div style="font-size:12px;font-weight:700;color:#111827">${snap.modo==='corriente'?(snap.amperes||'—')+' A':(snap.potencia||'—')+' '+snap.unidad}</div>
         </div>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Aislamiento</div>
@@ -4282,27 +4270,27 @@ async function exportarPDFCable() {
         </div>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Longitud del circuito</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.longitud || '—'} m</div>
+          <div style="font-size:12px;font-weight:700;color:#111827">${snap.longitud||'—'} m</div>
         </div>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Factor de potencia</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.fp || '—'} cos φ</div>
+          <div style="font-size:12px;font-weight:700;color:#111827">${snap.fp||'—'} cos φ</div>
         </div>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Caída de tensión máx.</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.caidaMax || '—'} %</div>
+          <div style="font-size:12px;font-weight:700;color:#111827">${snap.caidaMax||'—'} %</div>
         </div>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Factor temperatura</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.temp || '1.0'}</div>
+          <div style="font-size:12px;font-weight:700;color:#111827">${snap.temp||'1.0'}</div>
         </div>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Factor agrupamiento</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.agrup || '1.0'}</div>
+          <div style="font-size:12px;font-weight:700;color:#111827">${snap.agrup||'1.0'}</div>
         </div>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Tipo de instalación</div>
-          <div style="font-size:12px;font-weight:700;color:#111827">${snap.instalacion || '—'}</div>
+          <div style="font-size:12px;font-weight:700;color:#111827">${snap.instalacion||'—'}</div>
         </div>
       </div>
     </div>
@@ -4311,62 +4299,61 @@ async function exportarPDFCable() {
     <div style="margin-bottom:18px">
       <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #f5c800;padding-left:8px;margin-bottom:10px">2. RESULTADO DEL CÁLCULO</div>
       <div style="background:#fffbeb;border:2px solid #f5c800;border-radius:10px;padding:16px">
-        ${(() => {
-      // Re-run calc logic to get clean values for PDF
-      const sys = snap.sistema || '120/240';
-      const cfg = SISTEMAS_EC[sys] || SISTEMAS_EC['120/240'];
-      const circuito = snap.circuito || 'mono-ll';
-      const material = snap.material || 'Cu';
-      const fp = parseFloat(snap.fp) || 0.9;
-      const eff = parseFloat(snap.eff) || 0.85;
-      const tempF = parseFloat(snap.temp) || 1.0;
-      const agrupF = parseFloat(snap.agrup) || 1.0;
-      const tipoMotor = parseInt(snap.motor) || 0;
-      const longitud = parseFloat(snap.longitud) || 1;
-      const caidaMax = parseFloat(snap.caidaMax) || 3;
-      let tension = cfg.tension, nFases = cfg.fases;
-      if (sys === '120/240') { tension = circuito === 'mono-ln' ? 120 : 240; nFases = 1; }
-      else if (sys === '380') { tension = circuito === 'tri-fn' ? 220 : 380; nFases = circuito === 'tri-fn' ? 1 : 3; }
-      let Ic = 0;
-      if (snap.modo === 'corriente') { Ic = parseFloat(snap.amperes) || 0; }
-      else { let W = parseFloat(snap.potencia) || 0; const pu = snap.unidad || 'W'; if (pu === 'kW') W *= 1000; if (pu === 'HP') W *= 746; if (pu === 'kVA') W *= 1000; const sq = nFases === 3 ? Math.sqrt(3) : 1; Ic = W / (tension * sq * fp * (pu === 'HP' ? eff : 1)); }
-      if (Ic <= 0) return '<p style="color:#6b7280">Sin datos de carga.</p>';
-      const factorMotor = (tipoMotor === 1 || tipoMotor === 2) ? 1.25 : 1.0;
-      const IdCorr = Ic * factorMotor / (tempF * agrupF);
-      const tempColKey = snap.tempCol || 'cu90';
-      const colIdx = (TEMPCOL_MAP[tempColKey] || TEMPCOL_MAP['cu90']).idx;
-      const awgPorAmp = AWG_TABLE.find(r => r[colIdx] != null && r[colIdx] >= IdCorr) || AWG_TABLE[AWG_TABLE.length - 1];
-      const rho = material === 'Cu' ? 0.0172 : 0.0282;
-      let awgFinal = awgPorAmp; let caidaReal = 0;
-      if (awgPorAmp) {
-        const R0 = rho * longitud / awgPorAmp[1]; const Vd0 = Ic * R0 * 2; caidaReal = (Vd0 / tension) * 100;
-        if (caidaReal > caidaMax) { const aMin = (rho * longitud * Ic * 2) / (tension * caidaMax / 100); const cand = AWG_TABLE.find(r => r[1] >= aMin && r[colIdx] != null); if (cand) { awgFinal = cand; const R2 = rho * longitud / cand[1]; caidaReal = (Ic * R2 * 2 / tension) * 100; } }
-      }
-      const IbMin = Ic * ((tipoMotor === 1 || tipoMotor === 2) ? 2.5 : 1.25);
-      const brkRec = BREAKERS_STD.find(b => b >= IbMin) || BREAKERS_STD[BREAKERS_STD.length - 1];
-      const polos = nFases === 3 ? '3 polos' : tension <= 120 ? '2 polos' : '2 polos';
-      const caidaOk = caidaReal <= caidaMax;
-      return `
+        ${(()=>{
+          // Re-run calc logic to get clean values for PDF
+          const sys=snap.sistema||'120/240';
+          const cfg=SISTEMAS_EC[sys]||SISTEMAS_EC['120/240'];
+          const circuito=snap.circuito||'mono-ll';
+          const material=snap.material||'Cu';
+          const fp=parseFloat(snap.fp)||0.9;
+          const eff=parseFloat(snap.eff)||0.85;
+          const tempF=parseFloat(snap.temp)||1.0;
+          const agrupF=parseFloat(snap.agrup)||1.0;
+          const tipoMotor=parseInt(snap.motor)||0;
+          const longitud=parseFloat(snap.longitud)||1;
+          const caidaMax=parseFloat(snap.caidaMax)||3;
+          let tension=cfg.tension,nFases=cfg.fases;
+          if(sys==='120/240'){tension=circuito==='mono-ln'?120:240;nFases=1;}
+          else if(sys==='380'){tension=circuito==='tri-fn'?220:380;nFases=circuito==='tri-fn'?1:3;}
+          let Ic=0;
+          if(snap.modo==='corriente'){Ic=parseFloat(snap.amperes)||0;}
+          else{let W=parseFloat(snap.potencia)||0;const pu=snap.unidad||'W';if(pu==='kW')W*=1000;if(pu==='HP')W*=746;if(pu==='kVA')W*=1000;const sq=nFases===3?Math.sqrt(3):1;Ic=W/(tension*sq*fp*(pu==='HP'?eff:1));}
+          if(Ic<=0)return '<p style="color:#6b7280">Sin datos de carga.</p>';
+          const factorMotor=(tipoMotor===1||tipoMotor===2)?1.25:1.0;
+          const IdCorr=Ic*factorMotor/(tempF*agrupF);
+          const tempColKey=snap.tempCol||'cu90';
+          const colIdx=(TEMPCOL_MAP[tempColKey]||TEMPCOL_MAP['cu90']).idx;
+          const awgPorAmp=AWG_TABLE.find(r=>r[colIdx]!=null&&r[colIdx]>=IdCorr)||AWG_TABLE[AWG_TABLE.length-1];
+          const rho=material==='Cu'?0.0172:0.0282;
+          let awgFinal=awgPorAmp;let caidaReal=0;
+          if(awgPorAmp){const R0=rho*longitud/awgPorAmp[1];const Vd0=Ic*R0*2;caidaReal=(Vd0/tension)*100;
+            if(caidaReal>caidaMax){const aMin=(rho*longitud*Ic*2)/(tension*caidaMax/100);const cand=AWG_TABLE.find(r=>r[1]>=aMin&&r[colIdx]!=null);if(cand){awgFinal=cand;const R2=rho*longitud/cand[1];caidaReal=(Ic*R2*2/tension)*100;}}
+          }
+          const IbMin=Ic*((tipoMotor===1||tipoMotor===2)?2.5:1.25);
+          const brkRec=BREAKERS_STD.find(b=>b>=IbMin)||BREAKERS_STD[BREAKERS_STD.length-1];
+          const polos=nFases===3?'3 polos':tension<=120?'2 polos':'2 polos';
+          const caidaOk=caidaReal<=caidaMax;
+          return `
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center">
               <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Calibre Final AWG</div>
-              <div style="font-size:26px;font-weight:900;color:#f5c800;font-family:monospace">${awgFinal ? 'AWG ' + awgFinal[0] : '—'}</div>
-              <div style="font-size:10px;color:#374151;margin-top:2px">${awgFinal ? awgFinal[1].toFixed(2) + ' mm²' : ''}</div>
+              <div style="font-size:26px;font-weight:900;color:#f5c800;font-family:monospace">${awgFinal?'AWG '+awgFinal[0]:'—'}</div>
+              <div style="font-size:10px;color:#374151;margin-top:2px">${awgFinal?awgFinal[1].toFixed(2)+' mm²':''}</div>
             </div>
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center">
               <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Corriente de diseño</div>
               <div style="font-size:26px;font-weight:900;color:#3b82f6;font-family:monospace">${IdCorr.toFixed(2)}</div>
               <div style="font-size:10px;color:#374151;margin-top:2px">A (con factores)</div>
             </div>
-            <div style="background:#fff;border:1px solid ${caidaOk ? '#bbf7d0' : '#fecaca'};border-radius:8px;padding:12px;text-align:center">
+            <div style="background:#fff;border:1px solid ${caidaOk?'#bbf7d0':'#fecaca'};border-radius:8px;padding:12px;text-align:center">
               <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Caída de tensión</div>
-              <div style="font-size:26px;font-weight:900;color:${caidaOk ? '#16a34a' : '#dc2626'};font-family:monospace">${caidaReal.toFixed(2)}%</div>
-              <div style="font-size:10px;color:#374151;margin-top:2px">${caidaOk ? '✅ OK' : '⚠️ Excede ' + caidaMax + '%'}</div>
+              <div style="font-size:26px;font-weight:900;color:${caidaOk?'#16a34a':'#dc2626'};font-family:monospace">${caidaReal.toFixed(2)}%</div>
+              <div style="font-size:10px;color:#374151;margin-top:2px">${caidaOk?'✅ OK':'⚠️ Excede '+caidaMax+'%'}</div>
             </div>
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center">
               <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Corriente de carga</div>
               <div style="font-size:20px;font-weight:800;color:#111827;font-family:monospace">${Ic.toFixed(2)} A</div>
-              <div style="font-size:10px;color:#374151;margin-top:2px">${tension} V · ${nFases === 3 ? 'Trifásico' : 'Monofásico'}</div>
+              <div style="font-size:10px;color:#374151;margin-top:2px">${tension} V · ${nFases===3?'Trifásico':'Monofásico'}</div>
             </div>
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center">
               <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Breaker recomendado</div>
@@ -4375,11 +4362,11 @@ async function exportarPDFCable() {
             </div>
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center">
               <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Ampacidad del cable</div>
-              <div style="font-size:20px;font-weight:800;color:#111827;font-family:monospace">${awgFinal ? awgFinal[colIdx] + ' A' : '—'}</div>
+              <div style="font-size:20px;font-weight:800;color:#111827;font-family:monospace">${awgFinal?awgFinal[colIdx]+' A':'—'}</div>
               <div style="font-size:10px;color:#374151;margin-top:2px">${tempColInfo.label}</div>
             </div>
           </div>`;
-    })()}
+        })()}
       </div>
     </div>
 
@@ -4388,11 +4375,11 @@ async function exportarPDFCable() {
       <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #f5c800;padding-left:8px;margin-bottom:10px">3. NORMATIVA APLICADA</div>
       <div style="font-size:11px;line-height:1.75;color:#374151">
         <p>• <strong>Norma de ampacidad:</strong> NEC 310.15(B)(16) / NTE INEN 2345 · Columna: ${tempColInfo.label} · ${tempColInfo.desc}</p>
-        <p>• <strong>Caída de tensión:</strong> Calculada con ρ = ${snap.material === 'Al' ? '0.0282' : '0.0172'} Ω·mm²/m (${snap.material === 'Al' ? 'Aluminio' : 'Cobre'})</p>
+        <p>• <strong>Caída de tensión:</strong> Calculada con ρ = ${snap.material==='Al'?'0.0282':'0.0172'} Ω·mm²/m (${snap.material==='Al'?'Aluminio':'Cobre'})</p>
         <p>• <strong>Método de selección:</strong> MAX(Criterio Ampacidad, Criterio Caída de Tensión)</p>
         <p>• <strong>Motores:</strong> Factor de servicio 1.25 — NEC 430.22</p>
         <p>• <strong>Protecciones:</strong> Serie IEC/NTE INEN (Ecuador): 1, 2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125 A…</p>
-        <p>• <strong>Sistema eléctrico:</strong> ${sisInfo.label || snap.sistema}</p>
+        <p>• <strong>Sistema eléctrico:</strong> ${sisInfo.label||snap.sistema}</p>
       </div>
     </div>
 
@@ -4403,92 +4390,92 @@ async function exportarPDFCable() {
     </div>
   </div>`;
 
-  const tpl = document.getElementById('pdf-template');
-  if (!tpl) { toast('Error: contenedor PDF no encontrado', 'err'); return; }
-  tpl.innerHTML = htmlPDF;
+  const tpl=document.getElementById('pdf-template');
+  if(!tpl){toast('Error: contenedor PDF no encontrado','err');return;}
+  tpl.innerHTML=htmlPDF;
 
-  await htmlAPdfDesdeNodoFuente(tpl, `Calculo_Cable_AWG_${new Date().toISOString().slice(0, 10)}.pdf`);
-  tpl.innerHTML = '';
+  await htmlAPdfDesdeNodoFuente(tpl,`Calculo_Cable_AWG_${new Date().toISOString().slice(0,10)}.pdf`);
+  tpl.innerHTML='';
 }
 
 // ═══ ALIASES — conectan los botones del calibrador con sus funciones ═══
-function guardarCalcCable() { abrirGuardarCalcCable(); }
-function abrirModalCableCalcs() { abrirHistorialCalcCable(); }
-function exportarPDFCableCalc() { exportarPDFCable(); }
+function guardarCalcCable()      { abrirGuardarCalcCable(); }
+function abrirModalCableCalcs()  { abrirHistorialCalcCable(); }
+function exportarPDFCableCalc()  { exportarPDFCable(); }
 
 // ═══════════════════════════════════════════════════════════════
 // BALANCE DE CARGAS — HISTORIAL CON PDF (reemplaza abrirModalBalances)
 // ═══════════════════════════════════════════════════════════════
-async function exportarPDFBalanceFromRecord(id) {
+async function exportarPDFBalanceFromRecord(id){
   const todos = _getBalancesCache();
-  let record = todos.find(x => String(x.id) === String(id));
-  if (!record) {
-    const r = await api('electrical-projects');
-    if (!isErr(r)) { _setBalancesCache(Array.isArray(r) ? r : []); record = _getBalancesCache().find(x => String(x.id) === String(id)); }
+  let record = todos.find(x=>String(x.id)===String(id));
+  if(!record){
+    const r=await api('electrical-projects');
+    if(!isErr(r)){_setBalancesCache(Array.isArray(r)?r:[]);record=_getBalancesCache().find(x=>String(x.id)===String(id));}
   }
-  if (!record) { toast('No se encontró el registro', 'err'); return; }
-  const nombre = record.nombre || 'Sin nombre';
-  const cliente = record.cliente || '—';
-  const ubicacion = record.ubicacion || '—';
-  const tipoTab = record.tipo || 'residencial';
-  const tempFactor = parseFloat(record.tempF || record.temp_f || 1.0);
-  const cargasRec = JSON.parse(JSON.stringify(record.cargas || []));
-  const sistemaRec = record.sistema || '120';
-  const fecha = new Date().toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
-  const cfg = BC_SISTEMAS[sistemaRec] || BC_SISTEMAS['120'];
-  const { tension, esTri, fases, label } = cfg;
-  const sqrt3 = esTri ? Math.sqrt(3) : 1;
-  const TIPO_LABEL = { iluminacion: 'Iluminación', tomacorriente: 'Tomacorriente', motor: 'Motor', hvac: 'HVAC/Clima', resistivo: 'Resistivo', otro: 'Especial' };
-  const potPorFase = {}; fases.forEach(f => potPorFase[f] = 0);
-  let totalW = 0, totalWD = 0;
-  cargasRec.forEach(c => {
-    const cant = c.cantidad || 1; const potTotal = (c.potencia || 0) * cant; const pd = potTotal * (c.fs || 100) / 100;
-    if (c.sistema === 'mono2f') { if (potPorFase['L1'] !== undefined) potPorFase['L1'] += pd / 2; if (potPorFase['L2'] !== undefined) potPorFase['L2'] += pd / 2; }
-    else { if (potPorFase[c.fase] !== undefined) potPorFase[c.fase] += pd; }
-    totalW += potTotal; totalWD += pd;
+  if(!record){toast('No se encontró el registro','err');return;}
+  const nombre   = record.nombre||'Sin nombre';
+  const cliente  = record.cliente||'—';
+  const ubicacion= record.ubicacion||'—';
+  const tipoTab  = record.tipo||'residencial';
+  const tempFactor=parseFloat(record.tempF||record.temp_f||1.0);
+  const cargasRec= JSON.parse(JSON.stringify(record.cargas||[]));
+  const sistemaRec= record.sistema||'120';
+  const fecha=new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
+  const cfg=BC_SISTEMAS[sistemaRec]||BC_SISTEMAS['120'];
+  const {tension,esTri,fases,label}=cfg;
+  const sqrt3=esTri?Math.sqrt(3):1;
+  const TIPO_LABEL={iluminacion:'Iluminación',tomacorriente:'Tomacorriente',motor:'Motor',hvac:'HVAC/Clima',resistivo:'Resistivo',otro:'Especial'};
+  const potPorFase={};fases.forEach(f=>potPorFase[f]=0);
+  let totalW=0,totalWD=0;
+  cargasRec.forEach(c=>{
+    const cant=c.cantidad||1;const potTotal=(c.potencia||0)*cant;const pd=potTotal*(c.fs||100)/100;
+    if(c.sistema==='mono2f'){if(potPorFase['L1']!==undefined)potPorFase['L1']+=pd/2;if(potPorFase['L2']!==undefined)potPorFase['L2']+=pd/2;}
+    else{if(potPorFase[c.fase]!==undefined)potPorFase[c.fase]+=pd;}
+    totalW+=potTotal;totalWD+=pd;
   });
-  const ITotal = totalWD / (tension * sqrt3 * 0.9);
-  const brkAco = BREAKERS_STD.find(b => b >= ITotal * 1.25) || 2000;
-  const vals = Object.values(potPorFase);
-  const maxF = Math.max(...vals); const minF = Math.min(...vals);
-  const desbalance = maxF > 0 ? ((maxF - minF) / maxF * 100) : 0;
-  const filasCargas = cargasRec.map((c, i) => {
-    const cant = c.cantidad || 1; const fp = c.fp || 0.9; const vC = c.voltaje || tension;
-    const esTri_c = c.sistema === 'tri'; const sqrt3_c = esTri_c ? Math.sqrt(3) : 1;
-    const potTotal = (c.potencia || 0) * cant; const pd = potTotal * (c.fs || 100) / 100;
-    const Ic = pd > 0 ? pd / (vC * sqrt3_c * fp) : 0;
-    const factorM = (c.tipo === 'motor' || c.tipo === 'hvac') ? 1.25 : 1.0;
-    const IdD = Ic * factorM / tempFactor;
-    const awgRow = AWG_TABLE.find(r => r[4] != null && r[4] >= IdD) || AWG_TABLE[AWG_TABLE.length - 1];
-    const IbMin = Ic * (factorM > 1 ? 2.5 : 1.25); const brkRec = BREAKERS_STD.find(b => b >= IbMin) || 2000;
-    const polos = esTri_c ? '3P' : '2P';
-    const areaC = THHN_AREA[awgRow ? awgRow[0] : '12'] || THHN_AREA['12'];
-    const nCond = esTri_c ? 4 : 3; const totArea = areaC * nCond;
-    let conduitSel = CONDUIT_AREA.EMT.find(([n, a]) => a * 0.40 >= totArea);
-    if (!conduitSel) conduitSel = CONDUIT_AREA.EMT[CONDUIT_AREA.EMT.length - 1];
-    return `<tr style="${i % 2 === 0 ? 'background:#fafafa' : ''}">
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;font-weight:600">${String(i + 1).padStart(2, '0')}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee">${c.desc || '—'}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee">${TIPO_LABEL[c.tipo] || c.tipo}</td>
+  const ITotal=totalWD/(tension*sqrt3*0.9);
+  const brkAco=BREAKERS_STD.find(b=>b>=ITotal*1.25)||2000;
+  const vals=Object.values(potPorFase);
+  const maxF=Math.max(...vals);const minF=Math.min(...vals);
+  const desbalance=maxF>0?((maxF-minF)/maxF*100):0;
+  const filasCargas=cargasRec.map((c,i)=>{
+    const cant=c.cantidad||1;const fp=c.fp||0.9;const vC=c.voltaje||tension;
+    const esTri_c=c.sistema==='tri';const sqrt3_c=esTri_c?Math.sqrt(3):1;
+    const potTotal=(c.potencia||0)*cant;const pd=potTotal*(c.fs||100)/100;
+    const Ic=pd>0?pd/(vC*sqrt3_c*fp):0;
+    const factorM=(c.tipo==='motor'||c.tipo==='hvac')?1.25:1.0;
+    const IdD=Ic*factorM/tempFactor;
+    const awgRow=AWG_TABLE.find(r=>r[4]!=null&&r[4]>=IdD)||AWG_TABLE[AWG_TABLE.length-1];
+    const IbMin=Ic*(factorM>1?2.5:1.25);const brkRec=BREAKERS_STD.find(b=>b>=IbMin)||2000;
+    const polos=esTri_c?'3P':'2P';
+    const areaC=THHN_AREA[awgRow?awgRow[0]:'12']||THHN_AREA['12'];
+    const nCond=esTri_c?4:3;const totArea=areaC*nCond;
+    let conduitSel=CONDUIT_AREA.EMT.find(([n,a])=>a*0.40>=totArea);
+    if(!conduitSel)conduitSel=CONDUIT_AREA.EMT[CONDUIT_AREA.EMT.length-1];
+    return`<tr style="${i%2===0?'background:#fafafa':''}">
+      <td style="padding:5px 7px;border-bottom:1px solid #eee;font-weight:600">${String(i+1).padStart(2,'0')}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee">${c.desc||'—'}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee">${TIPO_LABEL[c.tipo]||c.tipo}</td>
       <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${cant}</td>
       <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${vC}V</td>
       <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${c.fase}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${c.fs || 100}%</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pd / 1000).toFixed(3)}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${c.fs||100}%</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pd/1000).toFixed(3)}</td>
       <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:right;color:#3b82f6;font-weight:600">${Ic.toFixed(2)}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#1d4ed8;font-weight:700">AWG #${awgRow ? awgRow[0] : '—'}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#1d4ed8;font-weight:700">AWG #${awgRow?awgRow[0]:'—'}</td>
       <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#b45309;font-weight:700">${brkRec}A ${polos}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#166534;font-weight:700">EMT ${conduitSel ? conduitSel[0] : '—'}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#166534;font-weight:700">EMT ${conduitSel?conduitSel[0]:'—'}</td>
     </tr>`;
   }).join('');
-  const filasFase = fases.map(f => {
-    const pf = potPorFase[f] || 0; const pct = totalWD > 0 ? (pf / totalWD * 100) : 0; const If = pf / (tension * 0.9);
-    return `<tr><td style="padding:5px 8px;border-bottom:1px solid #eee;font-weight:700">${f}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pf / 1000).toFixed(3)} kW</td>
+  const filasFase=fases.map(f=>{
+    const pf=potPorFase[f]||0;const pct=totalWD>0?(pf/totalWD*100):0;const If=pf/(tension*0.9);
+    return`<tr><td style="padding:5px 8px;border-bottom:1px solid #eee;font-weight:700">${f}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pf/1000).toFixed(3)} kW</td>
       <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${If.toFixed(2)} A</td>
       <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${pct.toFixed(1)}%</td></tr>`;
   }).join('');
-  const htmlInforme = `<div style="font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#111;line-height:1.5">
+  const htmlInforme=`<div style="font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#111;line-height:1.5">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #f5c800;margin-bottom:20px">
       <div><div style="font-size:22px;font-weight:900;color:#0c0c12">INFORME TÉCNICO ELÉCTRICO</div>
         <div style="font-size:13px;font-weight:700;color:#555;margin-top:2px">Balance de Cargas · Dimensionamiento de Tablero</div>
@@ -4506,11 +4493,11 @@ async function exportarPDFBalanceFromRecord(id) {
     <div style="margin-bottom:16px">
       <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #f5c800;padding-bottom:4px;margin-bottom:10px">2. RESUMEN EJECUTIVO</div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
-        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Pot. Instalada</div><div style="font-size:16px;font-weight:900;color:#f5c800;font-family:monospace">${(totalW / 1000).toFixed(2)}</div><div style="font-size:9px;color:#888">kW</div></div>
-        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Demanda</div><div style="font-size:16px;font-weight:900;color:#22c55e;font-family:monospace">${(totalWD / 1000).toFixed(2)}</div><div style="font-size:9px;color:#888">kW</div></div>
+        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Pot. Instalada</div><div style="font-size:16px;font-weight:900;color:#f5c800;font-family:monospace">${(totalW/1000).toFixed(2)}</div><div style="font-size:9px;color:#888">kW</div></div>
+        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Demanda</div><div style="font-size:16px;font-weight:900;color:#22c55e;font-family:monospace">${(totalWD/1000).toFixed(2)}</div><div style="font-size:9px;color:#888">kW</div></div>
         <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">I. Total</div><div style="font-size:16px;font-weight:900;color:#60a5fa;font-family:monospace">${ITotal.toFixed(2)}</div><div style="font-size:9px;color:#888">A</div></div>
-        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Desbalance</div><div style="font-size:16px;font-weight:900;color:${desbalance > 10 ? '#ef4444' : '#22c55e'};font-family:monospace">${desbalance.toFixed(1)}%</div><div style="font-size:9px;color:#888">${desbalance > 10 ? '⚠️ Excede' : '✅ OK'}</div></div>
-        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Breaker Ppal</div><div style="font-size:16px;font-weight:900;color:#f5c800;font-family:monospace">${brkAco}A</div><div style="font-size:9px;color:#888">${esTri ? '3P' : '2P'}</div></div>
+        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Desbalance</div><div style="font-size:16px;font-weight:900;color:${desbalance>10?'#ef4444':'#22c55e'};font-family:monospace">${desbalance.toFixed(1)}%</div><div style="font-size:9px;color:#888">${desbalance>10?'⚠️ Excede':'✅ OK'}</div></div>
+        <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#999;text-transform:uppercase;margin-bottom:3px">Breaker Ppal</div><div style="font-size:16px;font-weight:900;color:#f5c800;font-family:monospace">${brkAco}A</div><div style="font-size:9px;color:#888">${esTri?'3P':'2P'}</div></div>
       </div></div>
     <div style="margin-bottom:16px">
       <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #f5c800;padding-bottom:4px;margin-bottom:10px">3. TABLA DE CIRCUITOS</div>
@@ -4533,13 +4520,13 @@ async function exportarPDFBalanceFromRecord(id) {
       </table></div>
     <div style="text-align:center;font-size:9px;color:#999;padding-top:10px;border-top:1px solid #eee;margin-top:14px">
       <p>Documento generado por SEST · Sistema de Ingeniería Eléctrica · ${fecha}</p>
-      ${usuario?.nombre ? `<p>Elaborado por: <strong>${usuario.nombre}</strong></p>` : ''}
+      ${usuario?.nombre?`<p>Elaborado por: <strong>${usuario.nombre}</strong></p>`:''}
     </div></div>`;
-  const cont = document.getElementById('pdf-informe');
-  if (!cont) { toast('Error: contenedor PDF no encontrado', 'err'); return; }
-  cont.innerHTML = htmlInforme;
-  await htmlAPdfDesdeNodoFuente(cont, `Informe_Balance_${nombre.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
-  cont.innerHTML = '';
+  const cont=document.getElementById('pdf-informe');
+  if(!cont){toast('Error: contenedor PDF no encontrado','err');return;}
+  cont.innerHTML=htmlInforme;
+  await htmlAPdfDesdeNodoFuente(cont,`Informe_Balance_${nombre.replace(/[^a-zA-Z0-9]/g,'_')}.pdf`);
+  cont.innerHTML='';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4548,92 +4535,92 @@ async function exportarPDFBalanceFromRecord(id) {
 // ═══════════════════════════════════════════════════════════════
 let _prCalcsCache = [];
 
-function _prSnapshot() {
+function _prSnapshot(){
   return {
-    Ic: document.getElementById('pr-Ic')?.value || '',
-    tipo: document.getElementById('pr-tipo')?.value || 'gral',
-    fases: document.getElementById('pr-fases')?.value || '1',
-    v: document.getElementById('pr-v')?.value || '220',
-    kvaCC: document.getElementById('pr-kva-cc')?.value || '150',
-    z: document.getElementById('pr-z')?.value || '5',
+    Ic:    document.getElementById('pr-Ic')?.value||'',
+    tipo:  document.getElementById('pr-tipo')?.value||'gral',
+    fases: document.getElementById('pr-fases')?.value||'1',
+    v:     document.getElementById('pr-v')?.value||'220',
+    kvaCC: document.getElementById('pr-kva-cc')?.value||'150',
+    z:     document.getElementById('pr-z')?.value||'5',
   };
 }
-function _prRestore(snap) {
-  if (!snap) return;
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
-  set('pr-Ic', snap.Ic); set('pr-tipo', snap.tipo); set('pr-v', snap.v); set('pr-kva-cc', snap.kvaCC); set('pr-z', snap.z);
-  const fasesVal = snap.fases || '1'; set('pr-fases', fasesVal);
-  const faseBtns = document.querySelectorAll('#calctab-cortocircuito .pf-radio-group .pf-radio-btn');
-  faseBtns.forEach(b => b.classList.remove('on'));
-  if (fasesVal === '1' && faseBtns[0]) faseBtns[0].classList.add('on');
-  if (fasesVal === '3' && faseBtns[1]) faseBtns[1].classList.add('on');
+function _prRestore(snap){
+  if(!snap)return;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+  set('pr-Ic',snap.Ic);set('pr-tipo',snap.tipo);set('pr-v',snap.v);set('pr-kva-cc',snap.kvaCC);set('pr-z',snap.z);
+  const fasesVal=snap.fases||'1';set('pr-fases',fasesVal);
+  const faseBtns=document.querySelectorAll('#calctab-cortocircuito .pf-radio-group .pf-radio-btn');
+  faseBtns.forEach(b=>b.classList.remove('on'));
+  if(fasesVal==='1'&&faseBtns[0])faseBtns[0].classList.add('on');
+  if(fasesVal==='3'&&faseBtns[1])faseBtns[1].classList.add('on');
   calcProtecciones();
 }
-function _prResumen(snap) {
-  if (!snap) return '—';
-  const TIPO_PR = { gral: 'Carga General', motor: 'Motor AC', transformador: 'Transformador', condensador: 'Condensadores' };
-  return `Ic: ${snap.Ic || '—'} A · ${TIPO_PR[snap.tipo] || snap.tipo} · ${snap.fases === '3' ? 'Trifásico' : 'Monofásico'} · ${snap.v || '—'} V`;
+function _prResumen(snap){
+  if(!snap)return '—';
+  const TIPO_PR={gral:'Carga General',motor:'Motor AC',transformador:'Transformador',condensador:'Condensadores'};
+  return `Ic: ${snap.Ic||'—'} A · ${TIPO_PR[snap.tipo]||snap.tipo} · ${snap.fases==='3'?'Trifásico':'Monofásico'} · ${snap.v||'—'} V`;
 }
 
 // ── Modal guardar protección ──────────────────────────────────
-function abrirGuardarProteccion() {
-  const snap = _prSnapshot();
-  if (!snap.Ic || parseFloat(snap.Ic) <= 0) { toast('Ingresa una corriente de carga válida antes de guardar', 'err'); return; }
-  document.getElementById('pr-guardar-nombre').value = '';
-  document.getElementById('pr-guardar-cliente').value = '';
-  document.getElementById('pr-guardar-notas').value = '';
-  document.getElementById('pr-guardar-err').className = 'alert err';
-  document.getElementById('pr-guardar-preview-body').textContent = _prResumen(snap);
+function abrirGuardarProteccion(){
+  const snap=_prSnapshot();
+  if(!snap.Ic||parseFloat(snap.Ic)<=0){toast('Ingresa una corriente de carga válida antes de guardar','err');return;}
+  document.getElementById('pr-guardar-nombre').value='';
+  document.getElementById('pr-guardar-cliente').value='';
+  document.getElementById('pr-guardar-notas').value='';
+  document.getElementById('pr-guardar-err').className='alert err';
+  document.getElementById('pr-guardar-preview-body').textContent=_prResumen(snap);
   openModal('m-pr-guardar');
 }
-async function confirmarGuardarProteccion() {
-  const nombre = (document.getElementById('pr-guardar-nombre')?.value || '').trim();
-  const cliente = (document.getElementById('pr-guardar-cliente')?.value || '').trim();
-  const notas = (document.getElementById('pr-guardar-notas')?.value || '').trim();
-  const errEl = document.getElementById('pr-guardar-err');
-  if (!nombre) { errEl.textContent = 'El nombre es obligatorio'; errEl.classList.add('show'); document.getElementById('pr-guardar-nombre').focus(); return; }
-  errEl.classList.remove('show'); setBL('btn-pr-guardar-ok', true);
-  const snap = _prSnapshot();
-  const payload = { nombre, cliente, ubicacion: notas, tipo: 'proteccion_calc', temp_f: '1.0', sistema: snap.v || '220', cargas: [snap] };
-  try {
-    const r = await api('electrical-projects', { method: 'POST', body: JSON.stringify(payload) });
-    if (isErr(r)) { errEl.textContent = r?.msg || 'Error al guardar'; errEl.classList.add('show'); }
-    else { closeModal('m-pr-guardar'); toast('✅ Protección guardada en PostgreSQL', 'ok'); }
-  } catch (e) { errEl.textContent = 'Error de conexión'; errEl.classList.add('show'); }
-  setBL('btn-pr-guardar-ok', false, 'Guardar en BD');
+async function confirmarGuardarProteccion(){
+  const nombre=(document.getElementById('pr-guardar-nombre')?.value||'').trim();
+  const cliente=(document.getElementById('pr-guardar-cliente')?.value||'').trim();
+  const notas=(document.getElementById('pr-guardar-notas')?.value||'').trim();
+  const errEl=document.getElementById('pr-guardar-err');
+  if(!nombre){errEl.textContent='El nombre es obligatorio';errEl.classList.add('show');document.getElementById('pr-guardar-nombre').focus();return;}
+  errEl.classList.remove('show');setBL('btn-pr-guardar-ok',true);
+  const snap=_prSnapshot();
+  const payload={nombre,cliente,ubicacion:notas,tipo:'proteccion_calc',temp_f:'1.0',sistema:snap.v||'220',cargas:[snap]};
+  try{
+    const r=await api('electrical-projects',{method:'POST',body:JSON.stringify(payload)});
+    if(isErr(r)){errEl.textContent=r?.msg||'Error al guardar';errEl.classList.add('show');}
+    else{closeModal('m-pr-guardar');toast('✅ Protección guardada en PostgreSQL','ok');}
+  }catch(e){errEl.textContent='Error de conexión';errEl.classList.add('show');}
+  setBL('btn-pr-guardar-ok',false,'Guardar en BD');
 }
 
 // ── Historial protecciones ────────────────────────────────────
-async function abrirHistorialProtecciones() {
+async function abrirHistorialProtecciones(){
   openModal('m-protecciones');
-  const listEl = document.getElementById('pr-historial-list');
-  listEl.innerHTML = '<div class="loading"><div class="spin"></div><p>Cargando desde PostgreSQL…</p></div>';
-  try {
-    const r = await api('electrical-projects');
-    if (isErr(r)) { listEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--err)">${r?.msg || 'Error al cargar'}</div>`; return; }
-    const todos = Array.isArray(r) ? r : (r?.data ? r.data : []);
-    const calcs = todos.filter(p => p.tipo === 'proteccion_calc');
-    _prCalcsCache = calcs;
-    if (!calcs.length) {
-      listEl.innerHTML = `<div style="text-align:center;padding:32px;color:var(--t3)">
+  const listEl=document.getElementById('pr-historial-list');
+  listEl.innerHTML='<div class="loading"><div class="spin"></div><p>Cargando desde PostgreSQL…</p></div>';
+  try{
+    const r=await api('electrical-projects');
+    if(isErr(r)){listEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--err)">${r?.msg||'Error al cargar'}</div>`;return;}
+    const todos=Array.isArray(r)?r:(r?.data?r.data:[]);
+    const calcs=todos.filter(p=>p.tipo==='proteccion_calc');
+    _prCalcsCache=calcs;
+    if(!calcs.length){
+      listEl.innerHTML=`<div style="text-align:center;padding:32px;color:var(--t3)">
         <i data-lucide="inbox" style="width:36px;height:36px;display:block;margin:0 auto 10px"></i>
         <p style="font-size:13px">No hay cálculos guardados.</p>
         <p style="font-size:12px;margin-top:4px">Usa el botón <strong style="color:var(--acc)">Guardar</strong> después de calcular.</p>
-      </div>`; refreshIcons(); return;
+      </div>`;refreshIcons();return;
     }
-    calcs.sort((a, b) => new Date(b.created_at || b.creado_en || 0) - new Date(a.created_at || a.creado_en || 0));
-    listEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px">
-      ${calcs.map(c => {
-      const cargasArr = _parseCargasField(c.cargas); const snap = cargasArr[0] || {};
-      const fecha = c.created_at || c.creado_en ? new Date(c.created_at || c.creado_en).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-      return `<div style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px">
+    calcs.sort((a,b)=>new Date(b.created_at||b.creado_en||0)-new Date(a.created_at||a.creado_en||0));
+    listEl.innerHTML=`<div style="display:flex;flex-direction:column;gap:10px">
+      ${calcs.map(c=>{
+        const cargasArr=_parseCargasField(c.cargas);const snap=cargasArr[0]||{};
+        const fecha=c.created_at||c.creado_en?new Date(c.created_at||c.creado_en).toLocaleDateString('es-EC',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+        return`<div style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px">
           <div style="width:36px;height:36px;border-radius:9px;background:rgba(239,68,68,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--err)">
             <i data-lucide="shield-alert" style="width:18px;height:18px"></i>
           </div>
           <div style="flex:1;min-width:0">
             <div style="font-weight:700;font-size:13px;color:var(--t1);margin-bottom:2px">${c.nombre}</div>
-            ${c.cliente ? `<div style="font-size:12px;color:var(--t3);margin-bottom:2px">📁 ${c.cliente}</div>` : ''}
-            ${c.ubicacion ? `<div style="font-size:11px;color:var(--t3);margin-bottom:4px">📝 ${c.ubicacion}</div>` : ''}
+            ${c.cliente?`<div style="font-size:12px;color:var(--t3);margin-bottom:2px">📁 ${c.cliente}</div>`:''}
+            ${c.ubicacion?`<div style="font-size:11px;color:var(--t3);margin-bottom:4px">📝 ${c.ubicacion}</div>`:''}
             <div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${_prResumen(snap)}</div>
             <div style="font-size:10px;color:var(--t3);margin-top:4px">🕒 ${fecha}</div>
           </div>
@@ -4649,69 +4636,67 @@ async function abrirHistorialProtecciones() {
             </button>
           </div>
         </div>`;
-    }).join('')}
+      }).join('')}
     </div>`;
     refreshIcons();
-  } catch (e) { listEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--err)">Error de conexión</div>`; }
+  }catch(e){listEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--err)">Error de conexión</div>`;}
 }
-async function cargarProteccion(id) {
+async function cargarProteccion(id){
   closeModal('m-protecciones');
-  let record = _prCalcsCache.find(c => String(c.id) === String(id));
-  if (!record) { const r = await api('electrical-projects'); if (isErr(r)) { toast('Error al cargar', 'err'); return; } const todos = Array.isArray(r) ? r : (r?.data ? r.data : []); _prCalcsCache = todos.filter(p => p.tipo === 'proteccion_calc'); record = _prCalcsCache.find(c => String(c.id) === String(id)); }
-  if (!record) { toast('No se encontró el registro', 'err'); return; }
-  const snap = _parseCargasField(record.cargas)[0] || null;
-  if (!snap) { toast('Sin datos de cálculo en este registro', 'err'); return; }
-  _prRestore(snap); irCalcTab('cortocircuito'); toast(`✅ Protección "${record.nombre}" cargada`, 'ok');
+  let record=_prCalcsCache.find(c=>String(c.id)===String(id));
+  if(!record){const r=await api('electrical-projects');if(isErr(r)){toast('Error al cargar','err');return;}const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_prCalcsCache=todos.filter(p=>p.tipo==='proteccion_calc');record=_prCalcsCache.find(c=>String(c.id)===String(id));}
+  if(!record){toast('No se encontró el registro','err');return;}
+  const snap=_parseCargasField(record.cargas)[0]||null;
+  if(!snap){toast('Sin datos de cálculo en este registro','err');return;}
+  _prRestore(snap);irCalcTab('cortocircuito');toast(`✅ Protección "${record.nombre}" cargada`,'ok');
 }
-async function eliminarProteccion(id, btnEl) {
-  if (!confirm('¿Eliminar este cálculo? La acción no se puede deshacer.')) return;
-  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '…'; }
-  const r = await api(`electrical-projects?id=${id}`, { method: 'DELETE' });
-  if (isErr(r)) { toast(r?.msg || 'Error al eliminar', 'err'); if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '<i data-lucide="trash-2" style="width:13px;height:13px"></i>'; refreshIcons(); } return; }
-  toast('Cálculo eliminado', 'ok'); abrirHistorialProtecciones();
+async function eliminarProteccion(id,btnEl){
+  if(!confirm('¿Eliminar este cálculo? La acción no se puede deshacer.'))return;
+  if(btnEl){btnEl.disabled=true;btnEl.textContent='…';}
+  const r=await api(`electrical-projects?id=${id}`,{method:'DELETE'});
+  if(isErr(r)){toast(r?.msg||'Error al eliminar','err');if(btnEl){btnEl.disabled=false;btnEl.innerHTML='<i data-lucide="trash-2" style="width:13px;height:13px"></i>';refreshIcons();}return;}
+  toast('Cálculo eliminado','ok');abrirHistorialProtecciones();
 }
 
 // ── PDF Protección ────────────────────────────────────────────
-async function exportarPDFProteccionFromRecord(id) {
-  let record = _prCalcsCache.find(c => String(c.id) === String(id));
-  if (!record) { const r = await api('electrical-projects'); if (!isErr(r)) { const todos = Array.isArray(r) ? r : (r?.data ? r.data : []); _prCalcsCache = todos.filter(p => p.tipo === 'proteccion_calc'); record = _prCalcsCache.find(c => String(c.id) === String(id)); } }
-  if (!record) { toast('No se encontró el registro', 'err'); return; }
-  const snap = _parseCargasField(record.cargas)[0] || {};
-  await _exportarPDFProteccion(snap, record.nombre || 'Protección', record.cliente || '—', record.ubicacion || '');
+async function exportarPDFProteccionFromRecord(id){
+  let record=_prCalcsCache.find(c=>String(c.id)===String(id));
+  if(!record){const r=await api('electrical-projects');if(!isErr(r)){const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_prCalcsCache=todos.filter(p=>p.tipo==='proteccion_calc');record=_prCalcsCache.find(c=>String(c.id)===String(id));}}
+  if(!record){toast('No se encontró el registro','err');return;}
+  const snap=_parseCargasField(record.cargas)[0]||{};
+  await _exportarPDFProteccion(snap, record.nombre||'Protección', record.cliente||'—', record.ubicacion||'');
 }
-async function exportarPDFProteccion() {
-  const snap = _prSnapshot();
-  if (!snap.Ic || parseFloat(snap.Ic) <= 0) { toast('Completa el cálculo antes de exportar', 'err'); return; }
-  await _exportarPDFProteccion(snap, 'Cálculo de Protección', '—', '');
+async function exportarPDFProteccion(){
+  const snap=_prSnapshot();
+  if(!snap.Ic||parseFloat(snap.Ic)<=0){toast('Completa el cálculo antes de exportar','err');return;}
+  await _exportarPDFProteccion(snap,'Cálculo de Protección','—','');
 }
-async function _exportarPDFProteccion(snap, nombre, cliente, notas) {
-  const fecha = new Date().toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
-  const Ic = parseFloat(snap.Ic) || 0;
-  const tipo = snap.tipo || 'gral';
-  const V = parseFloat(snap.v) || 220;
-  const fases = parseInt(snap.fases) || 1;
-  const kvaCC = parseFloat(snap.kvaCC) || 150;
-  const Zpct = parseFloat(snap.z) || 5;
-  const factores = {
-    gral: { cb: 1.25, fusible: 1.50, label: 'Carga general — NEC 240.4', nota: 'El breaker no debe superar el 125% de la corriente del conductor.' },
-    motor: { cb: 2.50, fusible: 4.00, label: 'Motor AC — NEC 430.52', nota: 'Breaker 250% Ic. Fusible dual element 400% Ic.' },
-    transformador: { cb: 1.25, fusible: 1.25, label: 'Transformador — NEC 450.3(B)', nota: 'Protección al 125% de la corriente nominal primaria.' },
-    condensador: { cb: 1.35, fusible: 1.65, label: 'Condensadores — NEC 460.8', nota: 'Breaker 135%, fusible 165% de Ic.' }
-  };
-  const f = factores[tipo] || factores.gral;
-  const IbCB = Ic * f.cb; const IbFus = Ic * f.fusible;
-  const cbRec = BREAKERS_STD.find(b => b >= IbCB) || 2000; const fusRec = BREAKERS_STD.find(b => b >= IbFus) || 2000;
-  const sqrt3 = fases === 3 ? Math.sqrt(3) : 1;
-  const Sb = kvaCC * 1000; const InomTx = Sb / (V * sqrt3); const Icc = InomTx / (Zpct / 100); const IccKA = Icc / 1000;
-  let prKA = 6; if (IccKA > 6) prKA = 10; if (IccKA > 10) prKA = 25; if (IccKA > 25) prKA = 50;
-  const html = `<div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#111;background:#fff;padding:40px;max-width:750px;margin:0 auto">
+async function _exportarPDFProteccion(snap, nombre, cliente, notas){
+  const fecha=new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
+  const Ic=parseFloat(snap.Ic)||0;
+  const tipo=snap.tipo||'gral';
+  const V=parseFloat(snap.v)||220;
+  const fases=parseInt(snap.fases)||1;
+  const kvaCC=parseFloat(snap.kvaCC)||150;
+  const Zpct=parseFloat(snap.z)||5;
+  const factores={gral:{cb:1.25,fusible:1.50,label:'Carga general — NEC 240.4',nota:'El breaker no debe superar el 125% de la corriente del conductor.'},
+    motor:{cb:2.50,fusible:4.00,label:'Motor AC — NEC 430.52',nota:'Breaker 250% Ic. Fusible dual element 400% Ic.'},
+    transformador:{cb:1.25,fusible:1.25,label:'Transformador — NEC 450.3(B)',nota:'Protección al 125% de la corriente nominal primaria.'},
+    condensador:{cb:1.35,fusible:1.65,label:'Condensadores — NEC 460.8',nota:'Breaker 135%, fusible 165% de Ic.'}};
+  const f=factores[tipo]||factores.gral;
+  const IbCB=Ic*f.cb;const IbFus=Ic*f.fusible;
+  const cbRec=BREAKERS_STD.find(b=>b>=IbCB)||2000;const fusRec=BREAKERS_STD.find(b=>b>=IbFus)||2000;
+  const sqrt3=fases===3?Math.sqrt(3):1;
+  const Sb=kvaCC*1000;const InomTx=Sb/(V*sqrt3);const Icc=InomTx/(Zpct/100);const IccKA=Icc/1000;
+  let prKA=6;if(IccKA>6)prKA=10;if(IccKA>10)prKA=25;if(IccKA>25)prKA=50;
+  const html=`<div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#111;background:#fff;padding:40px;max-width:750px;margin:0 auto">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #ef4444;padding-bottom:16px;margin-bottom:20px">
       <div><div style="font-size:22px;font-weight:900;color:#111">SEST</div>
         <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Servicios Eléctricos y Seguridad Tapia</div></div>
       <div style="text-align:right"><div style="font-size:13px;font-weight:700">Dimensionamiento de Protecciones</div>
         <div style="font-size:11px;color:#6b7280">NEC Art. 240 / 430 · NTE INEN</div>
         <div style="font-size:11px;color:#6b7280">${fecha}</div>
-        ${usuario?.nombre ? `<div style="font-size:11px;color:#6b7280">Por: <strong>${usuario.nombre}</strong></div>` : ''}</div></div>
+        ${usuario?.nombre?`<div style="font-size:11px;color:#6b7280">Por: <strong>${usuario.nombre}</strong></div>`:''}</div></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
         <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Nombre del cálculo</div>
@@ -4725,7 +4710,7 @@ async function _exportarPDFProteccion(snap, nombre, cliente, notas) {
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Corriente de carga (Ic)</div><div style="font-size:16px;font-weight:800;color:#111">${Ic.toFixed(2)} A</div></div>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Tipo de carga</div><div style="font-size:13px;font-weight:700">${f.label.split('—')[0]}</div></div>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Sistema</div><div style="font-size:13px;font-weight:700">${V} V · ${fases === 3 ? 'Trifásico' : 'Monofásico'}</div></div>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Sistema</div><div style="font-size:13px;font-weight:700">${V} V · ${fases===3?'Trifásico':'Monofásico'}</div></div>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Transformador</div><div style="font-size:13px;font-weight:700">${kvaCC} kVA</div></div>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px"><div style="font-size:9px;color:#6b7280;text-transform:uppercase">Impedancia Z%</div><div style="font-size:13px;font-weight:700">${Zpct}%</div></div>
       </div></div>
@@ -4735,7 +4720,7 @@ async function _exportarPDFProteccion(snap, nombre, cliente, notas) {
         <div style="background:#fef2f2;border:2px solid #fecaca;border-radius:10px;padding:16px;text-align:center">
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:4px">Breaker recomendado</div>
           <div style="font-size:32px;font-weight:900;color:#dc2626;font-family:monospace">${cbRec} A</div>
-          <div style="font-size:10px;color:#374151">Mín. ${IbCB.toFixed(1)} A · ${fases === 3 ? '3 polos' : '2 polos'}</div></div>
+          <div style="font-size:10px;color:#374151">Mín. ${IbCB.toFixed(1)} A · ${fases===3?'3 polos':'2 polos'}</div></div>
         <div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:10px;padding:16px;text-align:center">
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:4px">Fusible recomendado</div>
           <div style="font-size:32px;font-weight:900;color:#2563eb;font-family:monospace">${fusRec} A</div>
@@ -4760,11 +4745,11 @@ async function _exportarPDFProteccion(snap, nombre, cliente, notas) {
       <p>Documento generado por SEST · Dimensionamiento de Protecciones · ${fecha}</p>
       <p>Cálculo conforme a NEC y NTE INEN aplicables en Ecuador 🇪🇨</p>
     </div></div>`;
-  const cont = document.getElementById('pdf-informe');
-  if (!cont) { toast('Error: contenedor PDF no encontrado', 'err'); return; }
-  cont.innerHTML = html;
-  await htmlAPdfDesdeNodoFuente(cont, `Proteccion_${nombre.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
-  cont.innerHTML = '';
+  const cont=document.getElementById('pdf-informe');
+  if(!cont){toast('Error: contenedor PDF no encontrado','err');return;}
+  cont.innerHTML=html;
+  await htmlAPdfDesdeNodoFuente(cont,`Proteccion_${nombre.replace(/[^a-zA-Z0-9]/g,'_')}.pdf`);
+  cont.innerHTML='';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4773,88 +4758,88 @@ async function _exportarPDFProteccion(snap, nombre, cliente, notas) {
 // ═══════════════════════════════════════════════════════════════
 let _tbCalcsCache = [];
 
-function _tbSnapshot() {
+function _tbSnapshot(){
   return {
-    tipo: document.getElementById('tb-tipo')?.value || 'EMT',
-    ncond: document.getElementById('tb-ncond')?.value || '3',
-    awg: document.getElementById('tb-awg')?.value || '12',
-    aislamiento: document.getElementById('tb-aislamiento')?.value || 'THHN',
+    tipo:       document.getElementById('tb-tipo')?.value||'EMT',
+    ncond:      document.getElementById('tb-ncond')?.value||'3',
+    awg:        document.getElementById('tb-awg')?.value||'12',
+    aislamiento:document.getElementById('tb-aislamiento')?.value||'THHN',
   };
 }
-function _tbRestore(snap) {
-  if (!snap) return;
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
-  set('tb-tipo', snap.tipo); set('tb-ncond', snap.ncond); set('tb-awg', snap.awg); set('tb-aislamiento', snap.aislamiento);
-  const tipoBtns = document.querySelectorAll('#calctab-tuberia .pf-radio-group .pf-radio-btn');
-  const tipoMap = { 'EMT': 0, 'PVC40': 1, 'IMC': 2, 'RMC': 3 };
-  tipoBtns.forEach(b => b.classList.remove('on'));
-  const idx = tipoMap[snap.tipo] ?? 0;
-  if (tipoBtns[idx]) tipoBtns[idx].classList.add('on');
+function _tbRestore(snap){
+  if(!snap)return;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+  set('tb-tipo',snap.tipo);set('tb-ncond',snap.ncond);set('tb-awg',snap.awg);set('tb-aislamiento',snap.aislamiento);
+  const tipoBtns=document.querySelectorAll('#calctab-tuberia .pf-radio-group .pf-radio-btn');
+  const tipoMap={'EMT':0,'PVC40':1,'IMC':2,'RMC':3};
+  tipoBtns.forEach(b=>b.classList.remove('on'));
+  const idx=tipoMap[snap.tipo]??0;
+  if(tipoBtns[idx])tipoBtns[idx].classList.add('on');
   calcTuberia();
 }
-function _tbResumen(snap) {
-  if (!snap) return '—';
-  return `${snap.tipo || 'EMT'} · ${snap.ncond || '3'} cond. × AWG ${snap.awg || '12'} · ${snap.aislamiento || 'THHN'}`;
+function _tbResumen(snap){
+  if(!snap)return '—';
+  return `${snap.tipo||'EMT'} · ${snap.ncond||'3'} cond. × AWG ${snap.awg||'12'} · ${snap.aislamiento||'THHN'}`;
 }
 
 // ── Modal guardar tubería ─────────────────────────────────────
-function abrirGuardarTuberia() {
-  const snap = _tbSnapshot();
-  document.getElementById('tb-guardar-nombre').value = '';
-  document.getElementById('tb-guardar-cliente').value = '';
-  document.getElementById('tb-guardar-notas').value = '';
-  document.getElementById('tb-guardar-err').className = 'alert err';
-  document.getElementById('tb-guardar-preview-body').textContent = _tbResumen(snap);
+function abrirGuardarTuberia(){
+  const snap=_tbSnapshot();
+  document.getElementById('tb-guardar-nombre').value='';
+  document.getElementById('tb-guardar-cliente').value='';
+  document.getElementById('tb-guardar-notas').value='';
+  document.getElementById('tb-guardar-err').className='alert err';
+  document.getElementById('tb-guardar-preview-body').textContent=_tbResumen(snap);
   openModal('m-tb-guardar');
 }
-async function confirmarGuardarTuberia() {
-  const nombre = (document.getElementById('tb-guardar-nombre')?.value || '').trim();
-  const cliente = (document.getElementById('tb-guardar-cliente')?.value || '').trim();
-  const notas = (document.getElementById('tb-guardar-notas')?.value || '').trim();
-  const errEl = document.getElementById('tb-guardar-err');
-  if (!nombre) { errEl.textContent = 'El nombre es obligatorio'; errEl.classList.add('show'); document.getElementById('tb-guardar-nombre').focus(); return; }
-  errEl.classList.remove('show'); setBL('btn-tb-guardar-ok', true);
-  const snap = _tbSnapshot();
-  const payload = { nombre, cliente, ubicacion: notas, tipo: 'tuberia_calc', temp_f: '1.0', sistema: snap.tipo || 'EMT', cargas: [snap] };
-  try {
-    const r = await api('electrical-projects', { method: 'POST', body: JSON.stringify(payload) });
-    if (isErr(r)) { errEl.textContent = r?.msg || 'Error al guardar'; errEl.classList.add('show'); }
-    else { closeModal('m-tb-guardar'); toast('✅ Tubería guardada en PostgreSQL', 'ok'); }
-  } catch (e) { errEl.textContent = 'Error de conexión'; errEl.classList.add('show'); }
-  setBL('btn-tb-guardar-ok', false, 'Guardar en BD');
+async function confirmarGuardarTuberia(){
+  const nombre=(document.getElementById('tb-guardar-nombre')?.value||'').trim();
+  const cliente=(document.getElementById('tb-guardar-cliente')?.value||'').trim();
+  const notas=(document.getElementById('tb-guardar-notas')?.value||'').trim();
+  const errEl=document.getElementById('tb-guardar-err');
+  if(!nombre){errEl.textContent='El nombre es obligatorio';errEl.classList.add('show');document.getElementById('tb-guardar-nombre').focus();return;}
+  errEl.classList.remove('show');setBL('btn-tb-guardar-ok',true);
+  const snap=_tbSnapshot();
+  const payload={nombre,cliente,ubicacion:notas,tipo:'tuberia_calc',temp_f:'1.0',sistema:snap.tipo||'EMT',cargas:[snap]};
+  try{
+    const r=await api('electrical-projects',{method:'POST',body:JSON.stringify(payload)});
+    if(isErr(r)){errEl.textContent=r?.msg||'Error al guardar';errEl.classList.add('show');}
+    else{closeModal('m-tb-guardar');toast('✅ Tubería guardada en PostgreSQL','ok');}
+  }catch(e){errEl.textContent='Error de conexión';errEl.classList.add('show');}
+  setBL('btn-tb-guardar-ok',false,'Guardar en BD');
 }
 
 // ── Historial tuberías ────────────────────────────────────────
-async function abrirHistorialTuberias() {
+async function abrirHistorialTuberias(){
   openModal('m-tuberias');
-  const listEl = document.getElementById('tb-historial-list');
-  listEl.innerHTML = '<div class="loading"><div class="spin"></div><p>Cargando desde PostgreSQL…</p></div>';
-  try {
-    const r = await api('electrical-projects');
-    if (isErr(r)) { listEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--err)">${r?.msg || 'Error al cargar'}</div>`; return; }
-    const todos = Array.isArray(r) ? r : (r?.data ? r.data : []);
-    const calcs = todos.filter(p => p.tipo === 'tuberia_calc');
-    _tbCalcsCache = calcs;
-    if (!calcs.length) {
-      listEl.innerHTML = `<div style="text-align:center;padding:32px;color:var(--t3)">
+  const listEl=document.getElementById('tb-historial-list');
+  listEl.innerHTML='<div class="loading"><div class="spin"></div><p>Cargando desde PostgreSQL…</p></div>';
+  try{
+    const r=await api('electrical-projects');
+    if(isErr(r)){listEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--err)">${r?.msg||'Error al cargar'}</div>`;return;}
+    const todos=Array.isArray(r)?r:(r?.data?r.data:[]);
+    const calcs=todos.filter(p=>p.tipo==='tuberia_calc');
+    _tbCalcsCache=calcs;
+    if(!calcs.length){
+      listEl.innerHTML=`<div style="text-align:center;padding:32px;color:var(--t3)">
         <i data-lucide="inbox" style="width:36px;height:36px;display:block;margin:0 auto 10px"></i>
         <p style="font-size:13px">No hay cálculos guardados.</p>
         <p style="font-size:12px;margin-top:4px">Usa el botón <strong style="color:var(--acc)">Guardar</strong> después de calcular.</p>
-      </div>`; refreshIcons(); return;
+      </div>`;refreshIcons();return;
     }
-    calcs.sort((a, b) => new Date(b.created_at || b.creado_en || 0) - new Date(a.created_at || a.creado_en || 0));
-    listEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px">
-      ${calcs.map(c => {
-      const cargasArr = _parseCargasField(c.cargas); const snap = cargasArr[0] || {};
-      const fecha = c.created_at || c.creado_en ? new Date(c.created_at || c.creado_en).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-      return `<div style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px">
+    calcs.sort((a,b)=>new Date(b.created_at||b.creado_en||0)-new Date(a.created_at||a.creado_en||0));
+    listEl.innerHTML=`<div style="display:flex;flex-direction:column;gap:10px">
+      ${calcs.map(c=>{
+        const cargasArr=_parseCargasField(c.cargas);const snap=cargasArr[0]||{};
+        const fecha=c.created_at||c.creado_en?new Date(c.created_at||c.creado_en).toLocaleDateString('es-EC',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+        return`<div style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px">
           <div style="width:36px;height:36px;border-radius:9px;background:rgba(34,197,94,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--ok)">
             <i data-lucide="circle-dashed" style="width:18px;height:18px"></i>
           </div>
           <div style="flex:1;min-width:0">
             <div style="font-weight:700;font-size:13px;color:var(--t1);margin-bottom:2px">${c.nombre}</div>
-            ${c.cliente ? `<div style="font-size:12px;color:var(--t3);margin-bottom:2px">📁 ${c.cliente}</div>` : ''}
-            ${c.ubicacion ? `<div style="font-size:11px;color:var(--t3);margin-bottom:4px">📝 ${c.ubicacion}</div>` : ''}
+            ${c.cliente?`<div style="font-size:12px;color:var(--t3);margin-bottom:2px">📁 ${c.cliente}</div>`:''}
+            ${c.ubicacion?`<div style="font-size:11px;color:var(--t3);margin-bottom:4px">📝 ${c.ubicacion}</div>`:''}
             <div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${_tbResumen(snap)}</div>
             <div style="font-size:10px;color:var(--t3);margin-top:4px">🕒 ${fecha}</div>
           </div>
@@ -4870,64 +4855,64 @@ async function abrirHistorialTuberias() {
             </button>
           </div>
         </div>`;
-    }).join('')}
+      }).join('')}
     </div>`;
     refreshIcons();
-  } catch (e) { listEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--err)">Error de conexión</div>`; }
+  }catch(e){listEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--err)">Error de conexión</div>`;}
 }
-async function cargarTuberia(id) {
+async function cargarTuberia(id){
   closeModal('m-tuberias');
-  let record = _tbCalcsCache.find(c => String(c.id) === String(id));
-  if (!record) { const r = await api('electrical-projects'); if (isErr(r)) { toast('Error al cargar', 'err'); return; } const todos = Array.isArray(r) ? r : (r?.data ? r.data : []); _tbCalcsCache = todos.filter(p => p.tipo === 'tuberia_calc'); record = _tbCalcsCache.find(c => String(c.id) === String(id)); }
-  if (!record) { toast('No se encontró el registro', 'err'); return; }
-  const snap = _parseCargasField(record.cargas)[0] || null;
-  if (!snap) { toast('Sin datos de cálculo en este registro', 'err'); return; }
-  _tbRestore(snap); irCalcTab('tuberia'); toast(`✅ Tubería "${record.nombre}" cargada`, 'ok');
+  let record=_tbCalcsCache.find(c=>String(c.id)===String(id));
+  if(!record){const r=await api('electrical-projects');if(isErr(r)){toast('Error al cargar','err');return;}const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_tbCalcsCache=todos.filter(p=>p.tipo==='tuberia_calc');record=_tbCalcsCache.find(c=>String(c.id)===String(id));}
+  if(!record){toast('No se encontró el registro','err');return;}
+  const snap=_parseCargasField(record.cargas)[0]||null;
+  if(!snap){toast('Sin datos de cálculo en este registro','err');return;}
+  _tbRestore(snap);irCalcTab('tuberia');toast(`✅ Tubería "${record.nombre}" cargada`,'ok');
 }
-async function eliminarTuberia(id, btnEl) {
-  if (!confirm('¿Eliminar este cálculo? La acción no se puede deshacer.')) return;
-  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '…'; }
-  const r = await api(`electrical-projects?id=${id}`, { method: 'DELETE' });
-  if (isErr(r)) { toast(r?.msg || 'Error al eliminar', 'err'); if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '<i data-lucide="trash-2" style="width:13px;height:13px"></i>'; refreshIcons(); } return; }
-  toast('Cálculo eliminado', 'ok'); abrirHistorialTuberias();
+async function eliminarTuberia(id,btnEl){
+  if(!confirm('¿Eliminar este cálculo? La acción no se puede deshacer.'))return;
+  if(btnEl){btnEl.disabled=true;btnEl.textContent='…';}
+  const r=await api(`electrical-projects?id=${id}`,{method:'DELETE'});
+  if(isErr(r)){toast(r?.msg||'Error al eliminar','err');if(btnEl){btnEl.disabled=false;btnEl.innerHTML='<i data-lucide="trash-2" style="width:13px;height:13px"></i>';refreshIcons();}return;}
+  toast('Cálculo eliminado','ok');abrirHistorialTuberias();
 }
 
 // ── PDF Tubería ───────────────────────────────────────────────
-async function exportarPDFTuberiaFromRecord(id) {
-  let record = _tbCalcsCache.find(c => String(c.id) === String(id));
-  if (!record) { const r = await api('electrical-projects'); if (!isErr(r)) { const todos = Array.isArray(r) ? r : (r?.data ? r.data : []); _tbCalcsCache = todos.filter(p => p.tipo === 'tuberia_calc'); record = _tbCalcsCache.find(c => String(c.id) === String(id)); } }
-  if (!record) { toast('No se encontró el registro', 'err'); return; }
-  const snap = _parseCargasField(record.cargas)[0] || {};
-  await _exportarPDFTuberia(snap, record.nombre || 'Tubería', record.cliente || '—', record.ubicacion || '');
+async function exportarPDFTuberiaFromRecord(id){
+  let record=_tbCalcsCache.find(c=>String(c.id)===String(id));
+  if(!record){const r=await api('electrical-projects');if(!isErr(r)){const todos=Array.isArray(r)?r:(r?.data?r.data:[]);_tbCalcsCache=todos.filter(p=>p.tipo==='tuberia_calc');record=_tbCalcsCache.find(c=>String(c.id)===String(id));}}
+  if(!record){toast('No se encontró el registro','err');return;}
+  const snap=_parseCargasField(record.cargas)[0]||{};
+  await _exportarPDFTuberia(snap, record.nombre||'Tubería', record.cliente||'—', record.ubicacion||'');
 }
-async function exportarPDFTuberia() {
-  const snap = _tbSnapshot();
-  await _exportarPDFTuberia(snap, 'Cálculo de Tubería', '—', '');
+async function exportarPDFTuberia(){
+  const snap=_tbSnapshot();
+  await _exportarPDFTuberia(snap,'Cálculo de Tubería','—','');
 }
-async function _exportarPDFTuberia(snap, nombre, cliente, notas) {
-  const fecha = new Date().toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
-  const tipo = snap.tipo || 'EMT';
-  const nCond = parseInt(snap.ncond) || 3;
-  const awg = snap.awg || '12';
-  const aisl = snap.aislamiento || 'THHN';
-  const areaCond = THHN_AREA[awg] || 0;
-  const totalArea = areaCond * nCond;
-  const factor = nCond === 1 ? 0.53 : nCond === 2 ? 0.31 : 0.40;
-  const areaConduitMin = totalArea / factor;
-  const tabla = CONDUIT_AREA[tipo] || CONDUIT_AREA.EMT;
-  let conduitSel = tabla.find(([n, a]) => a * factor >= totalArea);
-  if (!conduitSel) conduitSel = tabla[tabla.length - 1];
-  const [nomSel, areaSel] = conduitSel;
-  const pctLlenado = (totalArea / areaSel * 100);
-  const colorFill = pctLlenado > (factor * 100) ? '#dc2626' : '#16a34a';
-  const html = `<div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#111;background:#fff;padding:40px;max-width:750px;margin:0 auto">
+async function _exportarPDFTuberia(snap, nombre, cliente, notas){
+  const fecha=new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
+  const tipo=snap.tipo||'EMT';
+  const nCond=parseInt(snap.ncond)||3;
+  const awg=snap.awg||'12';
+  const aisl=snap.aislamiento||'THHN';
+  const areaCond=THHN_AREA[awg]||0;
+  const totalArea=areaCond*nCond;
+  const factor=nCond===1?0.53:nCond===2?0.31:0.40;
+  const areaConduitMin=totalArea/factor;
+  const tabla=CONDUIT_AREA[tipo]||CONDUIT_AREA.EMT;
+  let conduitSel=tabla.find(([n,a])=>a*factor>=totalArea);
+  if(!conduitSel)conduitSel=tabla[tabla.length-1];
+  const [nomSel,areaSel]=conduitSel;
+  const pctLlenado=(totalArea/areaSel*100);
+  const colorFill=pctLlenado>(factor*100)?'#dc2626':'#16a34a';
+  const html=`<div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#111;background:#fff;padding:40px;max-width:750px;margin:0 auto">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #22c55e;padding-bottom:16px;margin-bottom:20px">
       <div><div style="font-size:22px;font-weight:900">SEST</div>
         <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Servicios Eléctricos y Seguridad Tapia</div></div>
       <div style="text-align:right"><div style="font-size:13px;font-weight:700">Cálculo de Tuberías / Conduit</div>
         <div style="font-size:11px;color:#6b7280">NEC Chapter 9 Table 1 & 4 · NTE INEN</div>
         <div style="font-size:11px;color:#6b7280">${fecha}</div>
-        ${usuario?.nombre ? `<div style="font-size:11px;color:#6b7280">Por: <strong>${usuario.nombre}</strong></div>` : ''}</div></div>
+        ${usuario?.nombre?`<div style="font-size:11px;color:#6b7280">Por: <strong>${usuario.nombre}</strong></div>`:''}</div></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
         <div style="font-size:9px;color:#6b7280;text-transform:uppercase">Nombre del cálculo</div>
@@ -4955,13 +4940,13 @@ async function _exportarPDFTuberia(snap, nombre, cliente, notas) {
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:4px">Área conductores</div>
           <div style="font-size:32px;font-weight:900;color:#15803d;font-family:monospace">${totalArea.toFixed(1)}</div>
           <div style="font-size:10px;color:#374151">mm² total · ${areaCond} mm² c/u</div></div>
-        <div style="background:${pctLlenado > (factor * 100) ? '#fef2f2' : '#f0fdf4'};border:2px solid ${pctLlenado > (factor * 100) ? '#fecaca' : '#bbf7d0'};border-radius:10px;padding:16px;text-align:center">
+        <div style="background:${pctLlenado>(factor*100)?'#fef2f2':'#f0fdf4'};border:2px solid ${pctLlenado>(factor*100)?'#fecaca':'#bbf7d0'};border-radius:10px;padding:16px;text-align:center">
           <div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:4px">% de llenado</div>
           <div style="font-size:32px;font-weight:900;color:${colorFill};font-family:monospace">${pctLlenado.toFixed(1)}%</div>
-          <div style="font-size:10px;color:#374151">${pctLlenado > (factor * 100) ? '⚠️ Excede límite' : '✅ Dentro del límite'} (${(factor * 100).toFixed(0)}%)</div></div>
+          <div style="font-size:10px;color:#374151">${pctLlenado>(factor*100)?'⚠️ Excede límite':'✅ Dentro del límite'} (${(factor*100).toFixed(0)}%)</div></div>
       </div></div>
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:16px;font-size:11px">
-      <strong style="color:#15803d">NEC Chapter 9 Table 1:</strong> Con ${nCond} conductor${nCond > 1 ? 'es' : ''}, el llenado máximo permitido es <strong>${(factor * 100).toFixed(0)}%</strong> del área interna. Área mínima requerida: <strong>${areaConduitMin.toFixed(1)} mm²</strong>
+      <strong style="color:#15803d">NEC Chapter 9 Table 1:</strong> Con ${nCond} conductor${nCond>1?'es':''}, el llenado máximo permitido es <strong>${(factor*100).toFixed(0)}%</strong> del área interna. Área mínima requerida: <strong>${areaConduitMin.toFixed(1)} mm²</strong>
     </div>
     <div style="margin-bottom:16px">
       <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#374151;border-left:3px solid #22c55e;padding-left:8px;margin-bottom:8px">3. NORMATIVA APLICADA</div>
@@ -4974,37 +4959,37 @@ async function _exportarPDFTuberia(snap, nombre, cliente, notas) {
     <div style="text-align:center;font-size:10px;color:#9ca3af;padding-top:12px;border-top:1px solid #e5e7eb;margin-top:20px">
       <p>Documento generado por SEST · Cálculo de Tuberías / Conduit · ${fecha}</p>
       <p>Cálculo conforme a NEC y NTE INEN aplicables en Ecuador 🇪🇨</p>
-    </div></div>`.replace('{awg}', awg);
-  const cont = document.getElementById('pdf-informe');
-  if (!cont) { toast('Error: contenedor PDF no encontrado', 'err'); return; }
-  cont.innerHTML = html;
-  await htmlAPdfDesdeNodoFuente(cont, `Tuberia_${nombre.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
-  cont.innerHTML = '';
+    </div></div>`.replace('{awg}',awg);
+  const cont=document.getElementById('pdf-informe');
+  if(!cont){toast('Error: contenedor PDF no encontrado','err');return;}
+  cont.innerHTML=html;
+  await htmlAPdfDesdeNodoFuente(cont,`Tuberia_${nombre.replace(/[^a-zA-Z0-9]/g,'_')}.pdf`);
+  cont.innerHTML='';
 }
 
 // ───────────────────────────────────────────────────────────────
 // Verificar conexión Neon al abrir la tab Cables
 // ───────────────────────────────────────────────────────────────
-function _initCcDbBadge() {
-  api('electrical-projects').then(r => {
-    _updateCcDbBadge(isErr(r) ? 'err' : 'ok');
-  }).catch(() => _updateCcDbBadge('err'));
+function _initCcDbBadge(){
+  api('electrical-projects').then(r=>{
+    _updateCcDbBadge(isErr(r)?'err':'ok');
+  }).catch(()=>_updateCcDbBadge('err'));
 }
 
 function guardarBalance() {
-  const nombre = (document.getElementById('bc-proyecto-nombre')?.value || '').trim();
-  const cliente = (document.getElementById('bc-proyecto-cliente')?.value || '').trim();
-  const ubicacion = (document.getElementById('bc-proyecto-ubicacion')?.value || '').trim();
-  const tipo = document.getElementById('bc-tipo-tablero')?.value || 'residencial';
-  const tempF = document.getElementById('bc-temperatura-global')?.value || '1.0';
+  const nombre   = (document.getElementById('bc-proyecto-nombre')?.value || '').trim();
+  const cliente  = (document.getElementById('bc-proyecto-cliente')?.value || '').trim();
+  const ubicacion= (document.getElementById('bc-proyecto-ubicacion')?.value || '').trim();
+  const tipo     = document.getElementById('bc-tipo-tablero')?.value || 'residencial';
+  const tempF    = document.getElementById('bc-temperatura-global')?.value || '1.0';
 
-  if (!nombre) { toast('Ingresa un nombre para el proyecto', 'err'); document.getElementById('bc-proyecto-nombre')?.focus(); return; }
-  if (!cargas.length) { toast('Agrega al menos una carga antes de guardar', 'err'); return; }
+  if (!nombre) { toast('Ingresa un nombre para el proyecto','err'); document.getElementById('bc-proyecto-nombre')?.focus(); return; }
+  if (!cargas.length) { toast('Agrega al menos una carga antes de guardar','err'); return; }
 
   const ahora = new Date().toISOString();
 
   const stEl = document.getElementById('bc-save-status');
-  if (stEl) stEl.textContent = 'Guardando en PostgreSQL…';
+  if(stEl) stEl.textContent = 'Guardando en PostgreSQL…';
 
   const data = {
     id: _bcProyectoId || undefined,
@@ -5015,14 +5000,14 @@ function guardarBalance() {
   };
 
   _saveBalanceToDB(data).then(saved => {
-    if (saved?.id) _bcProyectoId = saved.id;
+    if(saved?.id) _bcProyectoId = saved.id;
     const msg = data.id ? `✅ Proyecto "${nombre}" actualizado en DB` : `✅ Proyecto "${nombre}" guardado en DB`;
     toast(msg, 'ok');
     _actualizarBadgeProyecto(nombre);
-    if (stEl) stEl.textContent = 'Guardado en PostgreSQL · ' + new Date().toLocaleTimeString();
-  }).catch(() => {
+    if(stEl) stEl.textContent = 'Guardado en PostgreSQL · ' + new Date().toLocaleTimeString();
+  }).catch(()=>{
     toast('Guardado en caché local (sin conexión)', 'info');
-    if (stEl) stEl.textContent = 'Guardado local · ' + new Date().toLocaleTimeString();
+    if(stEl) stEl.textContent = 'Guardado local · ' + new Date().toLocaleTimeString();
   });
 }
 
@@ -5033,13 +5018,13 @@ function _actualizarBadgeProyecto(nombre) {
 
 function abrirModalBalances() {
   const cont = document.getElementById('bc-saved-list-container');
-  if (cont) cont.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)"><div class="spin" style="margin:0 auto 8px"></div><p>Cargando proyectos…</p></div>';
+  if(cont) cont.innerHTML='<div style="text-align:center;padding:20px;color:var(--t3)"><div class="spin" style="margin:0 auto 8px"></div><p>Cargando proyectos…</p></div>';
   openModal('m-balances');
   _loadBalancesFromDB().then(allRecords => {
-    const cont = document.getElementById('bc-saved-list-container');
-    if (!cont) return;
+  const cont = document.getElementById('bc-saved-list-container');
+  if (!cont) return;
     // Filtrar SOLO registros de balance de cargas (excluir cable_calc, proteccion_calc, tuberia_calc)
-    const TIPOS_EXCLUIDOS = ['cable_calc', 'proteccion_calc', 'tuberia_calc'];
+    const TIPOS_EXCLUIDOS = ['cable_calc','proteccion_calc','tuberia_calc'];
     const balances = allRecords.filter(b => !TIPOS_EXCLUIDOS.includes(b.tipo));
     if (!balances.length) {
       cont.innerHTML = `<div style="text-align:center;padding:28px;color:var(--t3)">
@@ -5051,17 +5036,17 @@ function abrirModalBalances() {
       cont.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px">` +
         balances.slice().reverse().map(b => {
           const d = new Date(b.updatedAt || b.createdAt || b.updated_at || b.created_at || Date.now());
-          const dStr = d.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+          const dStr = d.toLocaleDateString('es-EC', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
           const activo = b.id === _bcProyectoId;
-          return `<div style="background:var(--s2);border:1px solid ${activo ? 'var(--acc)' : 'var(--bd)'};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;${activo ? 'background:var(--acc-d)' : ''}">
+          return `<div style="background:var(--s2);border:1px solid ${activo?'var(--acc)':'var(--bd)'};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;${activo?'background:var(--acc-d)':''}">
             <div style="width:36px;height:36px;border-radius:9px;background:rgba(245,200,0,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--acc)">
-              <i data-lucide="${activo ? 'folder-open' : 'zap'}" style="width:18px;height:18px"></i>
+              <i data-lucide="${activo?'folder-open':'zap'}" style="width:18px;height:18px"></i>
             </div>
             <div style="flex:1;min-width:0">
-              <div style="font-weight:700;font-size:13px;color:var(--t1);margin-bottom:2px">${b.nombre}${activo ? ' <span style="font-size:10px;background:var(--acc);color:#000;border-radius:4px;padding:1px 6px;font-weight:700">ACTIVO</span>' : ''}</div>
-              ${b.cliente ? `<div style="font-size:12px;color:var(--t3);margin-bottom:2px">📁 ${b.cliente}</div>` : ''}
-              ${b.ubicacion ? `<div style="font-size:11px;color:var(--t3);margin-bottom:4px">📝 ${b.ubicacion}</div>` : ''}
-              <div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${b.sistema || '120'}V · ${b.tipo || 'residencial'} · ${(b.cargas || []).length} circuito${(b.cargas || []).length !== 1 ? 's' : ''}</div>
+              <div style="font-weight:700;font-size:13px;color:var(--t1);margin-bottom:2px">${b.nombre}${activo?' <span style="font-size:10px;background:var(--acc);color:#000;border-radius:4px;padding:1px 6px;font-weight:700">ACTIVO</span>':''}</div>
+              ${b.cliente?`<div style="font-size:12px;color:var(--t3);margin-bottom:2px">📁 ${b.cliente}</div>`:''}
+              ${b.ubicacion?`<div style="font-size:11px;color:var(--t3);margin-bottom:4px">📝 ${b.ubicacion}</div>`:''}
+              <div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${b.sistema||'120'}V · ${b.tipo||'residencial'} · ${(b.cargas||[]).length} circuito${(b.cargas||[]).length!==1?'s':''}</div>
               <div style="font-size:10px;color:var(--t3);margin-top:4px">🕒 ${dStr}</div>
             </div>
             <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
@@ -5086,30 +5071,30 @@ function cargarBalance(id) {
   // Comparar como string para que funcione con IDs numéricos de PostgreSQL
   const balances = _getBalancesCache();
   const b = balances.find(x => String(x.id) === String(id));
-  if (!b) { toast('Proyecto no encontrado — intenta recargar la lista', 'err'); return; }
+  if (!b) { toast('Proyecto no encontrado — intenta recargar la lista','err'); return; }
   cargas = JSON.parse(JSON.stringify(b.cargas || []));
   _bcSistema = b.sistema || '120';
   _bcProyectoId = b.id; // Guardar el ID real (puede ser número) para edición
   setBcSistema(_bcSistema);
   // Restaurar campos del formulario
-  const setV = (elId, v) => { const el = document.getElementById(elId); if (el) el.value = v || ''; };
+  const setV = (elId, v) => { const el=document.getElementById(elId); if(el) el.value=v||''; };
   setV('bc-proyecto-nombre', b.nombre);
   setV('bc-proyecto-cliente', b.cliente);
   setV('bc-proyecto-ubicacion', b.ubicacion);
-  setV('bc-tipo-tablero', b.tipo || 'residencial');
-  setV('bc-temperatura-global', b.tempF || '1.0');
+  setV('bc-tipo-tablero', b.tipo||'residencial');
+  setV('bc-temperatura-global', b.tempF||'1.0');
   renderCargas();
   recalcBalance();
   _actualizarBadgeProyecto(b.nombre);
   const stEl = document.getElementById('bc-save-status');
-  if (stEl) stEl.textContent = '✏️ Editando: ' + b.nombre;
+  if(stEl) stEl.textContent = '✏️ Editando: ' + b.nombre;
   closeModal('m-balances');
   toast(`✏️ Proyecto "${b.nombre}" cargado para edición`, 'ok');
 }
 
 function eliminarBalance(id) {
   if (!confirm('¿Eliminar este proyecto de la base de datos?')) return;
-  _deleteBalanceFromDB(id).then(() => {
+  _deleteBalanceFromDB(id).then(()=>{
     if (_bcProyectoId === id) {
       _bcProyectoId = null;
       _actualizarBadgeProyecto('Sin proyecto');
@@ -5127,12 +5112,12 @@ function eliminarBalance(id) {
 async function generarInformePDF() {
   if (!cargas.length) { toast('Agrega cargas antes de generar el informe', 'err'); return; }
 
-  const nombre = document.getElementById('bc-proyecto-nombre')?.value || 'Sin nombre';
-  const cliente = document.getElementById('bc-proyecto-cliente')?.value || '—';
-  const ubicacion = document.getElementById('bc-proyecto-ubicacion')?.value || '—';
-  const tipoTab = document.getElementById('bc-tipo-tablero')?.value || 'residencial';
+  const nombre   = document.getElementById('bc-proyecto-nombre')?.value || 'Sin nombre';
+  const cliente  = document.getElementById('bc-proyecto-cliente')?.value || '—';
+  const ubicacion= document.getElementById('bc-proyecto-ubicacion')?.value || '—';
+  const tipoTab  = document.getElementById('bc-tipo-tablero')?.value || 'residencial';
   const tempFactor = parseFloat(document.getElementById('bc-temperatura-global')?.value || 1.0);
-  const fecha = new Date().toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
+  const fecha = new Date().toLocaleDateString('es-EC', {day:'2-digit',month:'long',year:'numeric'});
 
   const cfg = BC_SISTEMAS[_bcSistema] || BC_SISTEMAS['120'];
   const { tension, esTri, fases, label } = cfg;
@@ -5151,67 +5136,67 @@ async function generarInformePDF() {
     const potTotal = potUnit * cant;
     const pd = potTotal * (c.fs || 100) / 100;
     if (potPorFase[c.fase] !== undefined) potPorFase[c.fase] += pd;
-    totalW += potTotal;
+    totalW  += potTotal;
     totalWD += pd;
   });
-  const ITotal = acometida.ITotal || (esTri ? totalWD / (tension * Math.sqrt(3) * 0.9) : totalWD / (tension * 0.9));
-  const brkAco = acometida.brkAco || (BREAKERS_STD.find(b => b >= ITotal * 1.25) || 2000);
-  const fsPromedio = cargas.length > 0 ? cargas.reduce((a, c) => a + (c.fs || 100), 0) / cargas.length : 0;
+  const ITotal = acometida.ITotal || (esTri ? totalWD/(tension*Math.sqrt(3)*0.9) : totalWD/(tension*0.9));
+  const brkAco = acometida.brkAco || (BREAKERS_STD.find(b => b >= ITotal*1.25)||2000);
+  const fsPromedio = cargas.length > 0 ? cargas.reduce((a,c)=>a+(c.fs||100),0)/cargas.length : 0;
   const vals = Object.values(potPorFase);
   const maxF = Math.max(...vals);
   const minF = Math.min(...vals);
-  const desbalance = maxF > 0 ? ((maxF - minF) / maxF * 100) : 0;
+  const desbalance = maxF > 0 ? ((maxF-minF)/maxF*100) : 0;
 
   const TIPO_LABEL = {
-    iluminacion: 'Iluminación', tomacorriente: 'Tomacorriente', motor: 'Motor',
-    hvac: 'HVAC/Clima', resistivo: 'Resistivo', otro: 'Especial'
+    iluminacion:'Iluminación', tomacorriente:'Tomacorriente', motor:'Motor',
+    hvac:'HVAC/Clima', resistivo:'Resistivo', otro:'Especial'
   };
 
-  const filasCargas = cargas.map((c, i) => {
+  const filasCargas = cargas.map((c,i) => {
     const cant = c.cantidad || 1;
-    const fp = c.fp || 0.9;
-    const vC = c.voltaje || tension;
+    const fp   = c.fp || 0.9;
+    const vC   = c.voltaje || tension;
     const esTri_c = c.sistema === 'tri';
     const sqrt3_c = esTri_c ? Math.sqrt(3) : 1;
-    const potTotal = (c.potencia || 0) * cant;
-    const pd = potTotal * (c.fs || 100) / 100;
-    const Ic = pd > 0 ? pd / (vC * sqrt3_c * fp) : 0;
-    const factorM = (c.tipo === 'motor' || c.tipo === 'hvac') ? 1.25 : 1.0;
+    const potTotal = (c.potencia||0) * cant;
+    const pd    = potTotal * (c.fs||100) / 100;
+    const Ic    = pd > 0 ? pd / (vC * sqrt3_c * fp) : 0;
+    const factorM = (c.tipo==='motor'||c.tipo==='hvac') ? 1.25 : 1.0;
     const IdD = Ic * factorM / tempF;
-    let awgRow = AWG_TABLE.find(r => r[4] != null && r[4] >= IdD) || AWG_TABLE[AWG_TABLE.length - 1];
-    const IbMin = Ic * (factorM > 1 ? 2.5 : 1.25);
-    const brkRec = BREAKERS_STD.find(b => b >= IbMin) || 2000;
+    let awgRow = AWG_TABLE.find(r => r[4]!=null && r[4]>=IdD) || AWG_TABLE[AWG_TABLE.length-1];
+    const IbMin = Ic * (factorM>1 ? 2.5 : 1.25);
+    const brkRec = BREAKERS_STD.find(b=>b>=IbMin)||2000;
     const polos = esTri_c ? '3P' : '2P';
     const areaC = THHN_AREA[awgRow ? awgRow[0] : '12'] || THHN_AREA['12'];
     const nCond = esTri_c ? 4 : 3;
     const totArea = areaC * nCond;
-    let conduitSel = CONDUIT_AREA.EMT.find(([n, a]) => a * 0.40 >= totArea);
-    if (!conduitSel) conduitSel = CONDUIT_AREA.EMT[CONDUIT_AREA.EMT.length - 1];
-    return `<tr style="${i % 2 === 0 ? 'background:#fafafa' : ''}">
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;font-weight:600">${String(i + 1).padStart(2, '0')}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee">${c.desc || '—'}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee">${TIPO_LABEL[c.tipo] || c.tipo}</td>
+    let conduitSel = CONDUIT_AREA.EMT.find(([n,a]) => a*0.40>=totArea);
+    if (!conduitSel) conduitSel = CONDUIT_AREA.EMT[CONDUIT_AREA.EMT.length-1];
+    return `<tr style="${i%2===0?'background:#fafafa':''}">
+      <td style="padding:5px 7px;border-bottom:1px solid #eee;font-weight:600">${String(i+1).padStart(2,'0')}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee">${c.desc||'—'}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee">${TIPO_LABEL[c.tipo]||c.tipo}</td>
       <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${cant}</td>
       <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${vC}V</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${esTri_c ? '3F' : '1F'}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${esTri_c?'3F':'1F'}</td>
       <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${fp}</td>
       <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${c.fase}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${c.fs || 100}%</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pd / 1000).toFixed(3)}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center">${c.fs||100}%</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pd/1000).toFixed(3)}</td>
       <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:right;color:#3b82f6;font-weight:600">${Ic.toFixed(2)}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#1d4ed8;font-weight:700">AWG #${awgRow ? awgRow[0] : '—'}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#1d4ed8;font-weight:700">AWG #${awgRow?awgRow[0]:'—'}</td>
       <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#b45309;font-weight:700">${brkRec}A ${polos}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#166534;font-weight:700">EMT ${conduitSel ? conduitSel[0] : '—'}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid #eee;text-align:center;color:#166534;font-weight:700">EMT ${conduitSel?conduitSel[0]:'—'}</td>
     </tr>`;
   }).join('');
 
   const filasFase = fases.map(f => {
     const pf = potPorFase[f] || 0;
-    const pct = totalWD > 0 ? (pf / totalWD * 100) : 0;
+    const pct = totalWD > 0 ? (pf/totalWD*100) : 0;
     const If = pf / (tension * 0.9);
     return `<tr>
       <td style="padding:5px 8px;border-bottom:1px solid #eee;font-weight:700">${f}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pf / 1000).toFixed(3)} kW</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700">${(pf/1000).toFixed(3)} kW</td>
       <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${If.toFixed(2)} A</td>
       <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${pct.toFixed(1)}%</td>
     </tr>`;
@@ -5276,12 +5261,12 @@ async function generarInformePDF() {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px">
           <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:12px;text-align:center">
             <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px">Potencia Instalada</div>
-            <div style="font-size:18px;font-weight:900;color:#f5c800;font-family:monospace">${(totalW / 1000).toFixed(2)}</div>
+            <div style="font-size:18px;font-weight:900;color:#f5c800;font-family:monospace">${(totalW/1000).toFixed(2)}</div>
             <div style="font-size:11px;color:#888">kW</div>
           </div>
           <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:12px;text-align:center">
             <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px">Potencia Demanda</div>
-            <div style="font-size:18px;font-weight:900;color:#22c55e;font-family:monospace">${(totalWD / 1000).toFixed(2)}</div>
+            <div style="font-size:18px;font-weight:900;color:#22c55e;font-family:monospace">${(totalWD/1000).toFixed(2)}</div>
             <div style="font-size:11px;color:#888">kW</div>
           </div>
           <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:12px;text-align:center">
@@ -5292,7 +5277,7 @@ async function generarInformePDF() {
           <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:12px;text-align:center">
             <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px">Breaker Principal</div>
             <div style="font-size:18px;font-weight:900;color:#f5c800;font-family:monospace">${brkAco}A</div>
-            <div style="font-size:11px;color:#888">${esTri ? '3 Polos' : '2 Polos'}</div>
+            <div style="font-size:11px;color:#888">${esTri?'3 Polos':'2 Polos'}</div>
           </div>
           <div style="background:#0c0c12;color:#fff;border-radius:8px;padding:12px;text-align:center">
             <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px">Fs Promedio</div>
@@ -5328,7 +5313,7 @@ async function generarInformePDF() {
           <tfoot>
             <tr style="background:#f5c80020;border-top:2px solid #f5c800">
               <td colspan="9" style="padding:7px;font-weight:800;color:#0c0c12">TOTALES</td>
-              <td style="padding:7px;text-align:right;font-weight:800;color:#b45309">${(totalWD / 1000).toFixed(3)}</td>
+              <td style="padding:7px;text-align:right;font-weight:800;color:#b45309">${(totalWD/1000).toFixed(3)}</td>
               <td style="padding:7px;text-align:right;font-weight:800;color:#1d4ed8">${ITotal.toFixed(2)}</td>
               <td colspan="3" style="padding:7px;text-align:center;font-weight:700;color:#166534">Breaker Ppal: ${brkAco}A</td>
             </tr>
@@ -5348,8 +5333,8 @@ async function generarInformePDF() {
           </tr></thead>
           <tbody>${filasFase}</tbody>
         </table>
-        <div style="margin-top:8px;padding:8px 12px;background:${desbalance > 10 ? '#fef2f2' : '#f0fdf4'};border:1px solid ${desbalance > 10 ? '#fecaca' : '#bbf7d0'};border-radius:6px;font-size:11px">
-          <strong>${desbalance > 10 ? '⚠️ DESBALANCE EXCEDE 10%' : '✅ Desbalance dentro del rango NEC'}</strong>: ${desbalance.toFixed(1)}%
+        <div style="margin-top:8px;padding:8px 12px;background:${desbalance>10?'#fef2f2':'#f0fdf4'};border:1px solid ${desbalance>10?'#fecaca':'#bbf7d0'};border-radius:6px;font-size:11px">
+          <strong>${desbalance>10?'⚠️ DESBALANCE EXCEDE 10%':'✅ Desbalance dentro del rango NEC'}</strong>: ${desbalance.toFixed(1)}%
           (Máx. permitido: 10% — NEC / NTE INEN)
         </div>
       </div>
@@ -5380,7 +5365,7 @@ async function generarInformePDF() {
   const cont = document.getElementById('pdf-informe');
   if (!cont) { toast('Error: contenedor PDF no encontrado', 'err'); return; }
   cont.innerHTML = htmlInforme;
-  await htmlAPdfDesdeNodoFuente(cont, `Informe_${nombre.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+  await htmlAPdfDesdeNodoFuente(cont, `Informe_${nombre.replace(/[^a-zA-Z0-9]/g,'_')}.pdf`);
   cont.innerHTML = '';
 }
 /* ═══════════ NOTAS ═══════════ */
@@ -5390,40 +5375,40 @@ async function generarInformePDF() {
 
 // ── Estado de la sección notas ──────────────────────────────
 let _notaFolder = 'all';
-let _notaSort = 'fecha';
-let _notaView = 'grid';   // 'grid' | 'list'
-let _notaTag = null;
+let _notaSort   = 'fecha';
+let _notaView   = 'grid';   // 'grid' | 'list'
+let _notaTag    = null;
 
 // Paleta de colores
 const NOTA_COLORES = [
-  { key: 'none', bg: 'var(--bg2)', border: 'var(--border)', top: 'var(--border)', label: 'Sin color' },
-  { key: 'amber', bg: 'rgba(245,200,0,0.10)', border: 'rgb(48 48 46)', top: '#e8a200', label: 'Dorada' },
-  { key: 'teal', bg: 'rgba(29,158,117,0.10)', border: 'rgba(29,158,117,0.40)', top: '#1d9e75', label: 'Verde' },
-  { key: 'blue', bg: 'rgba(55,138,221,0.10)', border: 'rgba(55,138,221,0.40)', top: '#378add', label: 'Azul' },
-  { key: 'pink', bg: 'rgba(212,83,126,0.10)', border: 'rgba(212,83,126,0.40)', top: '#d4537e', label: 'Rosa' },
-  { key: 'purple', bg: 'rgba(127,119,221,0.10)', border: 'rgba(127,119,221,0.40)', top: '#7f77dd', label: 'Morada' },
+  { key:'none',   bg:'var(--bg2)',               border:'var(--border)',          top:'var(--border)',  label:'Sin color' },
+  { key:'amber',  bg:'rgba(245,200,0,0.10)',      border:'rgb(48 48 46)',   top:'#e8a200',        label:'Dorada'   },
+  { key:'teal',   bg:'rgba(29,158,117,0.10)',     border:'rgba(29,158,117,0.40)', top:'#1d9e75',        label:'Verde'    },
+  { key:'blue',   bg:'rgba(55,138,221,0.10)',     border:'rgba(55,138,221,0.40)', top:'#378add',        label:'Azul'     },
+  { key:'pink',   bg:'rgba(212,83,126,0.10)',     border:'rgba(212,83,126,0.40)', top:'#d4537e',        label:'Rosa'     },
+  { key:'purple', bg:'rgba(127,119,221,0.10)',    border:'rgba(127,119,221,0.40)',top:'#7f77dd',        label:'Morada'   },
 ];
 
 // ── Metadata extra (folder, tags, color, pinned, fav) en localStorage ──
 function getNotaMeta(id) {
   try {
     const all = JSON.parse(localStorage.getItem('notas_meta') || '{}');
-    return all[String(id)] || { folder: 'Personal', tags: [], color: 'none', pinned: false, fav: false };
-  } catch { return { folder: 'Personal', tags: [], color: 'none', pinned: false, fav: false }; }
+    return all[String(id)] || { folder:'Personal', tags:[], color:'none', pinned:false, fav:false };
+  } catch { return { folder:'Personal', tags:[], color:'none', pinned:false, fav:false }; }
 }
 function setNotaMeta(id, patch) {
   try {
     const all = JSON.parse(localStorage.getItem('notas_meta') || '{}');
     all[String(id)] = { ...getNotaMeta(id), ...patch };
     localStorage.setItem('notas_meta', JSON.stringify(all));
-  } catch { }
+  } catch {}
 }
 function delNotaMeta(id) {
   try {
     const all = JSON.parse(localStorage.getItem('notas_meta') || '{}');
     delete all[String(id)];
     localStorage.setItem('notas_meta', JSON.stringify(all));
-  } catch { }
+  } catch {}
 }
 
 // Combina datos de API + metadata local
@@ -5506,10 +5491,10 @@ function notaUpdateSidebar() {
   const todas = notasConMeta();
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   set('notas-total-lbl', todas.length + ' nota' + (todas.length !== 1 ? 's' : ''));
-  set('nfc-all', todas.length);
-  set('nfc-fav', todas.filter(n => n.fav).length);
-  set('nfc-pinned', todas.filter(n => n.pinned).length);
-  ['Personal', 'Trabajo', 'Ideas', 'Proyectos'].forEach(f =>
+  set('nfc-all',     todas.length);
+  set('nfc-fav',     todas.filter(n => n.fav).length);
+  set('nfc-pinned',  todas.filter(n => n.pinned).length);
+  ['Personal','Trabajo','Ideas','Proyectos'].forEach(f =>
     set('nfc-' + f, todas.filter(n => n.folder === f).length)
   );
   notaRenderTagsSidebar();
@@ -5541,9 +5526,9 @@ function renderNotas(lista) {
   let result = notasConMeta();
 
   // Filtro carpeta
-  if (_notaFolder === 'fav') result = result.filter(n => n.fav);
+  if (_notaFolder === 'fav')    result = result.filter(n => n.fav);
   else if (_notaFolder === 'pinned') result = result.filter(n => n.pinned);
-  else if (_notaFolder !== 'all') result = result.filter(n => n.folder === _notaFolder);
+  else if (_notaFolder !== 'all')    result = result.filter(n => n.folder === _notaFolder);
 
   // Filtro búsqueda
   const q = (document.getElementById('notas-search')?.value || '').toLowerCase();
@@ -5556,9 +5541,9 @@ function renderNotas(lista) {
   if (_notaTag) result = result.filter(n => (n.tags || []).includes(_notaTag));
 
   // Ordenar
-  if (_notaSort === 'titulo') result.sort((a, b) => (a.titulo || '').localeCompare(b.titulo || ''));
+  if (_notaSort === 'titulo') result.sort((a, b) => (a.titulo||'').localeCompare(b.titulo||''));
   else if (_notaSort === 'fav') result.sort((a, b) => b.fav - a.fav);
-  else result.sort((a, b) => new Date(b.fecha || b.creado_en) - new Date(a.fecha || a.creado_en));
+  else result.sort((a, b) => new Date(b.fecha||b.creado_en) - new Date(a.fecha||a.creado_en));
   // Fijadas siempre arriba
   result.sort((a, b) => b.pinned - a.pinned);
 
@@ -5588,14 +5573,14 @@ function renderNotas(lista) {
 
   el.innerHTML = `<div style="display:grid;grid-template-columns:${cols};gap:13px">
     ${result.map(n => {
-    const c = notaGetColor(n.color);
-    const fecha = new Date(n.fecha || n.creado_en).toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' });
-    const maxChars = _notaView === 'grid' ? 110 : 80;
-    const preview = (n.contenido || '').substring(0, maxChars) + ((n.contenido || '').length > maxChars ? '…' : '');
-    const tagPills = (n.tags || []).map(t =>
-      `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${c.bg};color:${c.top};border:1px solid ${c.border};font-weight:500">#${esc(t)}</span>`
-    ).join('');
-    return `
+      const c = notaGetColor(n.color);
+      const fecha = new Date(n.fecha || n.creado_en).toLocaleDateString('es-EC', { day:'numeric', month:'short', year:'numeric' });
+      const maxChars = _notaView === 'grid' ? 110 : 80;
+      const preview = (n.contenido || '').substring(0, maxChars) + ((n.contenido||'').length > maxChars ? '…' : '');
+      const tagPills = (n.tags || []).map(t =>
+        `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${c.bg};color:${c.top};border:1px solid ${c.border};font-weight:500">#${esc(t)}</span>`
+      ).join('');
+      return `
         <div class="nota-card"
           style="background:#30302e;border:1px solid #4a4a46;box-shadow:0 0 0 1px '+c.border : ''}"
           onclick="editarNota(${n.id})">
@@ -5629,7 +5614,7 @@ function renderNotas(lista) {
 
           ${tagPills ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px">${tagPills}</div>` : ''}
         </div>`;
-  }).join('')}
+    }).join('')}
   </div>`;
 
   refreshIcons();
@@ -5645,7 +5630,7 @@ function abrirModalNota(nota = null) {
   if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
 
   document.getElementById('m-nota-title').textContent = nota ? 'Editar nota' : 'Nueva nota';
-  document.getElementById('nota-id').value = nota?.id || '';
+  document.getElementById('nota-id').value    = nota?.id || '';
   document.getElementById('nota-titulo').value = nota?.titulo || '';
   document.getElementById('nota-contenido').value = nota?.contenido || '';
 
@@ -5673,13 +5658,13 @@ function editarNota(id) {
 
 // ── Guardar ──────────────────────────────────────────────────
 async function guardarNota() {
-  const id = document.getElementById('nota-id').value;
-  const titulo = document.getElementById('nota-titulo').value.trim();
-  const contenido = document.getElementById('nota-contenido').value.trim();
-  const fecha = document.getElementById('nota-fecha').value || new Date().toISOString().split('T')[0];
-  const folder = document.getElementById('nota-folder')?.value || 'Personal';
-  const tagsRaw = document.getElementById('nota-tags')?.value || '';
-  const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+  const id       = document.getElementById('nota-id').value;
+  const titulo   = document.getElementById('nota-titulo').value.trim();
+  const contenido= document.getElementById('nota-contenido').value.trim();
+  const fecha    = document.getElementById('nota-fecha').value || new Date().toISOString().split('T')[0];
+  const folder   = document.getElementById('nota-folder')?.value || 'Personal';
+  const tagsRaw  = document.getElementById('nota-tags')?.value || '';
+  const tags     = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
 
   const errEl = document.getElementById('nota-err');
   if (!titulo || !contenido) {
@@ -5740,24 +5725,24 @@ async function eliminarNota(id) {
 function toggleNotasSidebar() {
   const sidebar = document.getElementById('notas-sidebar');
   const overlay = document.querySelector('.notas-sidebar-overlay');
-
+  
   if (sidebar && overlay) {
     sidebar.classList.toggle('open');
     overlay.classList.toggle('open');
-
+    
     // Prevenir scroll del body cuando está abierto
     document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
   }
 }
 
 // Cerrar sidebar al hacer clic en un item (opcional, para mejor UX)
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function() {
   // Si estamos en móvil y se hace clic en una carpeta o etiqueta, cerrar el menú
   const sidebar = document.getElementById('notas-sidebar');
   if (sidebar) {
     const items = sidebar.querySelectorAll('.nf-item, .ntag-pill');
     items.forEach(item => {
-      item.addEventListener('click', function () {
+      item.addEventListener('click', function() {
         if (window.innerWidth <= 768) {
           setTimeout(() => toggleNotasSidebar(), 150); // Pequeño delay para ver la selección
         }
