@@ -138,30 +138,3 @@ export async function onRequestOptions() {
   return cors204();
 }
 
-function toggleNotasSidebar() {
-  const sidebar = document.querySelector('.notas-sidebar'); // o el ID/clase que tenga tu sidebar
-  const btn = document.querySelector('.notas-sidebar-toggle');
-  
-  if (sidebar) {
-    sidebar.classList.toggle('collapsed');
-    
-    // Cambiar icono (opcional)
-    const icon = btn.querySelector('i');
-    if (icon) {
-      if (sidebar.classList.contains('collapsed')) {
-        icon.setAttribute('data-lucide', 'panel-left-open');
-      } else {
-        icon.setAttribute('data-lucide', 'panel-left');
-      }
-      refreshIcons(); // Si usas lucide
-    }
-  }
-}
-
-// Al cargar la página en móvil, colapsar automáticamente para ver notas
-window.addEventListener('load', function() {
-  if (window.innerWidth <= 768) {
-    const sidebar = document.querySelector('.notas-sidebar');
-    if (sidebar) sidebar.classList.add('collapsed');
-  }
-});
