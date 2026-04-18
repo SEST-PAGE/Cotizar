@@ -910,3 +910,47 @@ mark{background:rgba(245,200,0,.25);color:var(--t1);border-radius:2px;padding:0 
 /* bc enhanced header uses pf-inp */
 .bc-enhanced-header .pf-inp,.bc-enhanced-header .bc-config-inp{background:var(--s2);border:1.5px solid rgba(255,255,255,.09);border-radius:10px;color:var(--t1);font-family:'DM Sans',sans-serif;font-size:12px;padding:8px 12px;outline:none;transition:border-color .2s,box-shadow .2s}
 .bc-enhanced-header .pf-inp:focus,.bc-enhanced-header .bc-config-inp:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(245,200,0,.12)}
+/* Solo en móvil: botón para colapsar sidebar */
+@media (max-width: 768px) {
+  /* Botón toggle */
+  .notas-sidebar-toggle {
+    display: flex !important;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 100;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--t1);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  
+  /* Sidebar colapsable */
+  .notas-sidebar {
+    transition: transform 0.2s ease;
+  }
+  
+  .notas-sidebar.collapsed {
+    transform: translateX(-100%);
+    display: none; /* o visibility: hidden si prefieres mantener el espacio */
+  }
+  
+  /* Cuando está colapsado, el contenido ocupa todo */
+  .notas-sidebar.collapsed + .notas-content,
+  .notas-sidebar.collapsed ~ .notas-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}
+
+/* En desktop no se muestra el botón */
+@media (min-width: 769px) {
+  .notas-sidebar-toggle {
+    display: none !important;
+  }
+}
