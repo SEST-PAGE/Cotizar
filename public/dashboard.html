@@ -2135,6 +2135,10 @@
     </div>
     <!-- NOTAS -->
     <div class="sec" id="sec-notas">
+      <!-- Botón para colapsar/mostrar sidebar (solo móvil) -->
+            <button class="notas-sidebar-toggle" onclick="toggleNotasSidebar()" title="Mostrar/Ocultar menú">
+              <i data-lucide="panel-left" style="width:18px;height:18px"></i>
+            </button>
       <style>
         .nf-item {
           display: flex;
@@ -2235,10 +2239,7 @@
           border-color: var(--t1)
         }
       </style>
-<!-- Botón para colapsar/mostrar sidebar (solo móvil) -->
-            <button class="notas-sidebar-toggle" onclick="toggleNotasSidebar()" title="Mostrar/Ocultar menú">
-              <i data-lucide="panel-left" style="width:18px;height:18px"></i>
-            </button>
+
       <div
         style="display:flex;height:calc(100vh - 108px);min-height:520px;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden">
 
