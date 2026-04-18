@@ -4,12 +4,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <title>SEST · Cotizador</title>
   <link rel="icon" type="image/jpeg" href="logo.jpg" />
   <link
     href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap"
     rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=1.0.1" />
+  <link rel="stylesheet" href="style.css?v=1.0.2" />
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -2136,7 +2140,7 @@
     <!-- NOTAS -->
 
     <div class="sec" id="sec-notas">
-      
+
       <style>
         .nf-item {
           display: flex;
@@ -2242,11 +2246,14 @@
           display: none;
           position: fixed;
           inset: 0;
-          background: rgba(0,0,0,0.55);
+          background: rgba(0, 0, 0, 0.55);
           z-index: 299;
           backdrop-filter: blur(2px);
         }
-        .notas-sb-overlay.notas-sb-open { display: block; }
+
+        .notas-sb-overlay.notas-sb-open {
+          display: block;
+        }
 
         .notas-sb-toggle {
           display: none;
@@ -2262,10 +2269,16 @@
           flex-shrink: 0;
           transition: background .15s, color .15s;
         }
-        .notas-sb-toggle:hover { background: var(--s3); color: var(--t1); }
+
+        .notas-sb-toggle:hover {
+          background: var(--s3);
+          color: var(--t1);
+        }
 
         @media (max-width: 768px) {
-          .notas-sb-toggle { display: flex; }
+          .notas-sb-toggle {
+            display: flex;
+          }
 
           #notas-sidebar {
             position: fixed !important;
@@ -2276,13 +2289,15 @@
             min-width: 260px !important;
             z-index: 300;
             transform: translateX(-100%);
-            transition: transform .28s cubic-bezier(.4,0,.2,1);
+            transition: transform .28s cubic-bezier(.4, 0, .2, 1);
             border-right: 1px solid var(--border) !important;
-            box-shadow: 4px 0 24px rgba(0,0,0,.45);
+            box-shadow: 4px 0 24px rgba(0, 0, 0, .45);
           }
+
           #notas-sidebar.notas-sb-open {
             transform: translateX(0);
           }
+
           .nota-card-actions {
             display: flex !important;
           }
@@ -2382,7 +2397,8 @@
         <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg2)">
 
           <!-- Barra búsqueda -->
-          <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);background:#30302e;">
+          <div
+            style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);background:#30302e;">
             <!-- Botón para abrir sidebar en móvil -->
             <button type="button" class="notas-sb-toggle" onclick="toggleNotasSidebar()" title="Carpetas y etiquetas">
               <i data-lucide="panel-left" style="width:16px;height:16px"></i>
@@ -2626,7 +2642,7 @@
   </div>
   <div id="pdf-template"></div>
   <div id="toast"></div>
-  <script src="IVAConfig.js"></script>
+  <script src="IVAConfig.js?v=1.0.2"></script>
   <!-- MODAL: Guardar cálculo de cable -->
   <div class="modal-bg" id="m-cc-guardar" onclick="if (event.target === this) closeModal('m-cc-guardar');">
     <div class="modal" style="max-width: 440px">

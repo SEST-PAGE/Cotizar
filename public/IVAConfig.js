@@ -5255,7 +5255,7 @@ let _notaTag    = null;
 // Paleta de colores
 const NOTA_COLORES = [
   { key:'none',   bg:'var(--bg2)',               border:'var(--border)',          top:'var(--border)',  label:'#4b4a48' },
-  { key:'amber',  bg:'rgba(245,200,0,0.10)',      border:'rgb(48 48 46)',   top:'#e8a200',        label:'Dorada'   },
+  { key:'black',  bg:'rgba(0, 0, 0, 0.49)',      border:'rgb(48 48 46)',   top:'#e8a200',        label:'Dorada'   },
   { key:'teal',   bg:'rgba(29,158,117,0.10)',     border:'rgba(29,158,117,0.40)', top:'#1d9e75',        label:'Verde'    },
   { key:'blue',   bg:'rgba(55,138,221,0.10)',     border:'rgba(55,138,221,0.40)', top:'#378add',        label:'Azul'     },
   { key:'pink',   bg:'rgba(212,83,126,0.10)',     border:'rgba(212,83,126,0.40)', top:'#d4537e',        label:'Rosa'     },
