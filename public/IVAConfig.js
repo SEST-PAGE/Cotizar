@@ -5389,10 +5389,6 @@ const NOTA_COLORES = [
   { key:'purple', bg:'rgba(127,119,221,0.10)',    border:'rgba(127,119,221,0.40)',top:'#7f77dd',        label:'Morada'   },
 ];
 
-// ════════════════════════════════════════════════════════════
-// FUNCIONES NUEVAS (Metadata, UI, Utilidades)
-// ════════════════════════════════════════════════════════════
-
 // ── Metadata extra (folder, tags, color, pinned, fav) en localStorage ──
 function getNotaMeta(id) {
   try {
@@ -5520,10 +5516,6 @@ function notaFilterTag(tag) {
   notaRenderTagsSidebar();
   renderNotas(notas);
 }
-
-// ════════════════════════════════════════════════════════════
-// FUNCIONES REEMPLAZADAS (render, modal, editar, guardar, eliminar)
-// ════════════════════════════════════════════════════════════
 
 // ── RENDER PRINCIPAL ─────────────────────────────────────────
 function renderNotas(lista) {
