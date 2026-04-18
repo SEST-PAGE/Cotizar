@@ -5369,158 +5369,363 @@ async function generarInformePDF() {
   cont.innerHTML = '';
 }
 /* ═══════════ NOTAS ═══════════ */
-function renderNotas(lista){
-  const el = document.getElementById('tbl-notas');
-  const cont = document.getElementById('notas-contador');
-  const q = (document.getElementById('notas-search')?.value || '').toLowerCase();
-  const filtro = document.getElementById('notas-filtro')?.value || 'todas';
-  const orden = document.getElementById('notas-orden')?.value || 'fecha';
+// ════════════════════════════════════════════════════════════
+// NOTAS — Sistema Avanzado con Carpetas, Colores y Metadata
+// ════════════════════════════════════════════════════════════
 
-  // Filtrar
-  let result = [...lista];
-  if(q) result = result.filter(n =>
-    n.titulo?.toLowerCase().includes(q) ||
-    n.contenido?.toLowerCase().includes(q)
+// ── Estado de la sección notas ──────────────────────────────
+let _notaFolder = 'all';
+let _notaSort   = 'fecha';
+let _notaView   = 'grid';   // 'grid' | 'list'
+let _notaTag    = null;
+
+// Paleta de colores
+const NOTA_COLORES = [
+  { key:'none',   bg:'var(--bg2)',               border:'var(--border)',          top:'var(--border)',  label:'Sin color' },
+  { key:'amber',  bg:'rgba(245,200,0,0.10)',      border:'rgba(245,200,0,0.45)',   top:'#e8a200',        label:'Dorada'   },
+  { key:'teal',   bg:'rgba(29,158,117,0.10)',     border:'rgba(29,158,117,0.40)', top:'#1d9e75',        label:'Verde'    },
+  { key:'blue',   bg:'rgba(55,138,221,0.10)',     border:'rgba(55,138,221,0.40)', top:'#378add',        label:'Azul'     },
+  { key:'pink',   bg:'rgba(212,83,126,0.10)',     border:'rgba(212,83,126,0.40)', top:'#d4537e',        label:'Rosa'     },
+  { key:'purple', bg:'rgba(127,119,221,0.10)',    border:'rgba(127,119,221,0.40)',top:'#7f77dd',        label:'Morada'   },
+];
+
+// ════════════════════════════════════════════════════════════
+// FUNCIONES NUEVAS (Metadata, UI, Utilidades)
+// ════════════════════════════════════════════════════════════
+
+// ── Metadata extra (folder, tags, color, pinned, fav) en localStorage ──
+function getNotaMeta(id) {
+  try {
+    const all = JSON.parse(localStorage.getItem('notas_meta') || '{}');
+    return all[String(id)] || { folder:'Personal', tags:[], color:'none', pinned:false, fav:false };
+  } catch { return { folder:'Personal', tags:[], color:'none', pinned:false, fav:false }; }
+}
+function setNotaMeta(id, patch) {
+  try {
+    const all = JSON.parse(localStorage.getItem('notas_meta') || '{}');
+    all[String(id)] = { ...getNotaMeta(id), ...patch };
+    localStorage.setItem('notas_meta', JSON.stringify(all));
+  } catch {}
+}
+function delNotaMeta(id) {
+  try {
+    const all = JSON.parse(localStorage.getItem('notas_meta') || '{}');
+    delete all[String(id)];
+    localStorage.setItem('notas_meta', JSON.stringify(all));
+  } catch {}
+}
+
+// Combina datos de API + metadata local
+function notasConMeta() {
+  return notas.map(n => ({ ...n, ...getNotaMeta(n.id) }));
+}
+
+// ── Color ───────────────────────────────────────────────────
+function notaGetColor(key) {
+  return NOTA_COLORES.find(c => c.key === key) || NOTA_COLORES[0];
+}
+
+let _notaColorSel = 'none';
+function notaInitColorPicker() {
+  const cp = document.getElementById('nota-color-picker');
+  if (!cp) return;
+  cp.innerHTML = NOTA_COLORES.map(c =>
+    `<div class="ncolor-dot${_notaColorSel === c.key ? ' sel' : ''}"
+      title="${c.label}"
+      onclick="notaSelColor('${c.key}')"
+      style="width:22px;height:22px;border-radius:50%;
+             background:${c.key === 'none' ? 'var(--bg)' : c.bg};
+             border:2px solid ${c.top};
+             cursor:pointer;transition:transform .15s"
+      id="ncdot-${c.key}"></div>`
+  ).join('');
+}
+function notaSelColor(key) {
+  _notaColorSel = key;
+  document.querySelectorAll('.ncolor-dot').forEach(d => d.classList.remove('sel'));
+  const dot = document.getElementById('ncdot-' + key);
+  if (dot) dot.classList.add('sel');
+}
+
+// ── Sidebar: carpetas ────────────────────────────────────────
+function notaSetFolder(el, folder) {
+  document.querySelectorAll('.nf-item').forEach(f => f.classList.remove('active'));
+  el.classList.add('active');
+  _notaFolder = folder;
+  _notaTag = null;
+  notaRenderTagsSidebar();
+  renderNotas(notas);
+}
+
+// ── Ordenamiento ─────────────────────────────────────────────
+function notaSetSort(el, sort) {
+  document.querySelectorAll('.nsort-chip').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  _notaSort = sort;
+  renderNotas(notas);
+}
+
+// ── Vista grid / lista ───────────────────────────────────────
+function notaToggleView() {
+  _notaView = _notaView === 'grid' ? 'list' : 'grid';
+  const btn = document.getElementById('notas-view-btn');
+  if (btn) btn.innerHTML = _notaView === 'grid'
+    ? '<i data-lucide="layout-grid" style="width:15px;height:15px"></i>'
+    : '<i data-lucide="list" style="width:15px;height:15px"></i>';
+  renderNotas(notas);
+  refreshIcons();
+}
+
+// ── Pin / Fav ────────────────────────────────────────────────
+function notaTogglePin(id) {
+  const meta = getNotaMeta(id);
+  setNotaMeta(id, { pinned: !meta.pinned });
+  notaUpdateSidebar();
+  renderNotas(notas);
+}
+function notaToggleFav(id) {
+  const meta = getNotaMeta(id);
+  setNotaMeta(id, { fav: !meta.fav });
+  notaUpdateSidebar();
+  renderNotas(notas);
+}
+
+// ── Sidebar: contadores y etiquetas ─────────────────────────
+function notaUpdateSidebar() {
+  const todas = notasConMeta();
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('notas-total-lbl', todas.length + ' nota' + (todas.length !== 1 ? 's' : ''));
+  set('nfc-all',     todas.length);
+  set('nfc-fav',     todas.filter(n => n.fav).length);
+  set('nfc-pinned',  todas.filter(n => n.pinned).length);
+  ['Personal','Trabajo','Ideas','Proyectos'].forEach(f =>
+    set('nfc-' + f, todas.filter(n => n.folder === f).length)
   );
-  if(filtro === 'hoy'){
-    const hoy = new Date().toISOString().split('T')[0];
-    result = result.filter(n => (n.fecha||'').split('T')[0] === hoy);
-  } else if(filtro === 'semana'){
-    const hace7 = new Date(); hace7.setDate(hace7.getDate()-7);
-    result = result.filter(n => new Date(n.fecha||n.creado_en) >= hace7);
-  }
+  notaRenderTagsSidebar();
+}
+
+function notaRenderTagsSidebar() {
+  const sb = document.getElementById('notas-tags-sb');
+  if (!sb) return;
+  const allTags = [...new Set(notasConMeta().flatMap(n => n.tags || []))];
+  sb.innerHTML = allTags.map(t =>
+    `<span class="ntag-pill${_notaTag === t ? ' active' : ''}"
+      onclick="notaFilterTag('${t}')">#${esc(t)}</span>`
+  ).join('');
+  refreshIcons();
+}
+
+function notaFilterTag(tag) {
+  _notaTag = _notaTag === tag ? null : tag;
+  notaRenderTagsSidebar();
+  renderNotas(notas);
+}
+
+// ════════════════════════════════════════════════════════════
+// FUNCIONES REEMPLAZADAS (render, modal, editar, guardar, eliminar)
+// ════════════════════════════════════════════════════════════
+
+// ── RENDER PRINCIPAL ─────────────────────────────────────────
+function renderNotas(lista) {
+  const el = document.getElementById('tbl-notas');
+  if (!el) return;
+
+  // Combinar con metadata
+  let result = notasConMeta();
+
+  // Filtro carpeta
+  if (_notaFolder === 'fav')    result = result.filter(n => n.fav);
+  else if (_notaFolder === 'pinned') result = result.filter(n => n.pinned);
+  else if (_notaFolder !== 'all')    result = result.filter(n => n.folder === _notaFolder);
+
+  // Filtro búsqueda
+  const q = (document.getElementById('notas-search')?.value || '').toLowerCase();
+  if (q) result = result.filter(n =>
+    (n.titulo || '').toLowerCase().includes(q) ||
+    (n.contenido || '').toLowerCase().includes(q)
+  );
+
+  // Filtro etiqueta
+  if (_notaTag) result = result.filter(n => (n.tags || []).includes(_notaTag));
 
   // Ordenar
-  if(orden === 'titulo') result.sort((a,b) => (a.titulo||'').localeCompare(b.titulo||''));
-  else result.sort((a,b) => new Date(b.fecha||b.creado_en) - new Date(a.fecha||a.creado_en));
+  if (_notaSort === 'titulo') result.sort((a, b) => (a.titulo||'').localeCompare(b.titulo||''));
+  else if (_notaSort === 'fav') result.sort((a, b) => b.fav - a.fav);
+  else result.sort((a, b) => new Date(b.fecha||b.creado_en) - new Date(a.fecha||a.creado_en));
+  // Fijadas siempre arriba
+  result.sort((a, b) => b.pinned - a.pinned);
 
-  // Contador
-  if(cont) cont.textContent = result.length + ' nota' + (result.length !== 1 ? 's' : '');
+  // Contador visible
+  const vc = document.getElementById('notas-vis-count');
+  if (vc) vc.textContent = result.length + ' nota' + (result.length !== 1 ? 's' : '');
 
-  // Sin resultados
-  if(!result.length){
+  // Vacío
+  if (!result.length) {
     el.innerHTML = `<div class="empty">
       <div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)">
-        <i data-lucide="sticky-note" style="width:40px;height:40px"></i>
+        <i data-lucide="sticky-note" style="width:44px;height:44px"></i>
       </div>
-      <p>${q ? 'Sin resultados para "'+q+'"' : 'Sin notas guardadas'}</p>
+      <p>${q ? 'Sin resultados para "' + esc(q) + '"' : 'No hay notas aquí'}</p>
       <p style="font-size:12px;color:var(--t3);margin-top:6px">
-        ${q ? 'Prueba con otras palabras' : 'Crea tu primera nota para recordar ideas importantes'}
+        ${q ? 'Prueba con otras palabras' : 'Crea tu primera nota con el botón Nueva nota'}
       </p>
-      ${!q ? '<button type="button" class="btn btn-acc" style="margin-top:12px" onclick="abrirModalNota()"><i data-lucide="plus" style="width:14px;height:14px"></i> Nueva nota</button>' : ''}
+      ${!q ? '<button type="button" class="btn btn-acc" style="margin-top:14px" onclick="abrirModalNota()"><i data-lucide="plus" style="width:14px;height:14px"></i> Nueva nota</button>' : ''}
     </div>`;
     refreshIcons();
     return;
   }
 
-  // Colores rotativos para las tarjetas
-  const COLORES = [
-    {bg:'rgba(245,200,0,0.08)', borde:'rgba(245,200,0,0.35)', top:'var(--acc)'},
-    {bg:'rgba(56,189,157,0.08)', borde:'rgba(56,189,157,0.3)',  top:'#38bd9d'},
-    {bg:'rgba(99,132,255,0.08)', borde:'rgba(99,132,255,0.3)',  top:'#6384ff'},
-    {bg:'rgba(236,98,98,0.08)',  borde:'rgba(236,98,98,0.3)',   top:'#ec6262'},
-    {bg:'rgba(180,100,245,0.08)',borde:'rgba(180,100,245,0.3)', top:'#b464f5'},
-  ];
+  const cols = _notaView === 'grid'
+    ? 'repeat(auto-fill,minmax(230px,1fr))'
+    : '1fr';
 
-  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
-    ${result.map((n, i) => {
-      const c = COLORES[i % COLORES.length];
-      const fecha = new Date(n.fecha||n.creado_en).toLocaleDateString('es-EC',{day:'numeric',month:'short',year:'numeric'});
-      const preview = (n.contenido||'').substring(0,120) + ((n.contenido||'').length > 120 ? '…' : '');
-      return `<div style="background:${c.bg};border:1px solid ${c.borde};border-top:3px solid ${c.top};border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px;cursor:pointer;transition:transform .15s,box-shadow .15s"
-        onclick="editarNota(${n.id})"
-        onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,0.12)'"
-        onmouseleave="this.style.transform='';this.style.boxShadow=''">
-        <div style="font-weight:600;font-size:14px;color:var(--t1);line-height:1.3">${esc(n.titulo)||'Sin título'}</div>
-        <div style="font-size:12.5px;color:var(--t2);line-height:1.5;flex:1">${esc(preview)||'—'}</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
-          <span style="font-size:11px;color:var(--t3)">${fecha}</span>
-          <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="editarNota(${n.id})" title="Editar">
-              <i data-lucide="pencil" style="width:13px;height:13px"></i>
-            </button>
-            <button type="button" class="btn btn-danger btn-sm" onclick="eliminarNota(${n.id})" title="Eliminar">
-              <i data-lucide="trash-2" style="width:13px;height:13px"></i>
-            </button>
+  el.innerHTML = `<div style="display:grid;grid-template-columns:${cols};gap:13px">
+    ${result.map(n => {
+      const c = notaGetColor(n.color);
+      const fecha = new Date(n.fecha || n.creado_en).toLocaleDateString('es-EC', { day:'numeric', month:'short', year:'numeric' });
+      const maxChars = _notaView === 'grid' ? 110 : 80;
+      const preview = (n.contenido || '').substring(0, maxChars) + ((n.contenido||'').length > maxChars ? '…' : '');
+      const tagPills = (n.tags || []).map(t =>
+        `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${c.bg};color:${c.top};border:1px solid ${c.border};font-weight:500">#${esc(t)}</span>`
+      ).join('');
+      return `
+        <div class="nota-card"
+          style="background:${c.bg};border:1px solid ${c.border};border-top:3px solid ${c.top}${n.pinned ? ';box-shadow:0 0 0 1px '+c.border : ''}"
+          onclick="editarNota(${n.id})">
+
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">
+            <div style="font-weight:600;font-size:14px;color:var(--t1);line-height:1.3;flex:1">${esc(n.titulo) || 'Sin título'}</div>
+            <div class="nota-card-actions" onclick="event.stopPropagation()">
+              <button type="button" class="btn btn-ghost btn-sm" style="padding:4px 6px"
+                onclick="notaTogglePin(${n.id})" title="${n.pinned ? 'Desfijar' : 'Fijar'}">
+                <i data-lucide="${n.pinned ? 'pin-off' : 'pin'}" style="width:13px;height:13px;color:${n.pinned ? '#378add' : 'var(--t3)'}"></i>
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm" style="padding:4px 6px"
+                onclick="notaToggleFav(${n.id})" title="${n.fav ? 'Quitar favorito' : 'Favorito'}">
+                <i data-lucide="star" style="width:13px;height:13px;color:${n.fav ? '#e8a200' : 'var(--t3)'}${n.fav ? ';fill:#e8a200' : ''}"></i>
+              </button>
+              <button type="button" class="btn btn-danger btn-sm" style="padding:4px 6px"
+                onclick="eliminarNota(${n.id})" title="Eliminar">
+                <i data-lucide="trash-2" style="width:13px;height:13px"></i>
+              </button>
+            </div>
           </div>
-        </div>
-      </div>`;
+
+          ${n.pinned ? `<div style="font-size:10px;color:${c.top};font-weight:600;margin-top:-4px;display:flex;align-items:center;gap:4px"><i data-lucide="pin" style="width:10px;height:10px"></i> Fijada</div>` : ''}
+
+          <div style="font-size:12.5px;color:var(--t2);line-height:1.55">${esc(preview) || '—'}</div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">
+            <span style="font-size:11px;color:var(--t3)">${fecha}</span>
+            ${n.fav ? `<i data-lucide="star" style="width:12px;height:12px;color:#e8a200;fill:#e8a200"></i>` : ''}
+          </div>
+
+          ${tagPills ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px">${tagPills}</div>` : ''}
+        </div>`;
     }).join('')}
   </div>`;
+
   refreshIcons();
+  notaUpdateSidebar();
 }
 
-function abrirModalNota(nota=null){
-  document.getElementById('nota-err').className='alert err';
-  document.getElementById('m-nota-title').textContent=nota?'Editar nota':'Nueva nota';
-  document.getElementById('nota-id').value=nota?.id||'';
-  document.getElementById('nota-titulo').value=nota?.titulo||'';
-  document.getElementById('nota-contenido').value=nota?.contenido||'';
-  
-  // Fecha: usar la de la nota o la actual
-  const fechaDefault=nota?.fecha?nota.fecha.split('T')[0]:new Date().toISOString().split('T')[0];
-  document.getElementById('nota-fecha').value=fechaDefault;
-  
+// ── Abrir modal ──────────────────────────────────────────────
+function abrirModalNota(nota = null) {
+  _notaColorSel = nota ? (getNotaMeta(nota.id).color || 'none') : 'none';
+  const meta = nota ? getNotaMeta(nota.id) : null;
+
+  const errEl = document.getElementById('nota-err');
+  if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
+
+  document.getElementById('m-nota-title').textContent = nota ? 'Editar nota' : 'Nueva nota';
+  document.getElementById('nota-id').value    = nota?.id || '';
+  document.getElementById('nota-titulo').value = nota?.titulo || '';
+  document.getElementById('nota-contenido').value = nota?.contenido || '';
+
+  const fechaDefault = nota?.fecha
+    ? nota.fecha.split('T')[0]
+    : new Date().toISOString().split('T')[0];
+  document.getElementById('nota-fecha').value = fechaDefault;
+
+  const folderEl = document.getElementById('nota-folder');
+  if (folderEl) folderEl.value = meta?.folder || 'Personal';
+
+  const tagsEl = document.getElementById('nota-tags');
+  if (tagsEl) tagsEl.value = (meta?.tags || []).join(', ');
+
+  notaInitColorPicker();
   openModal('m-nota');
-  // Focus en título si es nueva
-  if(!nota)setTimeout(()=>document.getElementById('nota-titulo').focus(),100);
+  if (!nota) setTimeout(() => document.getElementById('nota-titulo')?.focus(), 100);
 }
 
-function editarNota(id){
-  const n=notas.find(x=>x.id===id);
-  if(n)abrirModalNota(n);
-  else toast('Nota no encontrada','err');
+function editarNota(id) {
+  const n = notas.find(x => x.id === id);
+  if (n) abrirModalNota(n);
+  else toast('Nota no encontrada', 'err');
 }
 
-async function guardarNota(){
-  const id=document.getElementById('nota-id').value;
-  const titulo=document.getElementById('nota-titulo').value.trim();
-  const contenido=document.getElementById('nota-contenido').value.trim();
-  const fecha=document.getElementById('nota-fecha').value||new Date().toISOString().split('T')[0];
-  
-  const errEl=document.getElementById('nota-err');
-  if(!titulo||!contenido){
-    errEl.textContent='El título y el contenido son obligatorios';
+// ── Guardar ──────────────────────────────────────────────────
+async function guardarNota() {
+  const id       = document.getElementById('nota-id').value;
+  const titulo   = document.getElementById('nota-titulo').value.trim();
+  const contenido= document.getElementById('nota-contenido').value.trim();
+  const fecha    = document.getElementById('nota-fecha').value || new Date().toISOString().split('T')[0];
+  const folder   = document.getElementById('nota-folder')?.value || 'Personal';
+  const tagsRaw  = document.getElementById('nota-tags')?.value || '';
+  const tags     = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+
+  const errEl = document.getElementById('nota-err');
+  if (!titulo || !contenido) {
+    errEl.textContent = 'El título y el contenido son obligatorios';
     errEl.classList.add('show');
     return;
   }
   errEl.classList.remove('show');
-  setBL('btn-save-nota',true);
-  
-  const body={titulo,contenido,fecha};
-  const r=await api(id?`notes?id=${id}`:'notes',{method:id?'PUT':'POST',body:JSON.stringify(body)});
-  setBL('btn-save-nota',false,'Guardar');
-  
-  if(isErr(r)){
-    errEl.textContent=r.msg||'Error al guardar en la base de datos';
+  setBL('btn-save-nota', true);
+
+  const r = await api(id ? `notes?id=${id}` : 'notes', {
+    method: id ? 'PUT' : 'POST',
+    body: JSON.stringify({ titulo, contenido, fecha })
+  });
+
+  setBL('btn-save-nota', false, 'Guardar');
+
+  if (isErr(r)) {
+    errEl.textContent = r.msg || 'Error al guardar en la base de datos';
     errEl.classList.add('show');
     return;
   }
-  
-  if(id){
-    const i=notas.findIndex(n=>n.id===parseInt(id));
-    if(i>=0)notas[i]={...notas[i],...r};
-    toast('Nota actualizada ✓','ok');
-  }else{
+
+  // Guardar metadata extra en localStorage
+  const notaId = r.id || parseInt(id);
+  setNotaMeta(notaId, { folder, tags, color: _notaColorSel });
+
+  // Actualizar array en memoria
+  if (id) {
+    const i = notas.findIndex(n => n.id === parseInt(id));
+    if (i >= 0) notas[i] = { ...notas[i], ...r };
+    toast('Nota actualizada ✓', 'ok');
+  } else {
     notas.unshift(r);
-    toast('Nota guardada ✓','ok');
+    toast('Nota guardada ✓', 'ok');
   }
-  
+
   closeModal('m-nota');
+  notaUpdateSidebar();
   renderNotas(notas);
 }
 
-async function eliminarNota(id){
-  const n=notas.find(x=>x.id===id);
-  if(!confirm(`¿Eliminar la nota "${n?.titulo||'esta nota'}"?\n\nEsta acción no se puede deshacer.`))return;
-  
-  const r=await api(`notes?id=${id}`,{method:'DELETE'});
-  if(isErr(r)){
-    toast(r.msg||'Error al eliminar','err');
-    return;
-  }
-  
-  notas=notas.filter(x=>x.id!==id);
+// ── Eliminar ─────────────────────────────────────────────────
+async function eliminarNota(id) {
+  const n = notas.find(x => x.id === id);
+  if (!confirm(`¿Eliminar la nota "${n?.titulo || 'esta nota'}"?\n\nEsta acción no se puede deshacer.`)) return;
+
+  const r = await api(`notes?id=${id}`, { method: 'DELETE' });
+  if (isErr(r)) { toast(r.msg || 'Error al eliminar', 'err'); return; }
+
+  delNotaMeta(id);
+  notas = notas.filter(x => x.id !== id);
+  notaUpdateSidebar();
   renderNotas(notas);
-  toast('Nota eliminada','ok');
+  toast('Nota eliminada', 'ok');
 }
