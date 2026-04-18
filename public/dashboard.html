@@ -2241,9 +2241,8 @@
 
         <!-- ── SIDEBAR ── -->
         <div
-          style="width:210px;min-width:210px;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:14px 0;overflow-y:auto;background:var(--bg)">
-
-          <div style="padding:2px 16px 14px">
+          style="width:210px;min-width:210px;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:14px 0;overflow-y:auto;background:#262624">
+          <div style="padding:2px 16px 14px;">
             <div style="font-size:17px;font-weight:700;color:var(--t1)">Notas</div>
             <div style="font-size:12px;color:var(--t3);margin-top:2px" id="notas-total-lbl"></div>
           </div>
@@ -2259,7 +2258,7 @@
             </div>
             Todas
             <span id="nfc-all"
-              style="margin-left:auto;font-size:11px;color:var(--t3);background:var(--bg2);padding:1px 7px;border-radius:10px"></span>
+              style="margin-left:auto;font-size:11px;color:var(--t3);background:#30302e; padding:1px 7px;border-radius:10px"></span>
           </div>
           <div class="nf-item" id="nf-fav" onclick="notaSetFolder(this,'fav')">
             <div
@@ -2326,12 +2325,13 @@
         <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg2)">
 
           <!-- Barra búsqueda -->
-          <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border)"; background: #30302e;>
             <div
-              style="flex:1;display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 12px">
+              style="flex:1;display:flex;align-items:center;gap:8px;background:#262624;border:1px solid var(--border);border-radius:8px;padding:7px 12px">
               <i data-lucide="search" style="width:14px;height:14px;color:var(--t3);flex-shrink:0"></i>
               <input id="notas-search" placeholder="Buscar notas..." oninput="renderNotas(notas)"
-                style="border:none;background:transparent;outline:none;font-size:13px;color:var(--t1);width:100%;font-family:inherit">
+                style="border:none;background:#30302e;outline:none;font-size:13px;color:var(--t1);width:100%;font-family:inherit;     border-radius: 3px;
+    padding: 6px;">
             </div>
             <button type="button" id="notas-view-btn" class="btn btn-ghost" onclick="notaToggleView()"
               title="Cambiar vista">
@@ -2344,7 +2344,7 @@
 
           <!-- Fila orden -->
           <div
-            style="display:flex;align-items:center;gap:5px;padding:7px 14px;border-bottom:1px solid var(--border);background:var(--bg)">
+            style="display:flex;align-items:center;gap:5px;padding:7px 14px;border-bottom:1px solid var(--border);background:#262624">
             <span style="font-size:12px;color:var(--t3)">Ordenar:</span>
             <span class="nsort-chip active" data-nsort="fecha" onclick="notaSetSort(this,'fecha')">Recientes</span>
             <span class="nsort-chip" data-nsort="titulo" onclick="notaSetSort(this,'titulo')">A – Z</span>
@@ -2353,7 +2353,7 @@
           </div>
 
           <!-- Grid de tarjetas -->
-          <div id="tbl-notas" style="flex:1;overflow-y:auto;padding:14px"></div>
+          <div id="tbl-notas" style="flex:1;overflow-y:auto;padding:14px;background: #30302e;"></div>
         </div>
 
       </div>

@@ -317,7 +317,7 @@ tbody td{padding:10px 14px;font-size:13px;vertical-align:middle}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;z-index:1000;padding:24px 16px;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .2s;}
 .modal-bg.on{opacity:1;pointer-events:all}
 .modal{background:var(--s1);border:1px solid var(--bd2);border-radius:var(--rl);width:100%;max-width:640px;transform:translateY(16px);transition:transform .2s;margin:auto;}
-.modal-bg.on .modal{transform:translateY(0)}
+.modal-bg.on .modal{transform:translateY(0); background: #30302e;}
 .modal-xl{max-width:860px}
 .modal-hd{padding:20px 22px 0;display:flex;justify-content:space-between;align-items:center;}
 .modal-head{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;}
@@ -334,7 +334,7 @@ tbody td{padding:10px 14px;font-size:13px;vertical-align:middle}
 .fld label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--t2)}
 .fld input,.fld select,.fld textarea{background:var(--s2);border:1px solid var(--bd2);color:var(--t1);padding:9px 12px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;transition:border-color .15s;}
 .fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--acc)}
-.fld textarea{resize:vertical;min-height:72px}
+.fld textarea{resize:vertical;min-height:72px; background: #30302e;}
 .fld select option{background:var(--s2)}
 .fld input::placeholder,.fld textarea::placeholder{color:var(--t3)}
 /* ═══ CALCULADORA — inputs modernos ═══ */

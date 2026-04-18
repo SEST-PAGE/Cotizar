@@ -5382,7 +5382,7 @@ let _notaTag    = null;
 // Paleta de colores
 const NOTA_COLORES = [
   { key:'none',   bg:'var(--bg2)',               border:'var(--border)',          top:'var(--border)',  label:'Sin color' },
-  { key:'amber',  bg:'rgba(245,200,0,0.10)',      border:'rgba(245,200,0,0.45)',   top:'#e8a200',        label:'Dorada'   },
+  { key:'amber',  bg:'rgba(245,200,0,0.10)',      border:'rgb(48 48 46)',   top:'#e8a200',        label:'Dorada'   },
   { key:'teal',   bg:'rgba(29,158,117,0.10)',     border:'rgba(29,158,117,0.40)', top:'#1d9e75',        label:'Verde'    },
   { key:'blue',   bg:'rgba(55,138,221,0.10)',     border:'rgba(55,138,221,0.40)', top:'#378add',        label:'Azul'     },
   { key:'pink',   bg:'rgba(212,83,126,0.10)',     border:'rgba(212,83,126,0.40)', top:'#d4537e',        label:'Rosa'     },
@@ -5582,7 +5582,7 @@ function renderNotas(lista) {
       ).join('');
       return `
         <div class="nota-card"
-          style="background:${c.bg};border:1px solid ${c.border};border-top:3px solid ${c.top}${n.pinned ? ';box-shadow:0 0 0 1px '+c.border : ''}"
+          style="background:${c.bg};border:1px solid ${c.border};box-shadow:0 0 0 1px '+c.border : ''}"
           onclick="editarNota(${n.id})">
 
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">
