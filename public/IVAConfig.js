@@ -5370,50 +5370,83 @@ async function generarInformePDF() {
 }
 /* ═══════════ NOTAS ═══════════ */
 function renderNotas(lista){
-  const el=document.getElementById('tbl-notas');
-  if(!lista.length){
-    el.innerHTML=`<div class="empty">
+  const el = document.getElementById('tbl-notas');
+  const cont = document.getElementById('notas-contador');
+  const q = (document.getElementById('notas-search')?.value || '').toLowerCase();
+  const filtro = document.getElementById('notas-filtro')?.value || 'todas';
+  const orden = document.getElementById('notas-orden')?.value || 'fecha';
+
+  // Filtrar
+  let result = [...lista];
+  if(q) result = result.filter(n =>
+    n.titulo?.toLowerCase().includes(q) ||
+    n.contenido?.toLowerCase().includes(q)
+  );
+  if(filtro === 'hoy'){
+    const hoy = new Date().toISOString().split('T')[0];
+    result = result.filter(n => (n.fecha||'').split('T')[0] === hoy);
+  } else if(filtro === 'semana'){
+    const hace7 = new Date(); hace7.setDate(hace7.getDate()-7);
+    result = result.filter(n => new Date(n.fecha||n.creado_en) >= hace7);
+  }
+
+  // Ordenar
+  if(orden === 'titulo') result.sort((a,b) => (a.titulo||'').localeCompare(b.titulo||''));
+  else result.sort((a,b) => new Date(b.fecha||b.creado_en) - new Date(a.fecha||a.creado_en));
+
+  // Contador
+  if(cont) cont.textContent = result.length + ' nota' + (result.length !== 1 ? 's' : '');
+
+  // Sin resultados
+  if(!result.length){
+    el.innerHTML = `<div class="empty">
       <div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)">
-        <i data-lucide="sticky-note" style="width:36px;height:36px"></i>
+        <i data-lucide="sticky-note" style="width:40px;height:40px"></i>
       </div>
-      <p>Sin notas guardadas</p>
-      <p style="font-size:12px;color:var(--t3);margin-top:8px">Crea tu primera nota para recordar ideas, cálculos o datos importantes</p>
+      <p>${q ? 'Sin resultados para "'+q+'"' : 'Sin notas guardadas'}</p>
+      <p style="font-size:12px;color:var(--t3);margin-top:6px">
+        ${q ? 'Prueba con otras palabras' : 'Crea tu primera nota para recordar ideas importantes'}
+      </p>
+      ${!q ? '<button type="button" class="btn btn-acc" style="margin-top:12px" onclick="abrirModalNota()"><i data-lucide="plus" style="width:14px;height:14px"></i> Nueva nota</button>' : ''}
     </div>`;
     refreshIcons();
     return;
   }
-  // Ordenar por fecha descendente
-  const ordenadas=[...lista].sort((a,b)=>new Date(b.fecha||b.creado_en)-new Date(a.fecha||a.creado_en));
-  
-  el.innerHTML=`<table>
-    <thead>
-      <tr>
-        <th style="width:110px">Fecha</th>
-        <th>Título</th>
-        <th style="max-width:40%">Vista previa</th>
-        <th style="width:90px"></th>
-      </tr>
-    </thead>
-    <tbody>${ordenadas.map(n=>{
-      const fecha=new Date(n.fecha||n.creado_en).toLocaleDateString('es-EC',{day:'2-digit',month:'short',year:'numeric'});
-      const preview=(n.contenido||'').substring(0,60)+(n.contenido?.length>60?'...':'');
-      return`<tr>
-        <td style="font-size:12px;color:var(--t3);white-space:nowrap;font-family:'DM Mono',monospace">${fecha}</td>
-        <td style="font-weight:600;color:var(--t1)">${esc(n.titulo)||'Sin título'}</td>
-        <td style="color:var(--t2);font-size:13px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(n.contenido)}">${esc(preview)||'—'}</td>
-        <td>
-          <div style="display:flex;gap:5px;align-items:center;justify-content:flex-end">
+
+  // Colores rotativos para las tarjetas
+  const COLORES = [
+    {bg:'rgba(245,200,0,0.08)', borde:'rgba(245,200,0,0.35)', top:'var(--acc)'},
+    {bg:'rgba(56,189,157,0.08)', borde:'rgba(56,189,157,0.3)',  top:'#38bd9d'},
+    {bg:'rgba(99,132,255,0.08)', borde:'rgba(99,132,255,0.3)',  top:'#6384ff'},
+    {bg:'rgba(236,98,98,0.08)',  borde:'rgba(236,98,98,0.3)',   top:'#ec6262'},
+    {bg:'rgba(180,100,245,0.08)',borde:'rgba(180,100,245,0.3)', top:'#b464f5'},
+  ];
+
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
+    ${result.map((n, i) => {
+      const c = COLORES[i % COLORES.length];
+      const fecha = new Date(n.fecha||n.creado_en).toLocaleDateString('es-EC',{day:'numeric',month:'short',year:'numeric'});
+      const preview = (n.contenido||'').substring(0,120) + ((n.contenido||'').length > 120 ? '…' : '');
+      return `<div style="background:${c.bg};border:1px solid ${c.borde};border-top:3px solid ${c.top};border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px;cursor:pointer;transition:transform .15s,box-shadow .15s"
+        onclick="editarNota(${n.id})"
+        onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,0.12)'"
+        onmouseleave="this.style.transform='';this.style.boxShadow=''">
+        <div style="font-weight:600;font-size:14px;color:var(--t1);line-height:1.3">${esc(n.titulo)||'Sin título'}</div>
+        <div style="font-size:12.5px;color:var(--t2);line-height:1.5;flex:1">${esc(preview)||'—'}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+          <span style="font-size:11px;color:var(--t3)">${fecha}</span>
+          <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
             <button type="button" class="btn btn-ghost btn-sm" onclick="editarNota(${n.id})" title="Editar">
-              <i data-lucide="pencil" style="width:14px;height:14px"></i>
+              <i data-lucide="pencil" style="width:13px;height:13px"></i>
             </button>
             <button type="button" class="btn btn-danger btn-sm" onclick="eliminarNota(${n.id})" title="Eliminar">
-              <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+              <i data-lucide="trash-2" style="width:13px;height:13px"></i>
             </button>
           </div>
-        </td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table>`;
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
   refreshIcons();
 }
 

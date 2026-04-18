@@ -2134,27 +2134,36 @@
       </div>
     </div>
     <!-- NOTAS -->
-    <div class="sec" id="sec-notas">
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title" style="display:flex;align-items:center;gap:8px">
-            <i data-lucide="sticky-note" style="width:18px;height:18px;stroke-width:2;color:var(--acc)"></i>
-            Mis Notas
-          </div>
-          <div class="card-tools">
-            <button type="button" class="btn btn-acc" onclick="abrirModalNota()">
-              <i data-lucide="plus" style="width:16px;height:16px"></i> Nueva Nota
-            </button>
-          </div>
-        </div>
-        <div class="tbl-wrap" id="tbl-notas">
-          <div class="loading">
-            <div class="spin"></div>
-            <p>Cargando…</p>
-          </div>
-        </div>
-      </div>
+<div class="sec" id="sec-notas">
+  <!-- Barra superior -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px">
+      <i data-lucide="search" style="width:15px;height:15px;color:var(--t3);flex-shrink:0"></i>
+      <input id="notas-search" placeholder="Buscar notas..." oninput="renderNotas(notas)"
+        style="border:none;background:transparent;outline:none;font-size:13px;color:var(--t1);width:100%;font-family:inherit">
     </div>
+    <select id="notas-filtro" onchange="renderNotas(notas)"
+      style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--t1);font-size:13px;font-family:inherit;cursor:pointer">
+      <option value="todas">Todas las notas</option>
+      <option value="hoy">Hoy</option>
+      <option value="semana">Esta semana</option>
+    </select>
+    <select id="notas-orden" onchange="renderNotas(notas)"
+      style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--t1);font-size:13px;font-family:inherit;cursor:pointer">
+      <option value="fecha">Más recientes</option>
+      <option value="titulo">A – Z</option>
+    </select>
+    <button type="button" class="btn btn-acc" onclick="abrirModalNota()">
+      <i data-lucide="plus" style="width:15px;height:15px"></i> Nueva nota
+    </button>
+  </div>
+
+  <!-- Contador -->
+  <div id="notas-contador" style="font-size:12px;color:var(--t3);margin-bottom:14px"></div>
+
+  <!-- Grid de tarjetas -->
+  <div id="tbl-notas"></div>
+</div>
 
   </div>
 
