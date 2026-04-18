@@ -5262,31 +5262,43 @@ const NOTA_COLORES = [
   { key:'purple', bg:'rgba(127,119,221,0.10)',    border:'rgba(127,119,221,0.40)',top:'#7f77dd',        label:'Morada'   },
 ];
 
-// ── Metadata extra (folder, tags, color, pinned, fav) en localStorage ──
+// ── Helpers meta: lee/escribe desde el objeto en memoria (la DB es la fuente de verdad) ──
 function getNotaMeta(id) {
-  try {
-    const all = JSON.parse(localStorage.getItem('notas_meta') || '{}');
-    return all[String(id)] || { folder:'Personal', tags:[], color:'none', pinned:false, fav:false };
-  } catch { return { folder:'Personal', tags:[], color:'none', pinned:false, fav:false }; }
-}
-function setNotaMeta(id, patch) {
-  try {
-    const all = JSON.parse(localStorage.getItem('notas_meta') || '{}');
-    all[String(id)] = { ...getNotaMeta(id), ...patch };
-    localStorage.setItem('notas_meta', JSON.stringify(all));
-  } catch {}
-}
-function delNotaMeta(id) {
-  try {
-    const all = JSON.parse(localStorage.getItem('notas_meta') || '{}');
-    delete all[String(id)];
-    localStorage.setItem('notas_meta', JSON.stringify(all));
-  } catch {}
+  const n = notas.find(x => x.id === id);
+  const m = (n && typeof n.meta === 'object' && n.meta) ? n.meta : {};
+  return {
+    folder : m.folder  || 'Personal',
+    tags   : Array.isArray(m.tags) ? m.tags : [],
+    color  : m.color   || 'none',
+    pinned : !!m.pinned,
+    fav    : !!m.fav
+  };
 }
 
-// Combina datos de API + metadata local
+// Actualiza meta en el array en memoria (sin llamada a API — usar _patchNotaMeta para persistir)
+function _setNotaMetaLocal(id, patch) {
+  const n = notas.find(x => x.id === id);
+  if (!n) return;
+  n.meta = { ...getNotaMeta(id), ...patch };
+}
+
+// Actualiza meta en la DB (solo envía meta, no requiere título/contenido)
+async function _patchNotaMeta(id, patch) {
+  _setNotaMetaLocal(id, patch);
+  const meta = getNotaMeta(id);
+  // Llamada silenciosa — no bloquea la UI
+  api(`notes?id=${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ meta })
+  }).catch(() => {});
+}
+
+// Combina datos de API + metadata (meta ya viene en el objeto)
 function notasConMeta() {
-  return notas.map(n => ({ ...n, ...getNotaMeta(n.id) }));
+  return notas.map(n => ({
+    ...n,
+    ...getNotaMeta(n.id)
+  }));
 }
 
 // ── Color ───────────────────────────────────────────────────
@@ -5316,6 +5328,23 @@ function notaSelColor(key) {
   if (dot) dot.classList.add('sel');
 }
 
+// ── Sidebar móvil ─────────────────────────────────────────────
+function toggleNotasSidebar() {
+  const sidebar  = document.getElementById('notas-sidebar');
+  const overlay  = document.getElementById('notas-sidebar-overlay');
+  if (!sidebar) return;
+  const isOpen = sidebar.classList.toggle('notas-sb-open');
+  if (overlay) overlay.classList.toggle('notas-sb-open', isOpen);
+  document.body.style.overflow = isOpen ? 'hidden' : '';
+}
+function cerrarNotasSidebar() {
+  const sidebar = document.getElementById('notas-sidebar');
+  const overlay = document.getElementById('notas-sidebar-overlay');
+  if (sidebar) sidebar.classList.remove('notas-sb-open');
+  if (overlay) overlay.classList.remove('notas-sb-open');
+  document.body.style.overflow = '';
+}
+
 // ── Sidebar: carpetas ────────────────────────────────────────
 function notaSetFolder(el, folder) {
   document.querySelectorAll('.nf-item').forEach(f => f.classList.remove('active'));
@@ -5324,6 +5353,7 @@ function notaSetFolder(el, folder) {
   _notaTag = null;
   notaRenderTagsSidebar();
   renderNotas(notas);
+  if (window.innerWidth <= 768) cerrarNotasSidebar();
 }
 
 // ── Ordenamiento ─────────────────────────────────────────────
@@ -5345,16 +5375,16 @@ function notaToggleView() {
   refreshIcons();
 }
 
-// ── Pin / Fav ────────────────────────────────────────────────
-function notaTogglePin(id) {
+// ── Pin / Fav (se persisten inmediatamente en la DB) ─────────
+async function notaTogglePin(id) {
   const meta = getNotaMeta(id);
-  setNotaMeta(id, { pinned: !meta.pinned });
+  await _patchNotaMeta(id, { pinned: !meta.pinned });
   notaUpdateSidebar();
   renderNotas(notas);
 }
-function notaToggleFav(id) {
+async function notaToggleFav(id) {
   const meta = getNotaMeta(id);
-  setNotaMeta(id, { fav: !meta.fav });
+  await _patchNotaMeta(id, { fav: !meta.fav });
   notaUpdateSidebar();
   renderNotas(notas);
 }
@@ -5381,6 +5411,9 @@ function notaRenderTagsSidebar() {
     `<span class="ntag-pill${_notaTag === t ? ' active' : ''}"
       onclick="notaFilterTag('${t}')">#${esc(t)}</span>`
   ).join('');
+  if (allTags.length === 0) {
+    sb.innerHTML = '<span style="font-size:11px;color:var(--t3);padding:0 6px">Sin etiquetas</span>';
+  }
   refreshIcons();
 }
 
@@ -5388,6 +5421,7 @@ function notaFilterTag(tag) {
   _notaTag = _notaTag === tag ? null : tag;
   notaRenderTagsSidebar();
   renderNotas(notas);
+  if (window.innerWidth <= 768) cerrarNotasSidebar();
 }
 
 // ── RENDER PRINCIPAL ─────────────────────────────────────────
@@ -5395,11 +5429,10 @@ function renderNotas(lista) {
   const el = document.getElementById('tbl-notas');
   if (!el) return;
 
-  // Combinar con metadata
   let result = notasConMeta();
 
   // Filtro carpeta
-  if (_notaFolder === 'fav')    result = result.filter(n => n.fav);
+  if (_notaFolder === 'fav')         result = result.filter(n => n.fav);
   else if (_notaFolder === 'pinned') result = result.filter(n => n.pinned);
   else if (_notaFolder !== 'all')    result = result.filter(n => n.folder === _notaFolder);
 
@@ -5415,16 +5448,14 @@ function renderNotas(lista) {
 
   // Ordenar
   if (_notaSort === 'titulo') result.sort((a, b) => (a.titulo||'').localeCompare(b.titulo||''));
-  else if (_notaSort === 'fav') result.sort((a, b) => b.fav - a.fav);
+  else if (_notaSort === 'fav') result.sort((a, b) => (b.fav ? 1 : 0) - (a.fav ? 1 : 0));
   else result.sort((a, b) => new Date(b.fecha||b.creado_en) - new Date(a.fecha||a.creado_en));
   // Fijadas siempre arriba
-  result.sort((a, b) => b.pinned - a.pinned);
+  result.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
 
-  // Contador visible
   const vc = document.getElementById('notas-vis-count');
   if (vc) vc.textContent = result.length + ' nota' + (result.length !== 1 ? 's' : '');
 
-  // Vacío
   if (!result.length) {
     el.innerHTML = `<div class="empty">
       <div class="empty-ico" style="display:flex;justify-content:center;color:var(--t3)">
@@ -5453,9 +5484,13 @@ function renderNotas(lista) {
       const tagPills = (n.tags || []).map(t =>
         `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${c.bg};color:${c.top};border:1px solid ${c.border};font-weight:500">#${esc(t)}</span>`
       ).join('');
+      const folderColors = { Personal:'#1d9e75', Trabajo:'#378add', Ideas:'#d4537e', Proyectos:'#7f77dd' };
+      const folderBadge = n.folder && n.folder !== 'Personal'
+        ? `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${folderColors[n.folder]||'#888'}22;color:${folderColors[n.folder]||'#888'};font-weight:600">${n.folder}</span>`
+        : '';
       return `
         <div class="nota-card"
-          style="background:${c.bg};border:1px solid ${c.border};border-top:3px solid ${c.top}${n.pinned ? ';box-shadow:0 0 0 1px '+c.border : ''}"
+          style="background:${c.bg};border:1px solid ${c.border};border-top:3px solid ${c.top}${n.pinned ? ';box-shadow:0 0 0 2px '+c.top+'44' : ''}"
           onclick="editarNota(${n.id})">
 
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">
@@ -5480,9 +5515,12 @@ function renderNotas(lista) {
 
           <div style="font-size:12.5px;color:var(--t2);line-height:1.55">${esc(preview) || '—'}</div>
 
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px;flex-wrap:wrap">
             <span style="font-size:11px;color:var(--t3)">${fecha}</span>
-            ${n.fav ? `<i data-lucide="star" style="width:12px;height:12px;color:#e8a200;fill:#e8a200"></i>` : ''}
+            <div style="display:flex;align-items:center;gap:4px">
+              ${folderBadge}
+              ${n.fav ? `<i data-lucide="star" style="width:12px;height:12px;color:#e8a200;fill:#e8a200"></i>` : ''}
+            </div>
           </div>
 
           ${tagPills ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px">${tagPills}</div>` : ''}
@@ -5503,8 +5541,8 @@ function abrirModalNota(nota = null) {
   if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
 
   document.getElementById('m-nota-title').textContent = nota ? 'Editar nota' : 'Nueva nota';
-  document.getElementById('nota-id').value    = nota?.id || '';
-  document.getElementById('nota-titulo').value = nota?.titulo || '';
+  document.getElementById('nota-id').value     = nota?.id || '';
+  document.getElementById('nota-titulo').value  = nota?.titulo || '';
   document.getElementById('nota-contenido').value = nota?.contenido || '';
 
   const fechaDefault = nota?.fecha
@@ -5529,15 +5567,25 @@ function editarNota(id) {
   else toast('Nota no encontrada', 'err');
 }
 
-// ── Guardar ──────────────────────────────────────────────────
+// ── Guardar (persiste título, contenido, fecha Y meta en la DB) ──
 async function guardarNota() {
-  const id       = document.getElementById('nota-id').value;
-  const titulo   = document.getElementById('nota-titulo').value.trim();
-  const contenido= document.getElementById('nota-contenido').value.trim();
-  const fecha    = document.getElementById('nota-fecha').value || new Date().toISOString().split('T')[0];
-  const folder   = document.getElementById('nota-folder')?.value || 'Personal';
-  const tagsRaw  = document.getElementById('nota-tags')?.value || '';
-  const tags     = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+  const id        = document.getElementById('nota-id').value;
+  const titulo    = document.getElementById('nota-titulo').value.trim();
+  const contenido = document.getElementById('nota-contenido').value.trim();
+  const fecha     = document.getElementById('nota-fecha').value || new Date().toISOString().split('T')[0];
+  const folder    = document.getElementById('nota-folder')?.value || 'Personal';
+  const tagsRaw   = document.getElementById('nota-tags')?.value || '';
+  const tags      = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+
+  // Conservar pin/fav actuales si es edición
+  const prevMeta  = id ? getNotaMeta(parseInt(id)) : {};
+  const meta = {
+    folder,
+    tags,
+    color  : _notaColorSel,
+    pinned : prevMeta.pinned || false,
+    fav    : prevMeta.fav    || false,
+  };
 
   const errEl = document.getElementById('nota-err');
   if (!titulo || !contenido) {
@@ -5550,7 +5598,7 @@ async function guardarNota() {
 
   const r = await api(id ? `notes?id=${id}` : 'notes', {
     method: id ? 'PUT' : 'POST',
-    body: JSON.stringify({ titulo, contenido, fecha })
+    body: JSON.stringify({ titulo, contenido, fecha, meta })
   });
 
   setBL('btn-save-nota', false, 'Guardar');
@@ -5561,11 +5609,7 @@ async function guardarNota() {
     return;
   }
 
-  // Guardar metadata extra en localStorage
-  const notaId = r.id || parseInt(id);
-  setNotaMeta(notaId, { folder, tags, color: _notaColorSel });
-
-  // Actualizar array en memoria
+  // Actualizar array en memoria con datos frescos de la DB
   if (id) {
     const i = notas.findIndex(n => n.id === parseInt(id));
     if (i >= 0) notas[i] = { ...notas[i], ...r };
@@ -5588,39 +5632,8 @@ async function eliminarNota(id) {
   const r = await api(`notes?id=${id}`, { method: 'DELETE' });
   if (isErr(r)) { toast(r.msg || 'Error al eliminar', 'err'); return; }
 
-  delNotaMeta(id);
   notas = notas.filter(x => x.id !== id);
   notaUpdateSidebar();
   renderNotas(notas);
   toast('Nota eliminada', 'ok');
 }
-// Toggle sidebar en móvil
-function toggleNotasSidebar() {
-  const sidebar = document.getElementById('notas-sidebar');
-  const overlay = document.querySelector('.notas-sidebar-overlay');
-  
-  if (sidebar && overlay) {
-    sidebar.classList.toggle('open');
-    overlay.classList.toggle('open');
-    
-    // Prevenir scroll del body cuando está abierto
-    document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
-  }
-}
-
-// Cerrar sidebar al hacer clic en un item (opcional, para mejor UX)
-document.addEventListener('DOMContentLoaded', function() {
-  // Si estamos en móvil y se hace clic en una carpeta o etiqueta, cerrar el menú
-  const sidebar = document.getElementById('notas-sidebar');
-  if (sidebar) {
-    const items = sidebar.querySelectorAll('.nf-item, .ntag-pill');
-    items.forEach(item => {
-      item.addEventListener('click', function() {
-        if (window.innerWidth <= 768) {
-          setTimeout(() => toggleNotasSidebar(), 150); // Pequeño delay para ver la selección
-        }
-      });
-    });
-  }
-});
-

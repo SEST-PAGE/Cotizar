@@ -1,5 +1,7 @@
 // functions/api/notes/index.js
 // Usa Neon PostgreSQL igual que el resto de la app
+// IMPORTANTE: ejecutar una sola vez en la DB:
+//   ALTER TABLE notes ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}'::jsonb;
 
 import { getDb, getUser, json, cors204 } from '../_lib/helpers.js';
 
@@ -11,7 +13,8 @@ export async function onRequestGet({ env, request }) {
 
     const sql = getDb(env);
     const results = await sql`
-      SELECT id, titulo, contenido, fecha, creado_en, updated_at
+      SELECT id, titulo, contenido, fecha, creado_en, updated_at,
+             COALESCE(meta, '{}'::jsonb) AS meta
       FROM notes
       WHERE user_id = ${user.id}
       ORDER BY fecha DESC, creado_en DESC
@@ -37,18 +40,20 @@ export async function onRequestPost({ env, request }) {
       return json({ error: 'JSON inválido' }, 400);
     }
 
-    const { titulo, contenido, fecha } = body;
+    const { titulo, contenido, fecha, meta } = body;
     if (!titulo?.trim() || !contenido?.trim()) {
       return json({ error: 'Título y contenido son obligatorios' }, 400);
     }
 
     const sql = getDb(env);
     const fechaValor = fecha || new Date().toISOString().split('T')[0];
+    const metaValor  = meta  ? JSON.stringify(meta) : '{}'
 
     const [nota] = await sql`
-      INSERT INTO notes (user_id, titulo, contenido, fecha)
-      VALUES (${user.id}, ${titulo.trim()}, ${contenido.trim()}, ${fechaValor})
-      RETURNING *
+      INSERT INTO notes (user_id, titulo, contenido, fecha, meta)
+      VALUES (${user.id}, ${titulo.trim()}, ${contenido.trim()}, ${fechaValor}, ${metaValor}::jsonb)
+      RETURNING id, titulo, contenido, fecha, creado_en, updated_at,
+                COALESCE(meta, '{}'::jsonb) AS meta
     `;
 
     return json(nota, 201);
@@ -58,7 +63,7 @@ export async function onRequestPost({ env, request }) {
   }
 }
 
-// PUT - Actualizar nota
+// PUT - Actualizar nota (título/contenido/fecha/meta o solo meta para pin/fav)
 export async function onRequestPut({ env, request }) {
   try {
     const user = await getUser(request, env);
@@ -75,7 +80,7 @@ export async function onRequestPut({ env, request }) {
       return json({ error: 'JSON inválido' }, 400);
     }
 
-    const { titulo, contenido, fecha } = body;
+    const { titulo, contenido, fecha, meta } = body;
 
     const sql = getDb(env);
 
@@ -87,15 +92,34 @@ export async function onRequestPut({ env, request }) {
       return json({ error: 'Nota no encontrada o sin permisos' }, 404);
     }
 
-    const [updated] = await sql`
-      UPDATE notes
-      SET titulo = ${titulo?.trim()},
-          contenido = ${contenido?.trim()},
-          fecha = ${fecha},
-          updated_at = NOW()
-      WHERE id = ${id} AND user_id = ${user.id}
-      RETURNING *
-    `;
+    // Actualización completa o solo meta (para pin/fav rápido)
+    let updated;
+    if (titulo !== undefined && contenido !== undefined) {
+      // Actualización completa
+      const metaValor = meta ? JSON.stringify(meta) : '{}'
+      ;[updated] = await sql`
+        UPDATE notes
+        SET titulo     = ${titulo?.trim()},
+            contenido  = ${contenido?.trim()},
+            fecha      = ${fecha},
+            meta       = ${metaValor}::jsonb,
+            updated_at = NOW()
+        WHERE id = ${id} AND user_id = ${user.id}
+        RETURNING id, titulo, contenido, fecha, creado_en, updated_at,
+                  COALESCE(meta, '{}'::jsonb) AS meta
+      `;
+    } else {
+      // Solo actualización de meta (pin, fav, etc.)
+      const metaValor = meta ? JSON.stringify(meta) : '{}'
+      ;[updated] = await sql`
+        UPDATE notes
+        SET meta       = ${metaValor}::jsonb,
+            updated_at = NOW()
+        WHERE id = ${id} AND user_id = ${user.id}
+        RETURNING id, titulo, contenido, fecha, creado_en, updated_at,
+                  COALESCE(meta, '{}'::jsonb) AS meta
+      `;
+    }
 
     return json(updated);
   } catch (error) {
@@ -137,4 +161,3 @@ export async function onRequestDelete({ env, request }) {
 export async function onRequestOptions() {
   return cors204();
 }
-
