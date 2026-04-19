@@ -661,26 +661,63 @@ mark{background:rgba(245,200,0,.2);color:var(--t1);border-radius:2px;padding:0 1
 
   .g5{grid-template-columns:1fr 1fr}
   .g3{grid-template-columns:1fr 1fr}
-  .icols{display:none}
+  .icols{display:none!important}
 
-  /* item-row: 2 col con grid-areas */
-  .item-row,.adic-row{
+  /* ── item-row / adic-row: tarjeta 2 columnas ──
+     Estructura real del JS:
+     :nth-child(1) input  → descripción
+     :nth-child(2) input  → cantidad
+     :nth-child(3) select → unidad
+     :nth-child(4) input  → precio
+     :nth-child(5) select → IVA
+     .item-total   div    → subtotal
+     .del-item     button → eliminar
+  */
+  .item-row,
+  .adic-row{
     display:grid!important;
     grid-template-columns:1fr 1fr!important;
-    grid-template-areas:
-      "desc desc"
-      "cant unid"
-      "precio iva"
-      "subtotal del"!important;
-    gap:6px;padding:10px;
+    gap:6px!important;
+    padding:10px!important;
+    /* Resetear el grid de 7 columnas del desktop */
+    grid-template-areas:none!important;
   }
-  .item-row > input:nth-child(1),.adic-row > input:nth-child(1){grid-area:desc}
-  .item-row > input:nth-child(2),.adic-row > input:nth-child(2){grid-area:cant}
-  .item-row > select:nth-child(3),.adic-row > select:nth-child(3){grid-area:unid}
-  .item-row > input:nth-child(4),.adic-row > input:nth-child(4){grid-area:precio}
-  .item-row > select:nth-child(5),.adic-row > select:nth-child(5){grid-area:iva}
-  .item-row > .item-total,.adic-row > .item-total{grid-area:subtotal;font-size:14px;font-weight:700;display:flex;align-items:center}
-  .item-row > .del-item,.adic-row > .del-item{grid-area:del;justify-self:end;align-self:center}
+
+  /* Descripción: fila completa */
+  .item-row > :nth-child(1),
+  .adic-row > :nth-child(1){
+    grid-column:1 / -1!important;
+  }
+
+  /* Cantidad [col 1] + Unidad [col 2] — flujo auto */
+  .item-row > :nth-child(2),
+  .adic-row > :nth-child(2){
+    /* col 1 de la siguiente fila */
+  }
+  .item-row > :nth-child(3),
+  .adic-row > :nth-child(3){
+    /* col 2 */
+  }
+
+  /* Precio [col 1] + IVA [col 2] — flujo auto */
+  /* (no necesitan regla extra, el auto-flow los coloca bien) */
+
+  /* Subtotal: col 1 con display flex */
+  .item-row > .item-total,
+  .adic-row > .item-total{
+    display:flex!important;
+    align-items:center!important;
+    font-size:14px!important;
+    font-weight:700!important;
+    padding:2px 0!important;
+  }
+
+  /* Botón eliminar: col 2, alineado a la derecha */
+  .item-row > .del-item,
+  .adic-row > .del-item{
+    justify-self:end!important;
+    align-self:center!important;
+  }
 
   table{display:inline-table;overflow-x:auto}
   .modal-bg{padding:8px}
@@ -715,7 +752,8 @@ mark{background:rgba(245,200,0,.2);color:var(--t1);border-radius:2px;padding:0 1
   .nc-card-body{padding:10px}
   .nc-card-head{padding:10px 12px}
   .cot-tabs{padding:3px}
-  .item-row,.adic-row{padding:8px}
+  .item-row,.adic-row{padding:8px!important}
+  /* Mantiene la grilla 2 col heredada del 768px */
   .nc-header-actions,.nc-header > div:last-child{grid-template-columns:1fr}
 
   /* Calculadora: 1 col todo */
@@ -740,27 +778,56 @@ mark{background:rgba(245,200,0,.2);color:var(--t1);border-radius:2px;padding:0 1
   .g5{grid-template-columns:1fr!important}
   .g3{grid-template-columns:1fr!important}
 
-  /* item-row: 1 sola columna, layout tipo tarjeta */
-  .item-row,.adic-row{
-    display:flex!important;
-    flex-direction:column!important;
-    gap:6px;
-    padding:10px;
-    border-radius:10px;
-  }
-  .item-row > *,.adic-row > *{width:100%!important}
-  .item-row > .item-total,.adic-row > .item-total{
-    display:flex;justify-content:space-between;align-items:center;
-    font-size:13px;padding:4px 0;
-    border-top:1px solid var(--bd);margin-top:2px;
-  }
-  .item-row > .item-total::before{content:"Subtotal:";font-size:11px;color:var(--t3);font-weight:500}
-  .item-row > .del-item,.adic-row > .del-item{
-    align-self:flex-end;margin-top:-4px;
+  /* item-row / adic-row: 1 sola columna a 420px */
+  .item-row,
+  .adic-row{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:5px!important;
+    padding:10px!important;
   }
 
-  /* Ocultar etiquetas de columnas */
-  .icols{display:none!important}
+  /* Descripción ya es full-width (hereda), sin cambio extra */
+
+  /* Cantidad y Unidad se apilan (1 col) */
+  .item-row > :nth-child(2),
+  .adic-row > :nth-child(2),
+  .item-row > :nth-child(3),
+  .adic-row > :nth-child(3),
+  .item-row > :nth-child(4),
+  .adic-row > :nth-child(4),
+  .item-row > :nth-child(5),
+  .adic-row > :nth-child(5){
+    grid-column:1 / -1!important;
+  }
+
+  /* Subtotal con etiqueta */
+  .item-row > .item-total,
+  .adic-row > .item-total{
+    grid-column:1 / -1!important;
+    justify-content:space-between!important;
+    font-size:13px!important;
+    padding:6px 0 2px!important;
+    border-top:1px solid var(--bd)!important;
+    margin-top:2px!important;
+  }
+  .item-row > .item-total::before,
+  .adic-row > .item-total::before{
+    content:"Subtotal:";
+    font-size:11px;
+    color:var(--t3);
+    font-weight:500;
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  /* Botón eliminar: a la derecha, sobre el total */
+  .item-row > .del-item,
+  .adic-row > .del-item{
+    grid-column:1 / -1!important;
+    justify-self:end!important;
+    order:-1; /* sube arriba de la tarjeta */
+    margin-bottom:-2px;
+  }
 
   /* nc-header: botones en columna */
   .nc-header{gap:6px}
@@ -815,7 +882,7 @@ mark{background:rgba(245,200,0,.2);color:var(--t1);border-radius:2px;padding:0 1
 
   .cot-tab{padding:7px 10px;font-size:10px}
 
-  .item-row,.adic-row{padding:8px;gap:5px}
+  .item-row,.adic-row{padding:8px!important;gap:4px!important}
   .item-inp{font-size:12px;padding:5px 6px}
 
   .btn{padding:6px 8px;font-size:11px}
