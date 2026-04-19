@@ -497,12 +497,48 @@ tbody td{padding:11px 14px;font-size:13px;vertical-align:middle}
 .nc-card-body{padding:14px 16px}
 .g5{display:grid;grid-template-columns:120px 140px 70px 1fr 140px;gap:10px;margin-bottom:10px}
 .g3{display:grid;grid-template-columns:1fr 1fr 2fr;gap:10px;margin-bottom:10px}
-.icols{display:grid;grid-template-columns:1fr 62px 110px 100px 96px 78px 26px;gap:5px;padding:0 9px 5px;margin-bottom:2px}
-.icol{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--t3)}
-.icol.r{text-align:right}.icol.c{text-align:center}
-.item-row{display:grid;grid-template-columns:1fr 62px 110px 100px 96px 78px 26px;gap:5px;align-items:center;background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:6px 9px;margin-bottom:5px;transition:border-color .15s}
-.item-row:hover{border-color:var(--bd2)}
-.adic-row{display:grid;grid-template-columns:1fr 62px 110px 100px 96px 78px 26px;gap:5px;align-items:center;background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.18);border-radius:9px;padding:6px 9px;margin-bottom:5px}
+.icols{
+  display:grid;
+  grid-template-columns:1fr 62px 110px 100px 96px 78px 26px;
+  gap:5px;
+  padding:7px 9px 6px;
+  margin-bottom:4px;
+  background:var(--s3);
+  border-radius:8px;
+  border:1px solid var(--bd2);
+}
+.icol{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;
+  color:var(--acc);
+}
+.icol.r{text-align:right}
+.icol.c{text-align:center}
+.item-row{
+  display:grid;
+  grid-template-columns:1fr 62px 110px 100px 96px 78px 26px;
+  gap:5px;align-items:center;
+  background:var(--s2);
+  border:1px solid var(--bd);
+  border-radius:9px;
+  padding:7px 9px;
+  margin-bottom:5px;
+  transition:border-color .15s,background .15s;
+}
+.item-row:hover{border-color:var(--bd2);background:var(--s3)}
+.adic-row{
+  display:grid;
+  grid-template-columns:1fr 62px 110px 100px 96px 78px 26px;
+  gap:5px;align-items:center;
+  background:rgba(34,197,94,.04);
+  border:1px solid rgba(34,197,94,.16);
+  border-radius:9px;
+  padding:7px 9px;
+  margin-bottom:5px;
+  transition:border-color .15s;
+}
+.adic-row:hover{border-color:rgba(34,197,94,.3)}
 .item-inp{background:transparent;border:1px solid transparent;color:var(--t1);padding:5px 6px;border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;outline:none;width:100%;transition:border-color .15s}
 .item-inp:focus{border-color:var(--acc);background:var(--s3)}
 .item-inp::placeholder{color:var(--t3)}
@@ -661,62 +697,39 @@ mark{background:rgba(245,200,0,.2);color:var(--t1);border-radius:2px;padding:0 1
 
   .g5{grid-template-columns:1fr 1fr}
   .g3{grid-template-columns:1fr 1fr}
-  .icols{display:none!important}
 
-  /* ── item-row / adic-row: tarjeta 2 columnas ──
-     Estructura real del JS:
-     :nth-child(1) input  → descripción
-     :nth-child(2) input  → cantidad
-     :nth-child(3) select → unidad
-     :nth-child(4) input  → precio
-     :nth-child(5) select → IVA
-     .item-total   div    → subtotal
-     .del-item     button → eliminar
-  */
+  /* ── MATERIALES: scroll horizontal limpio ──
+     Se mantiene el grid de 7 columnas del desktop.
+     El contenedor hace scroll cuando no cabe.         */
+
+  /* Contenedor scrollable para icols + filas */
+  .nc-card-body{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+    scrollbar-color:var(--s5) transparent;
+  }
+  .nc-card-body::-webkit-scrollbar{height:4px}
+  .nc-card-body::-webkit-scrollbar-thumb{background:var(--s5);border-radius:4px}
+
+  /* Headers siempre visibles */
+  .icols{
+    display:grid!important;
+    min-width:580px;
+    grid-template-columns:minmax(140px,1fr) 55px 100px 95px 75px 80px 30px!important;
+    gap:5px;
+    position:sticky;
+    left:0;
+  }
+
+  /* Filas: mismo ancho mínimo que el header */
   .item-row,
   .adic-row{
     display:grid!important;
-    grid-template-columns:1fr 1fr!important;
-    gap:6px!important;
-    padding:10px!important;
-    /* Resetear el grid de 7 columnas del desktop */
-    grid-template-areas:none!important;
-  }
-
-  /* Descripción: fila completa */
-  .item-row > :nth-child(1),
-  .adic-row > :nth-child(1){
-    grid-column:1 / -1!important;
-  }
-
-  /* Cantidad [col 1] + Unidad [col 2] — flujo auto */
-  .item-row > :nth-child(2),
-  .adic-row > :nth-child(2){
-    /* col 1 de la siguiente fila */
-  }
-  .item-row > :nth-child(3),
-  .adic-row > :nth-child(3){
-    /* col 2 */
-  }
-
-  /* Precio [col 1] + IVA [col 2] — flujo auto */
-  /* (no necesitan regla extra, el auto-flow los coloca bien) */
-
-  /* Subtotal: col 1 con display flex */
-  .item-row > .item-total,
-  .adic-row > .item-total{
-    display:flex!important;
-    align-items:center!important;
-    font-size:14px!important;
-    font-weight:700!important;
-    padding:2px 0!important;
-  }
-
-  /* Botón eliminar: col 2, alineado a la derecha */
-  .item-row > .del-item,
-  .adic-row > .del-item{
-    justify-self:end!important;
-    align-self:center!important;
+    grid-template-columns:minmax(140px,1fr) 55px 100px 95px 75px 80px 30px!important;
+    min-width:580px!important;
+    gap:5px!important;
+    padding:6px 9px!important;
   }
 
   table{display:inline-table;overflow-x:auto}
@@ -752,8 +765,6 @@ mark{background:rgba(245,200,0,.2);color:var(--t1);border-radius:2px;padding:0 1
   .nc-card-body{padding:10px}
   .nc-card-head{padding:10px 12px}
   .cot-tabs{padding:3px}
-  .item-row,.adic-row{padding:8px!important}
-  /* Mantiene la grilla 2 col heredada del 768px */
   .nc-header-actions,.nc-header > div:last-child{grid-template-columns:1fr}
 
   /* Calculadora: 1 col todo */
@@ -764,13 +775,13 @@ mark{background:rgba(245,200,0,.2);color:var(--t1);border-radius:2px;padding:0 1
   .bc-action-btn{flex:1 1 100%;font-size:12px;padding:9px 10px}
 }
 
-/* ── 420px: el problema principal que mencionaste ── */
+/* ── 420px ── */
 @media(max-width:420px){
   .content{padding:6px 4px}
   .nc-card-body{padding:8px}
   .nc-card-head{padding:9px 10px;gap:8px}
 
-  /* Tabs: icono + texto reducido */
+  /* Tabs: texto más pequeño */
   .cot-tab{padding:8px 12px;font-size:11px;gap:6px}
   .cot-tab i,.cot-tab [data-lucide]{width:13px!important;height:13px!important}
 
@@ -778,98 +789,36 @@ mark{background:rgba(245,200,0,.2);color:var(--t1);border-radius:2px;padding:0 1
   .g5{grid-template-columns:1fr!important}
   .g3{grid-template-columns:1fr!important}
 
-  /* item-row / adic-row: 1 sola columna a 420px */
-  .item-row,
-  .adic-row{
-    display:grid!important;
-    grid-template-columns:1fr!important;
-    gap:5px!important;
-    padding:10px!important;
-  }
-
-  /* Descripción ya es full-width (hereda), sin cambio extra */
-
-  /* Cantidad y Unidad se apilan (1 col) */
-  .item-row > :nth-child(2),
-  .adic-row > :nth-child(2),
-  .item-row > :nth-child(3),
-  .adic-row > :nth-child(3),
-  .item-row > :nth-child(4),
-  .adic-row > :nth-child(4),
-  .item-row > :nth-child(5),
-  .adic-row > :nth-child(5){
-    grid-column:1 / -1!important;
-  }
-
-  /* Subtotal con etiqueta */
-  .item-row > .item-total,
-  .adic-row > .item-total{
-    grid-column:1 / -1!important;
-    justify-content:space-between!important;
-    font-size:13px!important;
-    padding:6px 0 2px!important;
-    border-top:1px solid var(--bd)!important;
-    margin-top:2px!important;
-  }
-  .item-row > .item-total::before,
-  .adic-row > .item-total::before{
-    content:"Subtotal:";
-    font-size:11px;
-    color:var(--t3);
-    font-weight:500;
-    font-family:'JetBrains Mono',monospace;
-  }
-
-  /* Botón eliminar: a la derecha, sobre el total */
-  .item-row > .del-item,
-  .adic-row > .del-item{
-    grid-column:1 / -1!important;
-    justify-self:end!important;
-    order:-1; /* sube arriba de la tarjeta */
-    margin-bottom:-2px;
-  }
-
   /* nc-header: botones en columna */
   .nc-header{gap:6px}
   .nc-header-actions,.nc-header > div:last-child{
-    grid-template-columns:1fr!important;
-    gap:6px;
+    grid-template-columns:1fr!important;gap:6px;
   }
 
-  /* Resumen sticky */
+  /* Resumen */
   .nc-right{width:100%}
   .res-total{font-size:16px}
 
   /* Calculadora: sin texto en botones del panel-head */
-  .calc-panel-head .btn .btn-lbl,
   .calc-panel-head .btn span:not([class]){display:none}
   .calc-panel-head .btn{padding:6px 8px;min-width:34px;justify-content:center}
   .calc-panel-head > div:last-child{gap:4px}
-
-  /* bc-action-btn: solo icono en pantallas muy pequeñas */
   .bc-action-btn{font-size:11px;padding:8px 8px;gap:5px}
-
-  /* input nombre cálculo */
   #cc-calc-nombre{width:100%!important;font-size:12px!important}
 
-  /* Tabla materiales: scroll horizontal */
+  /* Tabla catálogo: scroll */
   .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .tbl-wrap table{min-width:500px}
+  .tbl-wrap table{min-width:480px}
 
   /* Modales */
   .modal-bg{padding:4px}
   .modal-body{padding:14px}
   .modal-ft{padding:10px 14px;flex-wrap:wrap}
   .modal-ft .btn{flex:1;justify-content:center}
-  .fg{gap:10px}
 
-  /* IVA toggle */
-  #iva-toggle-lbl{font-size:10px!important}
-
-  /* ec-badge más compacto */
-  .ec-badge{padding:10px 12px;gap:6px}
-  .ec-badge-icon{width:28px;height:28px;flex-shrink:0}
-  .ec-badge-title{font-size:12px}
+  /* ec-badge compacto */
+  .ec-badge{flex-direction:column;align-items:flex-start;gap:8px;padding:10px 12px}
+  .ec-badge-icon{width:28px;height:28px}
 }
 
 /* ── 360px ── */
