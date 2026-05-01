@@ -965,7 +965,7 @@ function htmlDocumentoCotizacionPdfProfesional(m){
 .pdf-prof-lbl{font-size:10px;font-weight:700;letter-spacing:.14em;color:#475569;text-transform:uppercase;margin-bottom:8px;}
 .pdf-prof-cli-name{font-size:15px;font-weight:700;color:#000000;}
 .pdf-prof-cli-line{font-size:12px;color:#0f172a;margin-top:4px;font-weight:500;}
-.pdf-prof-desc-box{margin:0 0 20px;padding:14px 16px;background:#f1f5f9;border-left:4px solid #d4a017;border-radius:0 8px 8px 0;}
+.pdf-prof-desc-box{margin:0 0 20px;padding:14px 16px;background:#f1f5f9;border-left:4px solid #1f1f3d;}
 .pdf-prof-desc-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;color:#334155;text-transform:uppercase;margin-bottom:6px;}
 .pdf-prof-desc-txt{font-size:13px;color:#0a0a0a;font-weight:500;line-height:1.5;}
 .pdf-prof-table-wrap{width:100%;overflow:visible;margin-bottom:22px;}
@@ -997,8 +997,6 @@ function htmlDocumentoCotizacionPdfProfesional(m){
     <div>
       <div class="pdf-prof-co-name">Servicios El\u00e9ctricos y Seguridad Tapia</div>
       <div class="pdf-prof-co-brand">SEST</div>
-      <div class="pdf-prof-co-sub">Cotizaci\u00f3n formal para su proyecto. Valide plazos y especificaciones t\u00e9cnicas con nuestro equipo.</div>
-      <div class="pdf-prof-co-elab">Documento elaborado por: <strong>${escPdf(m.elaborador)||'\u2014'}</strong></div>
     </div>
     <div class="pdf-prof-meta">
       <div class="pdf-prof-meta-tit">Cotizaci\u00f3n</div>
@@ -1008,7 +1006,6 @@ function htmlDocumentoCotizacionPdfProfesional(m){
   </div>
   <div class="pdf-prof-two">
     <div>
-      <div class="pdf-prof-lbl">Elaborado por</div>
       <div class="pdf-prof-cli-name">SEST</div>
       <div class="pdf-prof-cli-line">Servicios El\u00e9ctricos y Seguridad Tapia</div>
     </div>
@@ -1289,7 +1286,6 @@ async function exportarPDFNc() {
     doc.setTextColor(80, 80, 80);
     doc.text('Servicios Eléctricos y Seguridad Tapia', margin + (logoImg ? 30 : 0), y + 14);
     doc.text('Cotización formal para su proyecto. Valide plazos y especificaciones técnicas.', margin + (logoImg ? 30 : 0), y + 20);
-    doc.text(`Documento elaborado por: ${modelo.elaborador || usuario?.nombre || ''}`, margin + (logoImg ? 30 : 0), y + 26);
     
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
@@ -1652,7 +1648,6 @@ async function exportarPDF() {
     doc.setTextColor(80, 80, 80);
     doc.text('Servicios Eléctricos y Seguridad Tapia', margin + (logoImg ? 30 : 0), y + 14);
     doc.text('Cotización formal para su proyecto. Valide plazos y especificaciones técnicas.', margin + (logoImg ? 30 : 0), y + 20);
-    doc.text(`Documento elaborado por: ${modelo.elaborador || usuario?.nombre || ''}`, margin + (logoImg ? 30 : 0), y + 26);
     
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
@@ -4297,7 +4292,6 @@ async function exportarPDFCable(){
   doc.setFontSize(18);doc.setFont('helvetica','bold');doc.setTextColor(0,0,0);doc.text('SEST',tx,y+8);
   doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
   doc.text('Servicios Eléctricos y Seguridad Tapia',tx,y+14);
-  if(usuario?.nombre)doc.text('Elaborado por: '+usuario.nombre,tx,y+19);
   doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(0,0,0);
   doc.text('CÁLCULO DE CONDUCTOR AWG',PW-mg,y+8,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(100,100,100);
@@ -4360,7 +4354,6 @@ async function exportarPDFCable(){
     'Caída de tensión: ρ = '+(material==='Al'?'0.0282':'0.0172')+' Ω·mm²/m ('+(material==='Al'?'Aluminio':'Cobre')+')',
     'Método de selección: MAX(Criterio Ampacidad, Criterio Caída de Tensión)',
     'Motores: Factor de servicio 1.25 — NEC 430.22',
-    'Protecciones: Serie IEC/NTE INEN (Ecuador): 1,2,3,4,6,10,16,20,25,32,40,50,63,80,100,125 A…',
     'Sistema eléctrico: '+(sisInfo.label||snap.sistema)
   ];
   doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(55,65,81);
@@ -4368,8 +4361,7 @@ async function exportarPDFCable(){
 
   y+=4;doc.setDrawColor(220,220,220);doc.setLineWidth(0.3);doc.line(mg,y,PW-mg,y);y+=5;
   doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(160,160,160);
-  doc.text('Documento generado por SEST · Calibrador de Conductores AWG · '+fecha,PW/2,y,{align:'center'});
-  doc.text('Cálculo conforme a NEC y NTE INEN aplicables en Ecuador',PW/2,y+4.5,{align:'center'});
+  doc.text('Cálculo conforme a NEC y NTE INEN',PW/2,y+4.5,{align:'center'});
 
   _actualizarLoadingPdf('Descargando…',90);
   doc.save('Calculo_Cable_AWG_'+new Date().toISOString().slice(0,10)+'.pdf');
@@ -4439,7 +4431,6 @@ async function _generarPDFBalance(cargasInput,nombre,cliente,ubicacion,sistemaKe
     doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(160,160,160);
     doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.line(mg,PH-10,PW-mg,PH-10);
     doc.text('SEST · Informe Técnico Eléctrico · '+fecha,mg,PH-6);
-    if(usuario?.nombre)doc.text('Elaborado por: '+usuario.nombre,PW-mg,PH-6,{align:'right'});
   };
 
   let y=12;
@@ -4737,7 +4728,6 @@ async function _exportarPDFProteccion(snap, nombre, cliente, notas){
   doc.setFontSize(18);doc.setFont('helvetica','bold');doc.setTextColor(0,0,0);doc.text('SEST',tx,y+8);
   doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
   doc.text('Servicios Eléctricos y Seguridad Tapia',tx,y+14);
-  if(usuario?.nombre)doc.text('Elaborado por: '+usuario.nombre,tx,y+19);
   doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(0,0,0);
   doc.text('DIMENSIONAMIENTO DE PROTECCIONES',PW-mg,y+8,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(100,100,100);
@@ -4821,8 +4811,7 @@ async function _exportarPDFProteccion(snap, nombre, cliente, notas){
 
   y+=4;doc.setDrawColor(220,220,220);doc.setLineWidth(0.3);doc.line(mg,y,PW-mg,y);y+=5;
   doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(160,160,160);
-  doc.text('Documento generado por SEST · Dimensionamiento de Protecciones · '+fecha,PW/2,y,{align:'center'});
-  doc.text('Cálculo conforme a NEC y NTE INEN aplicables en Ecuador',PW/2,y+4.5,{align:'center'});
+  doc.text('Cálculo conforme a NEC y NTE INEN',PW/2,y+4.5,{align:'center'});
 
   _actualizarLoadingPdf('Descargando…',90);
   doc.save('Proteccion_'+nombre.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf');
@@ -5005,7 +4994,6 @@ async function _exportarPDFTuberia(snap, nombre, cliente, notas){
   doc.setFontSize(18);doc.setFont('helvetica','bold');doc.setTextColor(0,0,0);doc.text('SEST',tx,y+8);
   doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
   doc.text('Servicios Eléctricos y Seguridad Tapia',tx,y+14);
-  if(usuario?.nombre)doc.text('Elaborado por: '+usuario.nombre,tx,y+19);
   doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(0,0,0);
   doc.text('CÁLCULO DE TUBERÍAS / CONDUIT',PW-mg,y+8,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(100,100,100);
@@ -5084,8 +5072,7 @@ async function _exportarPDFTuberia(snap, nombre, cliente, notas){
 
   y+=4;doc.setDrawColor(220,220,220);doc.setLineWidth(0.3);doc.line(mg,y,PW-mg,y);y+=5;
   doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(160,160,160);
-  doc.text('Documento generado por SEST · Cálculo de Tuberías / Conduit · '+fecha,PW/2,y,{align:'center'});
-  doc.text('Cálculo conforme a NEC y NTE INEN aplicables en Ecuador',PW/2,y+4.5,{align:'center'});
+  doc.text('Cálculo conforme a NEC y NTE INEN',PW/2,y+4.5,{align:'center'});
 
   _actualizarLoadingPdf('Descargando…',90);
   doc.save('Tuberia_'+nombre.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf');
