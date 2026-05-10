@@ -15,6 +15,7 @@ export async function onRequest({ request, env }) {
     sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS compartir_con JSONB DEFAULT '[]'`,
     sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS apellido VARCHAR(100) DEFAULT ''`,
     sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cedula VARCHAR(20) DEFAULT ''`,
+    sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS modulos_config JSONB DEFAULT '{"notas":true,"calculadora":true,"cotizaciones":true}'::jsonb`,
   ]);
 
   const dbUser = await sql`SELECT rol, COALESCE(permisos,'vendedor') as permisos FROM usuarios WHERE id=${user.id} AND activo=true`;
@@ -34,7 +35,8 @@ export async function onRequest({ request, env }) {
                  COALESCE(compartir_datos,false) as compartir_datos,
                  COALESCE(compartir_cotizaciones,false) as compartir_cotizaciones,
                  COALESCE(compartir_clientes,false) as compartir_clientes,
-                 COALESCE(compartir_con,'[]'::jsonb) as compartir_con, activo
+                 COALESCE(compartir_con,'[]'::jsonb) as compartir_con, activo,
+                 COALESCE(modulos_config,'{"notas":true,"calculadora":true,"cotizaciones":true}'::jsonb) as modulos_config
           FROM usuarios WHERE activo=true ORDER BY nombre ASC`;
         return json(rows);
       }
@@ -45,7 +47,8 @@ export async function onRequest({ request, env }) {
                COALESCE(compartir_datos,false) as compartir_datos,
                COALESCE(compartir_cotizaciones,false) as compartir_cotizaciones,
                COALESCE(compartir_clientes,false) as compartir_clientes,
-               COALESCE(compartir_con,'[]'::jsonb) as compartir_con, activo, creado_en
+               COALESCE(compartir_con,'[]'::jsonb) as compartir_con, activo, creado_en,
+               COALESCE(modulos_config,'{"notas":true,"calculadora":true,"cotizaciones":true}'::jsonb) as modulos_config
         FROM usuarios ORDER BY creado_en ASC`;
       return json(rows);
     }
@@ -98,6 +101,22 @@ export async function onRequest({ request, env }) {
                     COALESCE(compartir_cotizaciones,false) as compartir_cotizaciones,
                     COALESCE(compartir_clientes,false) as compartir_clientes,
                     COALESCE(compartir_con,'[]'::jsonb) as compartir_con, activo`;
+        if (!r.length) return json({ error: 'Usuario no encontrado' }, 404);
+        return json(r[0]);
+      }
+
+      // ── Actualizar modulos_config propio ──
+      if (targetId === user.id && body.modulos_config !== undefined) {
+        const cfg = body.modulos_config;
+        if (typeof cfg !== 'object' || Array.isArray(cfg)) return json({ error: 'modulos_config debe ser un objeto' }, 400);
+        const allowed = ['notas','calculadora','cotizaciones'];
+        const safe = {};
+        allowed.forEach(k => { if (cfg[k] !== undefined) safe[k] = !!cfg[k]; });
+        const r = await sql`
+          UPDATE usuarios SET
+            modulos_config = COALESCE(modulos_config, '{}'::jsonb) || ${JSON.stringify(safe)}::jsonb
+          WHERE id = ${targetId}
+          RETURNING id, modulos_config`;
         if (!r.length) return json({ error: 'Usuario no encontrado' }, 404);
         return json(r[0]);
       }

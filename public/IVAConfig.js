@@ -69,6 +69,8 @@ async function _recargarUsuarioDesdeDB(){
       if(yo){
         usuario={...usuario,...yo};
         _actualizarUiUsuario();
+        // Aplicar módulos desde la BD
+        cargarModulosDesdeUsuario(yo);
       }
     }
   }catch(e){}
@@ -5647,37 +5649,16 @@ async function eliminarNota(id) {
 }
 /* ── CONFIGURACIÓN DE MÓDULOS ── */
 
-// Módulos y sus nav-items relacionados
 const MODULOS_CONFIG = {
-  notas: {
-    navs: ['notas'],
-    label: 'Notas'
-  },
-  calculadora: {
-    navs: ['calculadora'],
-    label: 'Calculadora NEC'
-  },
-  cotizaciones: {
-    navs: ['cotizaciones', 'nueva-cot'],
-    label: 'Cotizaciones'
-  }
+  notas:        { navs: ['notas'],                    label: 'Notas' },
+  calculadora:  { navs: ['calculadora'],              label: 'Calculadora NEC' },
+  cotizaciones: { navs: ['cotizaciones','nueva-cot'], label: 'Cotizaciones' }
 };
 
-// Leer estado guardado del localStorage
-function getModulosState() {
-  try {
-    const saved = localStorage.getItem('modulos_config');
-    if (saved) return JSON.parse(saved);
-  } catch(e) {}
-  // Por defecto todos habilitados
-  return { notas: true, calculadora: true, cotizaciones: true };
-}
+// Estado en memoria (se sincroniza con BD al cargar y al cambiar)
+let _modulosState = { notas: true, calculadora: true, cotizaciones: true };
 
-function saveModulosState(state) {
-  try { localStorage.setItem('modulos_config', JSON.stringify(state)); } catch(e) {}
-}
-
-// Aplicar visibilidad de un módulo
+// Aplicar visibilidad de un módulo en el DOM
 function applyModulo(mod, enabled) {
   const cfg = MODULOS_CONFIG[mod];
   if (!cfg) return;
@@ -5695,38 +5676,48 @@ function applyModulo(mod, enabled) {
   }
 }
 
-// Aplicar todos los módulos al cargar
+// Aplicar todo el estado al DOM
 function applyAllModulos() {
-  const state = getModulosState();
-  Object.keys(MODULOS_CONFIG).forEach(mod => applyModulo(mod, state[mod] !== false));
+  Object.keys(MODULOS_CONFIG).forEach(mod => applyModulo(mod, _modulosState[mod] !== false));
 }
 
-// Toggle desde el modal
-function toggleModulo(mod, enabled) {
-  const state = getModulosState();
-  state[mod] = enabled;
-  saveModulosState(state);
+// Cargar config desde el usuario (viene en la respuesta de la BD)
+function cargarModulosDesdeUsuario(u) {
+  if (u && u.modulos_config && typeof u.modulos_config === 'object') {
+    _modulosState = { notas: true, calculadora: true, cotizaciones: true, ...u.modulos_config };
+  }
+  applyAllModulos();
+}
+
+// Guardar un cambio en la BD
+async function toggleModulo(mod, enabled) {
+  _modulosState[mod] = enabled;
   applyModulo(mod, enabled);
   const label = MODULOS_CONFIG[mod]?.label || mod;
-  toast(`${label} ${enabled ? 'habilitado' : 'deshabilitado'}`, enabled ? 'ok' : 'warn');
+
+  // Guardar en BD
+  const r = await api(`users?id=${usuario.id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ modulos_config: _modulosState })
+  });
+
+  if (isErr(r)) {
+    toast(`Error al guardar configuración`, 'err');
+  } else {
+    // Actualizar el objeto usuario local
+    if (r.modulos_config) _modulosState = { ...r.modulos_config };
+    toast(`${label} ${enabled ? 'habilitado' : 'deshabilitado'}`, enabled ? 'ok' : 'warn');
+  }
 }
 
-// Abrir modal de configuración y sincronizar checkboxes
+// Abrir modal y sincronizar checkboxes con estado actual
 function abrirConfigModulos() {
-  // Cerrar dropdown primero
-  const _dd=document.getElementById('user-dropdown');
-  if(_dd){_dd.style.display='none';_dd.classList.remove('open');}
+  const _dd = document.getElementById('user-dropdown');
+  if (_dd) { _dd.style.display = 'none'; _dd.classList.remove('open'); }
   document.getElementById('user-card-btn')?.classList.remove('dd-open');
-  const state = getModulosState();
   Object.keys(MODULOS_CONFIG).forEach(mod => {
     const cb = document.getElementById('mod-' + mod);
-    if (cb) cb.checked = state[mod] !== false;
+    if (cb) cb.checked = _modulosState[mod] !== false;
   });
   openModal('m-config-modulos');
 }
-
-// Aplicar al inicio de la app
-document.addEventListener('DOMContentLoaded', () => {
-  // Esperar a que se cargue el usuario y luego aplicar módulos
-  setTimeout(applyAllModulos, 300);
-});
