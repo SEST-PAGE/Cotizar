@@ -2142,14 +2142,6 @@
     <div class="sec" id="sec-notas">
 
       <style>
-        /* Hacer que la sección de Notas ocupe todo el espacio hasta el tope */
-        .content:has(#sec-notas.on) {
-          padding: 0 !important;
-        }
-        #sec-notas.on {
-          height: calc(100vh - 56px);
-          overflow: hidden;
-        }
 
         .nf-item {
           display: flex;
@@ -2317,7 +2309,7 @@
       <div id="notas-sidebar-overlay" class="notas-sb-overlay" onclick="cerrarNotasSidebar()"></div>
 
       <div
-        style="display:flex;height:calc(100vh - 56px);min-height:520px;gap:0;border:0;border-radius:0;overflow:hidden">
+        style="display:flex;height:calc(100vh - 56px);min-height:520px;gap:0;border:0;border-top:1px solid var(--border);border-radius:0;overflow:hidden">
 
         <!-- ── SIDEBAR ── -->
         <div id="notas-sidebar"

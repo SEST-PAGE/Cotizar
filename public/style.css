@@ -267,7 +267,7 @@ body{
   font-family:'Syne',sans-serif;
   font-size:16px;font-weight:700;flex:1;color:var(--t1);
 }
-.content{padding:24px 28px;flex:1}
+.content{padding:24px 28px;flex:1}.content.content-notas{padding:0!important}
 .sec{display:none}.sec.on{display:block}
 
 /* STATS */
