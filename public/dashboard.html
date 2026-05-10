@@ -138,7 +138,7 @@
   </nav>
   <div class="main" id="main-content">
     <div class="topbar">
-      <div style="display: flex; align-items: center; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 10px; flex-shrink:0">
         <button type="button" class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Menú">
           <span class="hbg-icon">
             <span class="hbg-line"></span>
@@ -148,10 +148,8 @@
         </button>
         <div class="page-title" id="page-title">Inicio</div>
       </div>
-      <div id="topbar-actions"></div>
-
-      <!-- Acciones de Notas en topbar -->
-      <div id="notas-topbar-actions" style="display:none;align-items:center;gap:8px;flex:1;max-width:600px;margin-left:16px">
+      <!-- Acciones de Notas en topbar (oculto por defecto) -->
+      <div id="notas-topbar-actions" style="display:none;align-items:center;gap:8px;flex:1;margin:0 16px">
         <button type="button" class="notas-sb-toggle" onclick="toggleNotasSidebar()" title="Carpetas y etiquetas" style="flex-shrink:0">
           <i data-lucide="panel-left" style="width:16px;height:16px"></i>
         </button>
@@ -166,7 +164,7 @@
           <i data-lucide="plus" style="width:15px;height:15px"></i> Nota
         </button>
       </div>
-
+      <div id="topbar-actions"></div>
     </div>
     <div class="content">
       <!-- INICIO -->
