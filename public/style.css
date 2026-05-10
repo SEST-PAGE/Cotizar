@@ -1029,3 +1029,10 @@ mark{background:rgba(245,200,0,.2);color:var(--t1);border-radius:2px;padding:0 1
 
 .bc-enhanced-header .pf-inp,.bc-enhanced-header .bc-config-inp{background:var(--s2);border:1.5px solid rgba(255,255,255,.09);border-radius:10px;color:var(--t1);font-family:'Inter',sans-serif;font-size:12px;padding:8px 12px;outline:none;transition:border-color .2s,box-shadow .2s}
 .bc-enhanced-header .pf-inp:focus,.bc-enhanced-header .bc-config-inp:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(245,200,0,.1)}
+/* ── Módulo Toggle Switch ── */
+.mod-toggle{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
+.mod-toggle input{opacity:0;width:0;height:0}
+.mod-slider{position:absolute;cursor:pointer;inset:0;background:#3a3a3a;border-radius:24px;transition:.3s}
+.mod-slider::before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.mod-toggle input:checked+.mod-slider{background:var(--acc)}
+.mod-toggle input:checked+.mod-slider::before{transform:translateX(20px)}

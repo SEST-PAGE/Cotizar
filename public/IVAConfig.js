@@ -132,6 +132,12 @@ function ir(sec){
   if(secEl)secEl.classList.add('on');
   const contentEl=document.querySelector('.content');
   if(contentEl)contentEl.classList.toggle('content-notas',sec==='notas');
+  // Mostrar/ocultar acciones de notas en topbar
+  const notasActions=document.getElementById('notas-topbar-actions');
+  if(notasActions)notasActions.style.display=sec==='notas'?'flex':'none';
+  // Ocultar solo el page-title cuando notas está activo (el buscador reemplaza al título)
+  const pageTitle=document.getElementById('page-title');
+  if(pageTitle)pageTitle.style.display=sec==='notas'?'none':'';
   const tit={inicio:'Inicio',notas:'Notas',cotizaciones:'Mis Cotizaciones','nueva-cot':'Nueva Cotizaci\u00f3n',materiales:'Cat\u00e1logo de Materiales',calculadora:'Calculadora El\u00e9ctrica NEC',clientes:'Mis Clientes',categorias:'Categor\u00edas',usuarios:'Gesti\u00f3n de Usuarios',equipo:'Datos del Equipo'};
   document.getElementById('page-title').textContent=tit[sec]||sec;
   closeSidebar();
@@ -5639,3 +5645,88 @@ async function eliminarNota(id) {
   renderNotas(notas);
   toast('Nota eliminada', 'ok');
 }
+/* ── CONFIGURACIÓN DE MÓDULOS ── */
+
+// Módulos y sus nav-items relacionados
+const MODULOS_CONFIG = {
+  notas: {
+    navs: ['notas'],
+    label: 'Notas'
+  },
+  calculadora: {
+    navs: ['calculadora'],
+    label: 'Calculadora NEC'
+  },
+  cotizaciones: {
+    navs: ['cotizaciones', 'nueva-cot'],
+    label: 'Cotizaciones'
+  }
+};
+
+// Leer estado guardado del localStorage
+function getModulosState() {
+  try {
+    const saved = localStorage.getItem('modulos_config');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  // Por defecto todos habilitados
+  return { notas: true, calculadora: true, cotizaciones: true };
+}
+
+function saveModulosState(state) {
+  try { localStorage.setItem('modulos_config', JSON.stringify(state)); } catch(e) {}
+}
+
+// Aplicar visibilidad de un módulo
+function applyModulo(mod, enabled) {
+  const cfg = MODULOS_CONFIG[mod];
+  if (!cfg) return;
+  cfg.navs.forEach(nav => {
+    document.querySelectorAll(`.nav-item[data-nav="${nav}"]`).forEach(el => {
+      el.style.display = enabled ? 'flex' : 'none';
+    });
+  });
+  // Si estábamos en esa sección y se deshabilitó, ir a inicio
+  if (!enabled) {
+    cfg.navs.forEach(nav => {
+      const secEl = document.getElementById('sec-' + nav);
+      if (secEl && secEl.classList.contains('on')) ir('inicio');
+    });
+  }
+}
+
+// Aplicar todos los módulos al cargar
+function applyAllModulos() {
+  const state = getModulosState();
+  Object.keys(MODULOS_CONFIG).forEach(mod => applyModulo(mod, state[mod] !== false));
+}
+
+// Toggle desde el modal
+function toggleModulo(mod, enabled) {
+  const state = getModulosState();
+  state[mod] = enabled;
+  saveModulosState(state);
+  applyModulo(mod, enabled);
+  const label = MODULOS_CONFIG[mod]?.label || mod;
+  toast(`${label} ${enabled ? 'habilitado' : 'deshabilitado'}`, enabled ? 'ok' : 'warn');
+}
+
+// Abrir modal de configuración y sincronizar checkboxes
+function abrirConfigModulos() {
+  // Cerrar dropdown primero
+  const _dd=document.getElementById('user-dropdown');
+  if(_dd){_dd.style.display='none';_dd.classList.remove('open');}
+  document.getElementById('user-card-btn')?.classList.remove('dd-open');
+  const state = getModulosState();
+  Object.keys(MODULOS_CONFIG).forEach(mod => {
+    const cb = document.getElementById('mod-' + mod);
+    if (cb) cb.checked = state[mod] !== false;
+  });
+  openModal('m-config-modulos');
+}
+
+// Aplicar al inicio de la app
+document.addEventListener('DOMContentLoaded', () => {
+  // Esperar a que se cargue el usuario y luego aplicar módulos
+  setTimeout(applyAllModulos, 300);
+});
