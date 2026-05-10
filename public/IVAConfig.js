@@ -132,6 +132,12 @@ function ir(sec){
   if(secEl)secEl.classList.add('on');
   const contentEl=document.querySelector('.content');
   if(contentEl)contentEl.classList.toggle('content-notas',sec==='notas');
+  // Mostrar/ocultar acciones de notas en topbar
+  const notasActions=document.getElementById('notas-topbar-actions');
+  if(notasActions)notasActions.style.display=sec==='notas'?'flex':'none';
+  // Ocultar page-title cuando notas está activo (el topbar tiene el buscador)
+  const pageTitle=document.getElementById('page-title');
+  if(pageTitle)pageTitle.style.display=sec==='notas'?'none':'';
   const tit={inicio:'Inicio',notas:'Notas',cotizaciones:'Mis Cotizaciones','nueva-cot':'Nueva Cotizaci\u00f3n',materiales:'Cat\u00e1logo de Materiales',calculadora:'Calculadora El\u00e9ctrica NEC',clientes:'Mis Clientes',categorias:'Categor\u00edas',usuarios:'Gesti\u00f3n de Usuarios',equipo:'Datos del Equipo'};
   document.getElementById('page-title').textContent=tit[sec]||sec;
   closeSidebar();
