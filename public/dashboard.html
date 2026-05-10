@@ -155,7 +155,7 @@
         </button>
         <div style="flex:1;display:flex;align-items:center;gap:8px;background:#1e1e1e;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 12px">
           <i data-lucide="search" style="width:14px;height:14px;color:#aaa;flex-shrink:0"></i>
-          <input id="notas-search" placeholder="Buscar notas..." oninput="renderNotas(notas)" style="border:none;background:transparent;outline:none;font-size:13px;color:#fff;width:100%;font-family:inherit" placeholder-color="#888">
+          <input id="notas-search" placeholder="Buscar notas..." oninput="renderNotas(notas)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="border:none;background:transparent;outline:none;font-size:13px;color:#fff;width:100%;font-family:inherit;caret-color:#fff;">
         </div>
         <button type="button" id="notas-view-btn" class="btn btn-ghost" onclick="notaToggleView()" title="Cambiar vista">
           <i data-lucide="layout-grid" style="width:15px;height:15px"></i>
@@ -2159,6 +2159,14 @@
 
       <style>
         #notas-search::placeholder { color: #888; }
+        #notas-search:-webkit-autofill,
+        #notas-search:-webkit-autofill:hover,
+        #notas-search:-webkit-autofill:focus {
+          -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
+          -webkit-text-fill-color: #fff !important;
+          background-color: transparent !important;
+          transition: background-color 5000s ease-in-out 0s;
+        }
 
         .nf-item {
           display: flex;
